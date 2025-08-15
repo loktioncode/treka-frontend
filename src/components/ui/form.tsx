@@ -98,7 +98,9 @@ export function FormLabel({ children, required, className, ...props }: FormLabel
 }
 
 // Form description
-interface FormDescriptionProps extends React.HTMLAttributes<HTMLParagraphElement> {}
+interface FormDescriptionProps extends React.HTMLAttributes<HTMLParagraphElement> {
+  children: React.ReactNode;
+}
 
 export function FormDescription({ children, className, ...props }: FormDescriptionProps) {
   return (
@@ -208,7 +210,9 @@ export function Select({ options, placeholder, className, ...props }: SelectProp
 }
 
 // Textarea
-interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
+interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  className?: string;
+}
 
 export function Textarea({ className, ...props }: TextareaProps) {
   return (

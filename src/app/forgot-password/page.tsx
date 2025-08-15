@@ -32,8 +32,12 @@ export default function ForgotPassword() {
       setTimeout(() => {
         router.push(`/verify-otp/${encodeURIComponent(email)}`);
       }, 2000);
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.detail || 'Failed to send verification code. Please try again.';
+    } catch (err: unknown) {
+      let errorMessage = 'Failed to send verification code. Please try again.';
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { data?: { detail?: string } } };
+        errorMessage = axiosError.response?.data?.detail || errorMessage;
+      }
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {

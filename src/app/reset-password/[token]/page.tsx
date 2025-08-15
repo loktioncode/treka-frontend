@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { authAPI } from '@/services/api';
+
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
 export default function ResetPassword() {
@@ -19,17 +19,8 @@ export default function ResetPassword() {
   const token = params.token as string;
 
   useEffect(() => {
-    const verifyToken = async () => {
-      try {
-        await authAPI.verifyResetToken(token);
-        setStatus('ready');
-      } catch (err) {
-        setError('Invalid or expired reset token');
-        setStatus('error');
-      }
-    };
-
-    verifyToken();
+    // Token validation will happen when user submits the form
+    setStatus('ready');
   }, [token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,7 +42,7 @@ export default function ResetPassword() {
     try {
       await resetPassword(token, password);
       setStatus('success');
-    } catch (err) {
+    } catch {
       setError('Failed to reset password. Please try again.');
       setStatus('error');
     }

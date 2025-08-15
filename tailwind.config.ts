@@ -42,6 +42,25 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
+        },
+        "status-active": "hsl(var(--status-active))",
+        "status-inactive": "hsl(var(--status-inactive))",
+        "status-pending": "hsl(var(--status-pending))",
+        "status-critical": "hsl(var(--status-critical))",
+        "role-super-admin": "hsl(var(--role-super-admin))",
+        "role-admin": "hsl(var(--role-admin))",
+        "role-user": "hsl(var(--role-user))",
       },
       borderRadius: {
         lg: "var(--radius)",

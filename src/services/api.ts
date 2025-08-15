@@ -1,24 +1,25 @@
-import axios from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import toast from 'react-hot-toast';
+import logger from '@/lib/logger';
 import type {
-  User,
-  Client,
-  Asset,
-  Component,
-  Notification,
   CreateUserRequest,
   CreateAdminRequest,
   CreateClientRequest,
   CreateAssetRequest,
   CreateComponentRequest,
   CreateMaintenanceLogRequest,
-  LoginResponse as ApiLoginResponse,
-  PaginatedResponse,
   AssetFilters,
   ComponentFilters,
   UserFilters,
   PaginationParams
 } from '@/types/api';
+
+// Extend AxiosRequestConfig to include metadata
+interface ExtendedAxiosRequestConfig extends AxiosRequestConfig {
+  metadata?: {
+    startTime: number;
+  };
+}
 
 // API is running on port 8000
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
@@ -39,20 +40,61 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Log API calls
+    const startTime = Date.now();
+    (config as ExtendedAxiosRequestConfig).metadata = { startTime };
+    
+    logger.debug('API request started', {
+      method: config.method?.toUpperCase(),
+      url: config.url,
+      baseURL: config.baseURL,
+    });
+    
     return config;
   },
   (error) => {
+    logger.error('API request error', {}, error);
     return Promise.reject(error);
   }
 );
 
-// Add a response interceptor to handle auth errors
+// Add a response interceptor to handle auth errors and network issues
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Log successful API calls
+    const config = response.config as ExtendedAxiosRequestConfig;
+    const duration = config.metadata?.startTime ? Date.now() - config.metadata.startTime : undefined;
+    
+    logger.apiCall(
+      config.method?.toUpperCase() || 'GET',
+      `${config.baseURL}${config.url}`,
+      response.status,
+      duration
+    );
+    
+    return response;
+  },
   async (error) => {
+    // Log API errors
+    const config = error.config as ExtendedAxiosRequestConfig;
+    const duration = config?.metadata?.startTime ? Date.now() - config.metadata.startTime : undefined;
+    
+    logger.apiError(
+      config?.method?.toUpperCase() || 'GET',
+      `${config?.baseURL}${config?.url}`,
+      error
+    );
+    
+    // Handle different types of errors
     if (error.response?.status === 401) {
-      // Show toast notification
+      // Unauthorized - token expired or invalid
       toast.error('Session expired. Please log in again.');
+      
+      logger.userAction('session_expired', { 
+        trigger: 'api_401_response',
+        url: config?.url 
+      });
       
       // Clear auth state
       localStorage.removeItem('auth_token');
@@ -63,7 +105,45 @@ api.interceptors.response.use(
       
       // Redirect to login with expired parameter
       window.location.href = '/login?expired=true';
+    } else if (error.response?.status === 403) {
+      // Forbidden - insufficient permissions
+      toast.error('Access denied. You do not have permission to perform this action.');
+      logger.warn('Access denied', { 
+        status: 403, 
+        url: config?.url,
+        errorCode: error.response?.data?.error?.code 
+      });
+    } else if (error.response?.status === 404) {
+      // Not found
+      toast.error('The requested resource was not found.');
+      logger.warn('Resource not found', { 
+        status: 404, 
+        url: config?.url 
+      });
+    } else if (error.response?.status >= 500) {
+      // Server errors
+      toast.error('Server error. Please try again later or contact support.');
+      logger.error('Server error', { 
+        status: error.response?.status,
+        url: config?.url,
+        errorId: error.response?.data?.error?.error_id 
+      });
+    } else if (error.code === 'NETWORK_ERROR' || !error.response) {
+      // Network errors
+      toast.error('Network error. Please check your connection and try again.');
+      logger.error('Network error', { 
+        code: error.code,
+        url: config?.url 
+      });
+    } else if (error.response?.status === 429) {
+      // Rate limiting
+      toast.error('Too many requests. Please wait a moment and try again.');
+      logger.warn('Rate limited', { 
+        status: 429,
+        url: config?.url 
+      });
     }
+    
     return Promise.reject(error);
   }
 );
@@ -209,7 +289,7 @@ export const assetAPI = {
     
     // Add asset data
     Object.keys(assetData).forEach(key => {
-      const value = (assetData as any)[key];
+      const value = (assetData as unknown as Record<string, unknown>)[key];
       if (value !== undefined && value !== null) {
         if (typeof value === 'object') {
           formData.append(key, JSON.stringify(value));
@@ -221,7 +301,7 @@ export const assetAPI = {
 
     // Add images
     if (images && images.length > 0) {
-      images.forEach((image, index) => {
+      images.forEach((image) => {
         formData.append('images', image);
       });
     }
@@ -239,7 +319,7 @@ export const assetAPI = {
     
     // Add asset data
     Object.keys(assetData).forEach(key => {
-      const value = (assetData as any)[key];
+      const value = (assetData as unknown as Record<string, unknown>)[key];
       if (value !== undefined && value !== null) {
         if (typeof value === 'object') {
           formData.append(key, JSON.stringify(value));
@@ -251,7 +331,7 @@ export const assetAPI = {
 
     // Add images
     if (images && images.length > 0) {
-      images.forEach((image, index) => {
+      images.forEach((image) => {
         formData.append('images', image);
       });
     }
@@ -342,11 +422,10 @@ export type {
   CreateAssetRequest,
   CreateComponentRequest,
   CreateMaintenanceLogRequest,
+  LoginResponse,
   PaginatedResponse,
   AssetFilters,
   ComponentFilters,
   UserFilters,
   PaginationParams
-} from '@/types/api';
-
-export type { LoginResponse as ApiLoginResponse } from '@/types/api'; 
+} from '@/types/api'; 

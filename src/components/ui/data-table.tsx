@@ -9,9 +9,6 @@ import {
   Filter,
   Plus,
   MoreHorizontal,
-  Edit,
-  Trash2,
-  Eye,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -23,7 +20,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export interface Column<T> {
   key: keyof T | string;
   title: string;
-  render?: (item: T, value: any) => React.ReactNode;
+  render?: (item: T, value: unknown) => React.ReactNode;
   sortable?: boolean;
   searchable?: boolean;
   width?: string;
@@ -108,9 +105,14 @@ export function DataTable<T extends { id: string }>({
 
   const getValue = (item: T, column: Column<T>) => {
     const keys = (column.key as string).split('.');
-    let value = item as any;
+    let value: unknown = item;
     for (const key of keys) {
-      value = value?.[key];
+      if (value && typeof value === 'object' && value !== null) {
+        value = (value as Record<string, unknown>)[key];
+      } else {
+        value = undefined;
+        break;
+      }
     }
     return value;
   };
@@ -292,7 +294,7 @@ export function DataTable<T extends { id: string }>({
                             key={column.key as string}
                             className={cn("px-4 py-3 text-sm text-gray-900", column.className)}
                           >
-                            {column.render ? column.render(item, value) : value}
+                            {column.render ? column.render(item, value) : (value as React.ReactNode)}
                           </td>
                         );
                       })}

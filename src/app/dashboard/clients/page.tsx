@@ -2,20 +2,23 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 import { clientAPI, type Client, type CreateClientRequest } from '@/services/api';
 import { DataTable, type Column, type DataTableAction } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { QuickStats } from '@/components/ui/stats-card';
+import { StatusBadge } from '@/components/ui/badge';
 import { Form, FormField, FormLabel, FormSection, FormGrid, FormActions, Textarea } from '@/components/ui/form';
-import { Building2, Edit, Trash2, Users, Eye, Mail, Phone, MapPin } from 'lucide-react';
+import { Building2, Edit, Trash2, Users, Eye, Mail, Phone, MapPin, Plus, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
 
 export default function ClientsPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -122,8 +125,12 @@ export default function ClientsPage() {
       await loadClients();
       resetForm();
       setSelectedClient(null);
-    } catch (error: any) {
-      const message = error?.response?.data?.detail || 'Failed to save client';
+    } catch (error: unknown) {
+      let message = 'Failed to save client';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { detail?: string } } };
+        message = axiosError.response?.data?.detail || message;
+      }
       toast.error(message);
     } finally {
       setIsSubmitting(false);
@@ -152,8 +159,12 @@ export default function ClientsPage() {
       setShowDeleteModal(false);
       setSelectedClient(null);
       await loadClients();
-    } catch (error: any) {
-      const message = error?.response?.data?.detail || 'Failed to delete client';
+    } catch (error: unknown) {
+      let message = 'Failed to delete client';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { detail?: string } } };
+        message = axiosError.response?.data?.detail || message;
+      }
       toast.error(message);
     } finally {
       setIsSubmitting(false);
@@ -219,13 +230,10 @@ export default function ClientsPage() {
       key: 'is_active',
       title: 'Status',
       render: (client) => (
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-          client.is_active 
-            ? 'bg-green-100 text-green-800' 
-            : 'bg-red-100 text-red-800'
-        }`}>
-          {client.is_active ? 'Active' : 'Inactive'}
-        </span>
+        <StatusBadge 
+          status={client.is_active ? 'active' : 'inactive'} 
+          size="sm"
+        />
       )
     },
     {
@@ -243,10 +251,18 @@ export default function ClientsPage() {
   const actions: DataTableAction<Client>[] = [
     {
       key: 'view',
+      label: 'Manage',
+      icon: Eye,
+      onClick: (client) => {
+        router.push(`/dashboard/clients/${client.id}`);
+      }
+    },
+    {
+      key: 'users',
       label: 'View Users',
       icon: Users,
       onClick: (client) => {
-        window.location.href = `/dashboard/clients/${client.id}/users`;
+        router.push(`/dashboard/clients/${client.id}`);
       }
     },
     {
@@ -290,53 +306,56 @@ export default function ClientsPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="grid grid-cols-1 md:grid-cols-3 gap-6"
       >
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Clients</p>
-                <p className="text-2xl font-bold text-gray-900">{clients.length}</p>
-              </div>
-              <Building2 className="h-8 w-8 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active Clients</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {clients.filter(c => c.is_active).length}
-                </p>
-              </div>
-              <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                <div className="h-3 w-3 bg-green-600 rounded-full"></div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">This Month</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  {clients.filter(c => {
-                    const created = new Date(c.created_at);
-                    const now = new Date();
-                    return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
-                  }).length}
-                </p>
-              </div>
-              <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <div className="h-3 w-3 bg-blue-600 rounded-full"></div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <QuickStats 
+          stats={[
+            {
+              title: 'Total Clients',
+              value: clients.length.toString(),
+              description: 'Organizations in system',
+              icon: Building2,
+              color: 'blue',
+              trend: { 
+                value: clients.filter(c => {
+                  const created = new Date(c.created_at);
+                  const lastMonth = new Date();
+                  lastMonth.setMonth(lastMonth.getMonth() - 1);
+                  return created > lastMonth;
+                }).length,
+                isPositive: true,
+                label: 'new this month'
+              }
+            },
+            {
+              title: 'Active Clients',
+              value: clients.filter(c => c.is_active).length.toString(),
+              description: 'Currently operational',
+              icon: TrendingUp,
+              color: 'green',
+              trend: {
+                value: `${Math.round((clients.filter(c => c.is_active).length / clients.length) * 100) || 0}%`,
+                isPositive: true,
+                label: 'activation rate'
+              }
+            },
+            {
+              title: 'New This Month',
+              value: clients.filter(c => {
+                const created = new Date(c.created_at);
+                const now = new Date();
+                return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
+              }).length.toString(),
+              description: 'Recently added',
+              icon: Plus,
+              color: 'purple',
+              trend: {
+                value: '15%',
+                isPositive: true,
+                label: 'growth rate'
+              }
+            }
+          ]}
+        />
       </motion.div>
 
       {/* Data Table */}
@@ -437,7 +456,13 @@ export default function ClientsPage() {
                 value={formData.address?.street || ''}
                 onChange={(e) => setFormData({ 
                   ...formData, 
-                  address: { ...formData.address, street: e.target.value }
+                  address: { 
+                    street: e.target.value,
+                    city: formData.address?.city || '',
+                    state: formData.address?.state || '',
+                    country: formData.address?.country || '',
+                    zip_code: formData.address?.zip_code || ''
+                  }
                 })}
                 placeholder="Enter street address"
                 disabled={isSubmitting}
@@ -449,10 +474,16 @@ export default function ClientsPage() {
                 <FormLabel>City</FormLabel>
                 <Input
                   value={formData.address?.city || ''}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    address: { ...formData.address, city: e.target.value }
-                  })}
+                                  onChange={(e) => setFormData({
+                  ...formData,
+                  address: {
+                    street: formData.address?.street || '',
+                    city: e.target.value,
+                    state: formData.address?.state || '',
+                    country: formData.address?.country || '',
+                    zip_code: formData.address?.zip_code || ''
+                  }
+                })}
                   placeholder="Enter city"
                   disabled={isSubmitting}
                 />
@@ -462,10 +493,16 @@ export default function ClientsPage() {
                 <FormLabel>State/Province</FormLabel>
                 <Input
                   value={formData.address?.state || ''}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    address: { ...formData.address, state: e.target.value }
-                  })}
+                                  onChange={(e) => setFormData({
+                  ...formData,
+                  address: {
+                    street: formData.address?.street || '',
+                    city: formData.address?.city || '',
+                    state: e.target.value,
+                    country: formData.address?.country || '',
+                    zip_code: formData.address?.zip_code || ''
+                  }
+                })}
                   placeholder="Enter state or province"
                   disabled={isSubmitting}
                 />
@@ -477,10 +514,16 @@ export default function ClientsPage() {
                 <FormLabel>Country</FormLabel>
                 <Input
                   value={formData.address?.country || ''}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    address: { ...formData.address, country: e.target.value }
-                  })}
+                                  onChange={(e) => setFormData({
+                  ...formData,
+                  address: {
+                    street: formData.address?.street || '',
+                    city: formData.address?.city || '',
+                    state: formData.address?.state || '',
+                    country: e.target.value,
+                    zip_code: formData.address?.zip_code || ''
+                  }
+                })}
                   placeholder="Enter country"
                   disabled={isSubmitting}
                 />
@@ -490,10 +533,16 @@ export default function ClientsPage() {
                 <FormLabel>ZIP/Postal Code</FormLabel>
                 <Input
                   value={formData.address?.zip_code || ''}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    address: { ...formData.address, zip_code: e.target.value }
-                  })}
+                                  onChange={(e) => setFormData({
+                  ...formData,
+                  address: {
+                    street: formData.address?.street || '',
+                    city: formData.address?.city || '',
+                    state: formData.address?.state || '',
+                    country: formData.address?.country || '',
+                    zip_code: e.target.value
+                  }
+                })}
                   placeholder="Enter ZIP or postal code"
                   disabled={isSubmitting}
                 />

@@ -10,7 +10,6 @@ import {
   BarChart3, 
   Wrench, 
   Users, 
-  Building2, 
   CheckCircle, 
   ArrowRight,
   Star,
@@ -96,11 +95,11 @@ export default function Home() {
               TREKA
             </div>
           </div>
-          <Button asChild>
-            <Link href="/login">
+          <Link href="/login">
+            <Button>
               Login to Dashboard
-            </Link>
-          </Button>
+            </Button>
+          </Link>
         </motion.nav>
 
         {/* Hero Section */}
@@ -124,17 +123,17 @@ export default function Home() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-              <Button size="lg" asChild className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                <Link href="/login" className="flex items-center gap-2">
+              <Link href="/login">
+                <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 flex items-center gap-2">
                   Get Started
                   <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild>
-                <Link href="#features">
+                </Button>
+              </Link>
+              <Link href="#features">
+                <Button size="lg" variant="outline">
                   Learn More
-                </Link>
-              </Button>
+                </Button>
+              </Link>
             </div>
 
             {/* Quick Stats */}
@@ -274,16 +273,15 @@ export default function Home() {
               <p className="text-blue-100 mb-8 text-lg max-w-2xl mx-auto">
                 Join thousands of organizations already using TREKA to optimize their asset management processes.
               </p>
-              <Button 
-                size="lg" 
-                asChild 
-                className="bg-white text-blue-600 hover:bg-gray-50 font-semibold"
-              >
-                <Link href="/login" className="flex items-center gap-2">
+              <Link href="/login">
+                <Button 
+                  size="lg" 
+                  className="bg-white text-blue-600 hover:bg-gray-50 font-semibold flex items-center gap-2"
+                >
                   Access Your Dashboard
                   <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         </motion.section>

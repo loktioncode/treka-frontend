@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
-export default function Login() {
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -60,8 +60,16 @@ export default function Login() {
       toast.success('Login successful!');
       router.push('/dashboard');
       
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.detail || err?.message || 'Invalid email or password';
+    } catch (err: unknown) {
+      let errorMessage = 'Invalid email or password';
+      if (err && typeof err === 'object') {
+        if ('response' in err) {
+          const axiosError = err as { response?: { data?: { detail?: string } } };
+          errorMessage = axiosError.response?.data?.detail || errorMessage;
+        } else if ('message' in err) {
+          errorMessage = (err as Error).message;
+        }
+      }
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -191,5 +199,17 @@ export default function Login() {
         </Card>
       </motion.div>
     </div>
+  );
+}
+
+export default function Login() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white"></div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

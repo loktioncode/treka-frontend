@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { authAPI, userAPI } from '@/services/api';
 
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   // Function to load user data
-  const loadUser = async (authToken: string) => {
+  const loadUser = useCallback(async () => {
     try {
       const userData = await userAPI.getCurrentUser();
       if (userData.role !== 'super_admin' && userData.role !== 'admin') {
@@ -60,15 +60,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout();
       throw error;
     }
-  };
+  }, []);
 
   useEffect(() => {
     const initAuth = async () => {
       try {
         const storedToken = localStorage.getItem('auth_token');
         if (storedToken) {
-          setToken(storedToken);
-          await loadUser(storedToken);
+          // Verify token is still valid
+          try {
+            setToken(storedToken);
+            await loadUser();
+          } catch (error) {
+            // Token is invalid, clear it
+            console.error('Stored token is invalid:', error);
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user');
+          }
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
@@ -78,7 +86,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     initAuth();
-  }, []);
+  }, [loadUser]);
+
+  // Set up token refresh interval
+  useEffect(() => {
+    if (token) {
+      // Refresh token every 25 minutes (before 30-minute expiry)
+      const refreshInterval = setInterval(async () => {
+        try {
+          await loadUser();
+        } catch (error) {
+          console.error('Token refresh failed:', error);
+          logout();
+        }
+      }, 25 * 60 * 1000);
+
+      return () => clearInterval(refreshInterval);
+    }
+  }, [token, loadUser]);
 
   const login = async (email: string, password: string): Promise<LoginResponse> => {
     try {
@@ -100,22 +125,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('auth_token', accessToken);
       
       // Load the full user data from /users/me endpoint
-      await loadUser(accessToken);
+      await loadUser();
       
       return response;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error:', error);
       
       // Handle specific error cases
-      if (error.response?.status === 401) {
-        throw new Error('Invalid credentials');
-      } else if (error.response?.data?.detail) {
-        throw new Error(error.response.data.detail);
-      } else if (error.message) {
-        throw new Error(error.message);
-      } else {
-        throw new Error('An error occurred during login');
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status?: number; data?: { detail?: string } } };
+        if (axiosError.response?.status === 401) {
+          throw new Error('Invalid credentials');
+        } else if (axiosError.response?.data?.detail) {
+          throw new Error(axiosError.response.data.detail);
+        }
       }
+      
+      if (error && typeof error === 'object' && 'message' in error) {
+        throw new Error((error as Error).message);
+      }
+      
+      throw new Error('An error occurred during login');
     } finally {
       setIsLoading(false);
     }

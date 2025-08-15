@@ -20,11 +20,8 @@ import {
   BarChart3,
   Wrench,
   Home,
-  ChevronDown,
-  Sun,
-  Moon
+  ChevronDown
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { SkeletonProfile } from '@/components/ui/skeleton';
@@ -98,7 +95,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
 
   // Filter navigation based on user role
   const filteredNavigation = navigation.filter(item => 
@@ -289,7 +285,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 interface SidebarContentProps {
   navigation: NavigationItem[];
   pathname: string;
-  user: any;
+  user: { role: string; first_name: string; last_name: string; id: string };
   onClose?: () => void;
   isMobile: boolean;
 }

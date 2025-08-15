@@ -7,7 +7,7 @@ import { authAPI } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Eye, EyeOff, Shield, AlertCircle, ArrowLeft, Mail, Key } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, ArrowLeft, Mail, Key } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
@@ -34,8 +34,12 @@ export default function VerifyOTP() {
       await authAPI.verifyResetCode(email, code);
       setIsVerified(true);
       toast.success('Code verified successfully!');
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.detail || 'Invalid verification code. Please try again.';
+    } catch (err: unknown) {
+      let errorMessage = 'Invalid verification code. Please try again.';
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { data?: { detail?: string } } };
+        errorMessage = axiosError.response?.data?.detail || errorMessage;
+      }
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -68,8 +72,12 @@ export default function VerifyOTP() {
       
       toast.success('Password reset successfully!');
       router.push('/login?reset=success');
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.detail || 'Failed to reset password. Please try again.';
+    } catch (err: unknown) {
+      let errorMessage = 'Failed to reset password. Please try again.';
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { data?: { detail?: string } } };
+        errorMessage = axiosError.response?.data?.detail || errorMessage;
+      }
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -83,8 +91,12 @@ export default function VerifyOTP() {
       await authAPI.forgotPassword(email);
       toast.success('Verification code sent again!');
       setError('');
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.detail || 'Failed to resend code. Please try again.';
+    } catch (err: unknown) {
+      let errorMessage = 'Failed to resend code. Please try again.';
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { data?: { detail?: string } } };
+        errorMessage = axiosError.response?.data?.detail || errorMessage;
+      }
       toast.error(errorMessage);
     } finally {
       setIsResending(false);
@@ -165,7 +177,7 @@ export default function VerifyOTP() {
 
                 <div className="text-center space-y-3">
                   <p className="text-sm text-gray-600">
-                    Didn't receive the code?
+                    Didn&apos;t receive the code?
                   </p>
                   <Button
                     type="button"

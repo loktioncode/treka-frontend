@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   userAPI, 
@@ -14,7 +14,8 @@ import { DataTable, type Column, type DataTableAction } from '@/components/ui/da
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { StatusBadge, RoleBadge } from '@/components/ui/badge';
 import { 
   Form, 
   FormField, 
@@ -27,13 +28,12 @@ import {
 } from '@/components/ui/form';
 import { 
   Users, 
-  Edit, 
   Trash2, 
   UserPlus, 
   Mail, 
   Shield, 
   ToggleLeft, 
-  ToggleRight 
+  ToggleRight
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -73,15 +73,7 @@ export default function UsersPage() {
     }
   }, [user]);
 
-  // Load data
-  useEffect(() => {
-    loadUsers();
-    if (user?.role === 'super_admin') {
-      loadClients();
-    }
-  }, [user]);
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
       if (user?.role === 'super_admin') {
@@ -99,7 +91,15 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  // Load data
+  useEffect(() => {
+    loadUsers();
+    if (user?.role === 'super_admin') {
+      loadClients();
+    }
+  }, [user, loadUsers]);
 
   const loadClients = async () => {
     try {
@@ -180,8 +180,12 @@ export default function UsersPage() {
       setShowCreateModal(false);
       await loadUsers();
       resetForm();
-    } catch (error: any) {
-      const message = error?.response?.data?.detail || 'Failed to create user';
+    } catch (error: unknown) {
+      let message = 'Failed to create user';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { detail?: string } } };
+        message = axiosError.response?.data?.detail || message;
+      }
       toast.error(message);
     } finally {
       setIsSubmitting(false);
@@ -193,9 +197,13 @@ export default function UsersPage() {
       await userAPI.toggleUserActivation(user.id, !user.is_active);
       toast.success(`User ${user.is_active ? 'deactivated' : 'activated'} successfully`);
       await loadUsers();
-    } catch (error: any) {
-      const message = error?.response?.data?.detail || 'Failed to update user status';
-      toast.error(message);
+      } catch (error: unknown) {
+    let message = 'Failed to update user status';
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as { response?: { data?: { detail?: string } } };
+      message = axiosError.response?.data?.detail || message;
+    }
+    toast.error(message);
     }
   };
 
@@ -209,8 +217,12 @@ export default function UsersPage() {
       setShowDeleteModal(false);
       setSelectedUser(null);
       await loadUsers();
-    } catch (error: any) {
-      const message = error?.response?.data?.detail || 'Failed to delete user';
+    } catch (error: unknown) {
+      let message = 'Failed to delete user';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { detail?: string } } };
+        message = axiosError.response?.data?.detail || message;
+      }
       toast.error(message);
     } finally {
       setIsSubmitting(false);
@@ -245,15 +257,7 @@ export default function UsersPage() {
       render: (user) => (
         <div className="flex items-center gap-2">
           <Shield className="h-4 w-4 text-gray-400" />
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            user.role === 'super_admin' 
-              ? 'bg-purple-100 text-purple-800'
-              : user.role === 'admin'
-              ? 'bg-blue-100 text-blue-800'
-              : 'bg-gray-100 text-gray-800'
-          }`}>
-            {user.role.replace('_', ' ').toUpperCase()}
-          </span>
+          <RoleBadge role={user.role} size="sm" />
         </div>
       )
     },
@@ -261,15 +265,10 @@ export default function UsersPage() {
       key: 'is_active',
       title: 'Status',
       render: (user) => (
-        <div className="flex items-center gap-2">
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            user.is_active 
-              ? 'bg-green-100 text-green-800' 
-              : 'bg-red-100 text-red-800'
-          }`}>
-            {user.is_active ? 'Active' : 'Inactive'}
-          </span>
-        </div>
+        <StatusBadge 
+          status={user.is_active ? 'active' : 'inactive'} 
+          size="sm"
+        />
       )
     },
     {
@@ -316,11 +315,18 @@ export default function UsersPage() {
 
   const actions: DataTableAction<User>[] = [
     {
-      key: 'toggle',
-      label: user => user.is_active ? 'Deactivate' : 'Activate',
-      icon: user => user.is_active ? ToggleRight : ToggleLeft,
+      key: 'activate',
+      label: 'Activate',
+      icon: ToggleLeft,
       onClick: handleToggleActivation,
-      show: (u) => u.id !== user?.id // Can't deactivate yourself
+      show: (u) => !u.is_active && u.id !== user?.id
+    },
+    {
+      key: 'deactivate',
+      label: 'Deactivate', 
+      icon: ToggleRight,
+      onClick: handleToggleActivation,
+      show: (u) => u.is_active && u.id !== user?.id
     },
     {
       key: 'delete',
@@ -557,8 +563,8 @@ export default function UsersPage() {
                 onChange={(e) => setFormData({
                   ...formData,
                   notification_preferences: {
-                    ...formData.notification_preferences,
-                    email: e.target.checked
+                    email: e.target.checked,
+                    whatsapp: formData.notification_preferences?.whatsapp || false
                   }
                 })}
                 disabled={isSubmitting}
@@ -569,7 +575,7 @@ export default function UsersPage() {
                 onChange={(e) => setFormData({
                   ...formData,
                   notification_preferences: {
-                    ...formData.notification_preferences,
+                    email: formData.notification_preferences?.email || false,
                     whatsapp: e.target.checked
                   }
                 })}

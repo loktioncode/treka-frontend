@@ -139,7 +139,7 @@ export interface Component {
   asset_id: string;
   client_id: string;
   created_by: string;
-  specifications?: Record<string, any>;
+  specifications?: Record<string, unknown>;
   last_maintenance_date?: string;
   next_maintenance_date?: string;
   maintenance_interval_days?: number;
@@ -153,7 +153,7 @@ export interface CreateComponentRequest {
   component_type: string;
   status: ComponentStatus;
   asset_id: string;
-  specifications?: Record<string, any>;
+  specifications?: Record<string, unknown>;
   last_maintenance_date?: string;
   next_maintenance_date?: string;
   maintenance_interval_days?: number;
