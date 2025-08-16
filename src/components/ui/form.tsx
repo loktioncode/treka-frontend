@@ -182,11 +182,11 @@ interface SelectOption {
 }
 
 interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'children'> {
-  options: SelectOption[];
+  options?: SelectOption[];
   placeholder?: string;
 }
 
-export function Select({ options, placeholder, className, ...props }: SelectProps) {
+export function Select({ options = [], placeholder, className, ...props }: SelectProps) {
   return (
     <select
       className={cn(
@@ -200,11 +200,11 @@ export function Select({ options, placeholder, className, ...props }: SelectProp
           {placeholder}
         </option>
       )}
-      {options.map((option) => (
+      {options?.map((option) => (
         <option key={option.value} value={option.value} disabled={option.disabled}>
           {option.label}
         </option>
-      ))}
+      )) || []}
     </select>
   );
 }

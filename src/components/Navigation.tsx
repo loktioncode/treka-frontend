@@ -36,7 +36,7 @@ export default function Navigation() {
           <div className="flex h-16 justify-between">
             <div className="flex">
               <div className="flex flex-shrink-0 items-center">
-                <Link href="/dashboard" className="text-2xl font-bold text-blue-900">
+                <Link href="/dashboard" className="text-2xl font-bold text-blue-900 cursor-pointer">
                   TREKA
                 </Link>
               </div>
@@ -47,7 +47,7 @@ export default function Navigation() {
                     <Link
                       key={item.name}
                       href={item.href}
-                      className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${
+                      className={`inline-flex items-center px-1 pt-1 text-sm font-medium cursor-pointer ${
                         isActive(item.href)
                           ? 'border-b-2 border-blue-500 text-gray-900'
                           : 'border-b-2 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
@@ -67,7 +67,7 @@ export default function Navigation() {
                 </span>
                 <button
                   onClick={logout}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                  className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors cursor-pointer"
                 >
                   Logout
                 </button>
@@ -76,7 +76,7 @@ export default function Navigation() {
             <div className="-mr-2 flex items-center sm:hidden">
               <button
                 type="button"
-                className="inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500"
+                className="inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 cursor-pointer"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               >
                 <span className="sr-only">Open main menu</span>
@@ -99,7 +99,7 @@ export default function Navigation() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`block py-2 pl-3 pr-4 text-base font-medium ${
+                  className={`block py-2 pl-3 pr-4 text-base font-medium cursor-pointer ${
                     isActive(item.href)
                       ? 'bg-blue-50 border-l-4 border-blue-500 text-blue-700'
                       : 'border-l-4 border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700'
@@ -126,7 +126,7 @@ export default function Navigation() {
                   setMobileMenuOpen(false);
                   logout();
                 }}
-                className="block w-full px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                className="block w-full px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800 cursor-pointer"
               >
                 Logout
               </button>

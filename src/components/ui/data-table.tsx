@@ -29,10 +29,10 @@ export interface Column<T> {
 
 export interface DataTableAction<T> {
   key: string;
-  label: string;
-  icon?: React.ComponentType<{ className?: string }>;
+  label: string | ((item: T) => string);
+  icon?: React.ComponentType<{ className?: string }> | ((item: T) => React.ComponentType<{ className?: string }>);
   onClick: (item: T) => void;
-  variant?: 'default' | 'destructive' | 'secondary';
+  variant?: 'default' | 'destructive' | 'secondary' | 'warning' | 'success' | ((item: T) => 'default' | 'destructive' | 'secondary' | 'warning' | 'success');
   show?: (item: T) => boolean;
 }
 
@@ -124,44 +124,48 @@ export function DataTable<T extends { id: string }>({
 
     if (visibleActions.length === 1) {
       const action = visibleActions[0];
-      const Icon = action.icon;
+      const Icon = typeof action.icon === 'function' ? action.icon(item) : action.icon;
+      const label = typeof action.label === 'function' ? action.label(item) : action.label;
+      const variant = typeof action.variant === 'function' ? action.variant(item) : action.variant;
+      
       return (
         <Button
-          variant={action.variant || 'ghost'}
+          variant={variant || 'ghost'}
           size="sm"
           onClick={() => action.onClick(item)}
-          className="h-8 w-8 p-0"
+          className="h-8 w-8 p-0 hover:bg-primary hover:text-primary-foreground transition-colors"
         >
-          {Icon ? <Icon className="h-4 w-4" /> : action.label}
+          {Icon ? <Icon className="h-4 w-4" /> : label}
         </Button>
       );
     }
 
+    // For multiple actions, render them as separate buttons in a flex container
     return (
-      <div className="relative group">
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-        <div className="absolute right-0 top-8 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200 z-10">
-          <div className="bg-white rounded-md shadow-lg border border-gray-200 py-1 min-w-32">
-            {visibleActions.map((action) => {
-              const Icon = action.icon;
-              return (
-                <button
-                  key={action.key}
-                  onClick={() => action.onClick(item)}
-                  className={cn(
-                    "flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-gray-50 transition-colors",
-                    action.variant === 'destructive' && "text-red-600 hover:bg-red-50"
-                  )}
-                >
-                  {Icon && <Icon className="h-4 w-4" />}
-                  {action.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      <div className="flex items-center gap-1">
+        {visibleActions.map((action) => {
+          const Icon = typeof action.icon === 'function' ? action.icon(item) : action.icon;
+          const label = typeof action.label === 'function' ? action.label(item) : action.label;
+          const variant = typeof action.variant === 'function' ? action.variant(item) : action.variant;
+          
+          return (
+            <Button
+              key={`${item.id || `item-${Math.random()}`}-action-${action.key}`}
+              variant={variant || 'ghost'}
+              size="sm"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                action.onClick(item);
+              }}
+              className="h-8 w-8 p-0 hover:bg-primary hover:text-primary-foreground transition-colors"
+              title={label}
+            >
+              {Icon ? <Icon className="h-4 w-4" /> : label.slice(0, 1)}
+            </Button>
+          );
+        })}
       </div>
     );
   };
@@ -176,9 +180,9 @@ export function DataTable<T extends { id: string }>({
         <div className="rounded-md border">
           <div className="p-4">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex items-center space-x-4 py-3">
-                {columns.map((_, j) => (
-                  <Skeleton key={j} className="h-4 flex-1" />
+              <div key={`skeleton-row-${i}`} className="flex items-center space-x-4 py-3">
+                {columns.map((column, j) => (
+                  <Skeleton key={`skeleton-col-${i}-${column.key as string}-${j}`} className="h-4 flex-1" />
                 ))}
               </div>
             ))}
@@ -225,9 +229,9 @@ export function DataTable<T extends { id: string }>({
           <table className="w-full">
             <thead>
               <tr className="border-b">
-                {columns.map((column) => (
+                {columns.map((column, index) => (
                   <th
-                    key={column.key as string}
+                    key={column.key ? (column.key as string) : `column-${index}`}
                     className={cn(
                       "px-4 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider",
                       column.sortable && "cursor-pointer hover:text-gray-700",
@@ -247,7 +251,7 @@ export function DataTable<T extends { id: string }>({
                   </th>
                 ))}
                 {actions.length > 0 && (
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-500 uppercase tracking-wider w-20">
+                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-500 uppercase tracking-wider w-32">
                     Actions
                   </th>
                 )}
@@ -280,7 +284,7 @@ export function DataTable<T extends { id: string }>({
                 ) : (
                   data.map((item, index) => (
                     <motion.tr
-                      key={item.id}
+                      key={item.id || `item-${index}`}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
@@ -291,10 +295,14 @@ export function DataTable<T extends { id: string }>({
                         const value = getValue(item, column);
                         return (
                           <td
-                            key={column.key as string}
+                            key={`${item.id || `item-${index}`}-${column.key || `col-${columns.indexOf(column)}`}`}
                             className={cn("px-4 py-3 text-sm text-gray-900", column.className)}
                           >
-                            {column.render ? column.render(item, value) : (value as React.ReactNode)}
+                            {column.render ? column.render(item, value) : (
+                              typeof value === 'object' && value !== null ? 
+                                JSON.stringify(value) : 
+                                (value as React.ReactNode)
+                            )}
                           </td>
                         );
                       })}

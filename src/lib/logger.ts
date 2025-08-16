@@ -14,7 +14,7 @@ interface LogEntry {
   timestamp: string;
   level: LogLevel;
   message: string;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   error?: Error;
   userId?: string;
   sessionId?: string;
@@ -91,7 +91,7 @@ class Logger {
   private createLogEntry(
     level: LogLevel,
     message: string,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
     error?: Error
   ): LogEntry {
     return {
@@ -151,7 +151,7 @@ class Logger {
     }
   }
 
-  debug(message: string, context?: Record<string, any>): void {
+  debug(message: string, context?: Record<string, unknown>): void {
     if (!this.shouldLog(LogLevel.DEBUG)) return;
 
     const entry = this.createLogEntry(LogLevel.DEBUG, message, context);
@@ -163,7 +163,7 @@ class Logger {
     this.addToBuffer(entry);
   }
 
-  info(message: string, context?: Record<string, any>): void {
+  info(message: string, context?: Record<string, unknown>): void {
     if (!this.shouldLog(LogLevel.INFO)) return;
 
     const entry = this.createLogEntry(LogLevel.INFO, message, context);
@@ -175,7 +175,7 @@ class Logger {
     this.addToBuffer(entry);
   }
 
-  warn(message: string, context?: Record<string, any>): void {
+  warn(message: string, context?: Record<string, unknown>): void {
     if (!this.shouldLog(LogLevel.WARN)) return;
 
     const entry = this.createLogEntry(LogLevel.WARN, message, context);
@@ -187,7 +187,7 @@ class Logger {
     this.addToBuffer(entry);
   }
 
-  error(message: string, context?: Record<string, any>, error?: Error): void {
+  error(message: string, context?: Record<string, unknown>, error?: Error): void {
     if (!this.shouldLog(LogLevel.ERROR)) return;
 
     const entry = this.createLogEntry(LogLevel.ERROR, message, {
@@ -214,7 +214,7 @@ class Logger {
     });
   }
 
-  apiError(method: string, url: string, error: any): void {
+  apiError(method: string, url: string, error: unknown): void {
     this.error('API error', {
       method,
       url,
@@ -224,7 +224,7 @@ class Logger {
     }, error);
   }
 
-  userAction(action: string, context?: Record<string, any>): void {
+  userAction(action: string, context?: Record<string, unknown>): void {
     this.info('User action', {
       action,
       ...context,

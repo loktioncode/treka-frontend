@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { authAPI, userAPI } from '@/services/api';
+import { useIsClient } from '@/hooks/useIsClient';
 
 interface User {
   id: string;
@@ -45,6 +46,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const isClient = useIsClient();
+
+  // Set initial loading to false on SSR, true on client until hydration
+  useEffect(() => {
+    if (!isClient) {
+      setIsLoading(false);
+    }
+  }, [isClient]);
 
   // Function to load user data
   const loadUser = useCallback(async () => {
@@ -57,25 +66,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return userData;
     } catch (error) {
       console.error('Error loading user:', error);
-      logout();
+      // Clear all auth state
+      setToken(null);
+      setUser(null);
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user');
+      document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       throw error;
     }
   }, []);
 
   useEffect(() => {
     const initAuth = async () => {
+      // Only run on client side to prevent hydration issues
+      if (!isClient) {
+        return;
+      }
+      
       try {
         const storedToken = localStorage.getItem('auth_token');
         if (storedToken) {
           // Verify token is still valid
           try {
             setToken(storedToken);
+            // Ensure cookie is also set for middleware
+            document.cookie = `auth_token=${storedToken}; path=/; secure; samesite=strict`;
             await loadUser();
           } catch (error) {
             // Token is invalid, clear it
             console.error('Stored token is invalid:', error);
             localStorage.removeItem('auth_token');
             localStorage.removeItem('user');
+            document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
           }
         }
       } catch (error) {
@@ -86,7 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     initAuth();
-  }, [loadUser]);
+  }, [loadUser, isClient]);
 
   // Set up token refresh interval
   useEffect(() => {
@@ -122,7 +144,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       setToken(accessToken);
-      localStorage.setItem('auth_token', accessToken);
+      
+      // Only manipulate client-side APIs if we're on the client
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('auth_token', accessToken);
+        // Also set cookie for middleware detection
+        document.cookie = `auth_token=${accessToken}; path=/; secure; samesite=strict`;
+      }
       
       // Load the full user data from /users/me endpoint
       await loadUser();
@@ -154,9 +182,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     setToken(null);
     setUser(null);
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user');
-    window.location.href = '/login';
+    
+    // Only manipulate client-side APIs if we're on the client
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user');
+      // Clear the cookie as well
+      document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      window.location.href = '/login';
+    }
   };
 
   const forgotPassword = async (email: string) => {

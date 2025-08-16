@@ -49,6 +49,6 @@ export const config = {
     '/reset-password/:path*',
     '/verify-otp/:path*',
     // API routes (for potential client-side auth checks)
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico).*)'
   ],
 }; 

@@ -24,7 +24,7 @@ function LoginForm() {
 
   // Redirect to dashboard if already logged in
   useEffect(() => {
-    if (user) {
+    if (user && user.role && ['super_admin', 'admin'].includes(user.role)) {
       router.push('/dashboard');
     }
   }, [user, router]);
@@ -58,7 +58,10 @@ function LoginForm() {
 
       // If login successful, show success message and redirect
       toast.success('Login successful!');
-      router.push('/dashboard');
+      // Give a small delay to ensure auth context is updated before redirect
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 100);
       
     } catch (err: unknown) {
       let errorMessage = 'Invalid email or password';
@@ -159,7 +162,7 @@ function LoginForm() {
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       disabled={isLoading}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -170,7 +173,7 @@ function LoginForm() {
               <div className="flex items-center justify-end">
                 <Link
                   href="/forgot-password"
-                  className="text-sm text-blue-600 hover:text-blue-500 transition-colors font-medium"
+                  className="text-sm text-blue-600 hover:text-blue-500 transition-colors font-medium cursor-pointer"
                 >
                   Forgot password?
                 </Link>
@@ -189,7 +192,7 @@ function LoginForm() {
             <div className="text-center pt-4">
               <Link 
                 href="/"
-                className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back to home

@@ -186,7 +186,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
           <button
             type="button"
-            className="-m-2.5 p-2.5 text-gray-700 lg:hidden"
+            className="-m-2.5 p-2.5 text-gray-700 lg:hidden cursor-pointer"
             onClick={() => setSidebarOpen(true)}
           >
             <Menu className="h-6 w-6" />
@@ -209,7 +209,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               {/* Notifications */}
               <button
                 type="button"
-                className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500"
+                className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500 cursor-pointer"
               >
                 <Bell className="h-6 w-6" />
               </button>
@@ -221,7 +221,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <div className="relative">
                 <button
                   type="button"
-                  className="flex items-center gap-x-2 rounded-full bg-gray-50 p-1.5 text-sm leading-6 text-gray-900 hover:bg-gray-100"
+                  className="flex items-center gap-x-2 rounded-full bg-gray-50 p-1.5 text-sm leading-6 text-gray-900 hover:bg-gray-100 cursor-pointer"
                   onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
                 >
                   <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center">
@@ -248,7 +248,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                           setProfileDropdownOpen(false);
                           router.push('/dashboard/profile');
                         }}
-                        className="flex w-full items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        className="flex w-full items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
                       >
                         <User className="mr-3 h-4 w-4" />
                         Your Profile
@@ -258,7 +258,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                           setProfileDropdownOpen(false);
                           handleLogout();
                         }}
-                        className="flex w-full items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        className="flex w-full items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
                       >
                         <LogOut className="mr-3 h-4 w-4" />
                         Sign out
@@ -303,7 +303,7 @@ function SidebarContent({ navigation, pathname, user, onClose, isMobile }: Sideb
         {isMobile && (
           <button
             type="button"
-            className="-m-2.5 p-2.5"
+            className="-m-2.5 p-2.5 cursor-pointer"
             onClick={onClose}
           >
             <X className="h-6 w-6 text-gray-400" />
@@ -326,7 +326,7 @@ function SidebarContent({ navigation, pathname, user, onClose, isMobile }: Sideb
                         isActive
                           ? 'bg-blue-50 text-blue-700'
                           : 'text-gray-700 hover:text-blue-700 hover:bg-blue-50',
-                        'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors'
+                        'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors cursor-pointer'
                       )}
                     >
                       <item.icon

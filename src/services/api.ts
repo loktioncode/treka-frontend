@@ -78,7 +78,6 @@ api.interceptors.response.use(
   async (error) => {
     // Log API errors
     const config = error.config as ExtendedAxiosRequestConfig;
-    const duration = config?.metadata?.startTime ? Date.now() - config.metadata.startTime : undefined;
     
     logger.apiError(
       config?.method?.toUpperCase() || 'GET',
@@ -99,6 +98,8 @@ api.interceptors.response.use(
       // Clear auth state
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user');
+      // Clear cookie as well
+      document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       
       // Add a small delay to ensure the toast is visible before redirect
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -269,6 +270,12 @@ export const clientAPI = {
   createClientUser: async (clientId: string, userData: CreateUserRequest) => {
     const response = await api.post(`/clients/${clientId}/users`, userData);
     return response.data;
+  },
+
+  // Toggle client activation status
+  toggleClientActivation: async (clientId: string, activate: boolean) => {
+    const response = await api.post(`/clients/${clientId}/toggle-activation?activate=${activate}`);
+    return response.data;
   }
 };
 
@@ -276,6 +283,14 @@ export const clientAPI = {
 export const assetAPI = {
   getAssets: async (params: AssetFilters = {}) => {
     const response = await api.get('/assets', { params });
+    return response.data;
+  },
+
+  // For super admin - get assets for a specific client
+  getClientAssets: async (clientId: string, params: AssetFilters = {}) => {
+    const response = await api.get('/assets', { 
+      params: { ...params, client_id: clientId } 
+    });
     return response.data;
   },
 
@@ -354,6 +369,14 @@ export const assetAPI = {
 export const componentAPI = {
   getComponents: async (params: ComponentFilters = {}) => {
     const response = await api.get('/components', { params });
+    return response.data;
+  },
+
+  // For super admin - get components for a specific client
+  getClientComponents: async (clientId: string, params: ComponentFilters = {}) => {
+    const response = await api.get('/components', { 
+      params: { ...params, client_id: clientId } 
+    });
     return response.data;
   },
 

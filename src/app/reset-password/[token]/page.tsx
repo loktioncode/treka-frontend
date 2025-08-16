@@ -60,7 +60,7 @@ export default function ResetPassword() {
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 flex items-center justify-center px-4">
       <div className="max-w-md w-full space-y-8 bg-white/10 backdrop-blur-lg p-8 rounded-xl border border-white/20">
         <div>
-          <Link href="/" className="block text-center text-white text-3xl font-bold mb-2">
+          <Link href="/" className="block text-center text-white text-3xl font-bold mb-2 cursor-pointer">
             TREKA
           </Link>
           <h2 className="text-center text-2xl font-bold text-white">
@@ -75,7 +75,7 @@ export default function ResetPassword() {
             </div>
             <Link 
               href="/login"
-              className="text-blue-300 hover:text-blue-200"
+              className="text-blue-300 hover:text-blue-200 cursor-pointer"
             >
               Return to login
             </Link>
@@ -87,7 +87,7 @@ export default function ResetPassword() {
             </div>
             <Link 
               href="/forgot-password"
-              className="text-blue-300 hover:text-blue-200"
+              className="text-blue-300 hover:text-blue-200 cursor-pointer"
             >
               Request new reset link
             </Link>
@@ -175,7 +175,7 @@ export default function ResetPassword() {
             <div className="text-center text-sm">
               <Link 
                 href="/login"
-                className="text-blue-300 hover:text-blue-200"
+                className="text-blue-300 hover:text-blue-200 cursor-pointer"
               >
                 Back to login
               </Link>

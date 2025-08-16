@@ -179,7 +179,7 @@ export default function Home() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
               <motion.div
-                key={index}
+                key={`feature-${feature.title.toLowerCase().replace(/\s+/g, '-')}`}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
@@ -222,7 +222,7 @@ export default function Home() {
               <div className="space-y-4">
                 {benefits.map((benefit, index) => (
                   <motion.div
-                    key={index}
+                    key={`benefit-${index}-${benefit.substring(0, 20).toLowerCase().replace(/\s+/g, '-')}`}
                     initial={{ opacity: 0, x: -20 }}
                     whileInView={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}

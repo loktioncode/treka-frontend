@@ -42,19 +42,31 @@ function Badge({ className, variant = "default", size = "md", ...props }: BadgeP
 // Specialized status badges
 export function StatusBadge({ 
   status, 
+  type = 'general',
   className, 
   ...props 
 }: { 
-  status: 'active' | 'inactive' | 'pending' | 'critical' 
+  status: 'active' | 'inactive' | 'pending' | 'critical' | 'maintenance' | 'retired' | 'damaged' | 'operational' | 'warning',
+  type?: 'asset' | 'component' | 'general'
 } & Omit<BadgeProps, 'variant'>) {
   const statusConfig = {
+    // Asset statuses
     active: { variant: "success" as const, label: "Active" },
+    maintenance: { variant: "warning" as const, label: "Maintenance" },
+    retired: { variant: "secondary" as const, label: "Retired" },
+    damaged: { variant: "destructive" as const, label: "Damaged" },
+    
+    // Component statuses
+    operational: { variant: "success" as const, label: "Operational" },
+    warning: { variant: "warning" as const, label: "Warning" },
+    critical: { variant: "destructive" as const, label: "Critical" },
+    
+    // General statuses
     inactive: { variant: "secondary" as const, label: "Inactive" },
-    pending: { variant: "warning" as const, label: "Pending" },
-    critical: { variant: "destructive" as const, label: "Critical" }
+    pending: { variant: "warning" as const, label: "Pending" }
   }
 
-  const config = statusConfig[status]
+  const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.inactive
 
   return (
     <Badge 
@@ -64,10 +76,10 @@ export function StatusBadge({
     >
       <div className={cn(
         "w-1.5 h-1.5 rounded-full mr-1.5",
-        status === 'active' && "bg-status-active",
-        status === 'inactive' && "bg-status-inactive", 
-        status === 'pending' && "bg-status-pending",
-        status === 'critical' && "bg-status-critical"
+        (status === 'active' || status === 'operational') && "bg-green-400",
+        (status === 'inactive' || status === 'retired') && "bg-gray-400", 
+        (status === 'pending' || status === 'warning' || status === 'maintenance') && "bg-yellow-400",
+        (status === 'critical' || status === 'damaged') && "bg-red-400"
       )} />
       {config.label}
     </Badge>

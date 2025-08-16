@@ -41,11 +41,13 @@ import {
   Phone,
   MapPin,
   Calendar,
-
+  Power,
+  PowerOff
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
+import { ensureId } from '@/lib/id-utils';
 
 export default function ClientDetailPage() {
   const { user } = useAuth();
@@ -93,7 +95,8 @@ export default function ClientDetailPage() {
     try {
       setLoading(true);
       const response = await clientAPI.getClient(clientId);
-      setClient(response);
+      const transformedClient = ensureId(response);
+      setClient(transformedClient);
       setClientFormData(response);
     } catch (error) {
       toast.error('Failed to load client details');
@@ -107,7 +110,8 @@ export default function ClientDetailPage() {
     try {
       setUsersLoading(true);
       const response = await clientAPI.getClientUsers(clientId);
-      setUsers(response);
+      const transformedUsers = ensureId(response);
+      setUsers(transformedUsers);
     } catch (error) {
       toast.error('Failed to load client users');
       console.error('Error loading users:', error);
@@ -244,6 +248,23 @@ export default function ClientDetailPage() {
       await loadUsers();
     } catch (error: unknown) {
       let message = 'Failed to update user status';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { detail?: string } } };
+        message = axiosError.response?.data?.detail || message;
+      }
+      toast.error(message);
+    }
+  };
+
+  const handleToggleClientActivation = async () => {
+    if (!client) return;
+    
+    try {
+      await clientAPI.toggleClientActivation(client.id, !client.is_active);
+      toast.success(`Client ${client.is_active ? 'deactivated' : 'activated'} successfully`);
+      await loadClient();
+    } catch (error: unknown) {
+      let message = 'Failed to update client status';
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as { response?: { data?: { detail?: string } } };
         message = axiosError.response?.data?.detail || message;
@@ -428,13 +449,32 @@ export default function ClientDetailPage() {
             <p className="text-gray-600 mt-1">Manage client details, admins, and users</p>
           </div>
         </div>
-        <Button
-          onClick={() => setShowEditClientModal(true)}
-          className="flex items-center gap-2"
-        >
-          <Edit className="h-4 w-4" />
-          Edit Client
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={handleToggleClientActivation}
+            variant={client.is_active ? "destructive" : "default"}
+            className="flex items-center gap-2"
+          >
+            {client.is_active ? (
+              <>
+                <PowerOff className="h-4 w-4" />
+                Deactivate Client
+              </>
+            ) : (
+              <>
+                <Power className="h-4 w-4" />
+                Activate Client
+              </>
+            )}
+          </Button>
+          <Button
+            onClick={() => setShowEditClientModal(true)}
+            className="flex items-center gap-2"
+          >
+            <Edit className="h-4 w-4" />
+            Edit Client
+          </Button>
+        </div>
       </motion.div>
 
       {/* Client Information */}

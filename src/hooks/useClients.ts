@@ -3,7 +3,7 @@
  * Provides caching, optimistic updates, and proper error handling
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { clientAPI, type Client, type CreateClientRequest, type PaginationParams } from '@/services/api';
+import { clientAPI, type Client, type CreateClientRequest, type CreateUserRequest, type PaginationParams } from '@/services/api';
 import toast from 'react-hot-toast';
 
 // Query keys for consistency
@@ -69,8 +69,9 @@ export function useCreateClient() {
       
       toast.success('Client created successfully');
     },
-    onError: (error: any) => {
-      const message = error?.response?.data?.detail || 'Failed to create client';
+    onError: (error: unknown) => {
+      const errorWithResponse = error as { response?: { data?: { detail?: string } } };
+      const message = errorWithResponse?.response?.data?.detail || 'Failed to create client';
       toast.error(message);
     },
   });
@@ -103,13 +104,14 @@ export function useUpdateClient() {
 
       return { previousClient };
     },
-    onError: (error: any, { clientId }, context) => {
+    onError: (error: unknown, { clientId }, context) => {
       // Rollback on error
       if (context?.previousClient) {
         queryClient.setQueryData(clientKeys.detail(clientId), context.previousClient);
       }
       
-      const message = error?.response?.data?.detail || 'Failed to update client';
+      const errorWithResponse = error as { response?: { data?: { detail?: string } } };
+      const message = errorWithResponse?.response?.data?.detail || 'Failed to update client';
       toast.error(message);
     },
     onSuccess: (updatedClient) => {
@@ -150,13 +152,14 @@ export function useDeleteClient() {
 
       return { previousClients };
     },
-    onError: (error: any, clientId, context) => {
+    onError: (error: unknown, clientId, context) => {
       // Rollback on error
       if (context?.previousClients) {
         queryClient.setQueryData(clientKeys.lists(), context.previousClients);
       }
       
-      const message = error?.response?.data?.detail || 'Failed to delete client';
+      const errorWithResponse = error as { response?: { data?: { detail?: string } } };
+      const message = errorWithResponse?.response?.data?.detail || 'Failed to delete client';
       toast.error(message);
     },
     onSuccess: (_, clientId) => {
@@ -179,7 +182,7 @@ export function useCreateClientUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ clientId, userData }: { clientId: string; userData: any }) =>
+    mutationFn: ({ clientId, userData }: { clientId: string; userData: CreateUserRequest }) =>
       clientAPI.createClientUser(clientId, userData),
     onSuccess: (_, { clientId }) => {
       // Invalidate client users query
@@ -187,8 +190,9 @@ export function useCreateClientUser() {
       
       toast.success('User created successfully');
     },
-    onError: (error: any) => {
-      const message = error?.response?.data?.detail || 'Failed to create user';
+    onError: (error: unknown) => {
+      const errorWithResponse = error as { response?: { data?: { detail?: string } } };
+      const message = errorWithResponse?.response?.data?.detail || 'Failed to create user';
       toast.error(message);
     },
   });

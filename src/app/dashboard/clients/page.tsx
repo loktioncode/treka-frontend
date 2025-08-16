@@ -15,6 +15,7 @@ import { Building2, Edit, Trash2, Users, Eye, Mail, Phone, MapPin, Plus, Trendin
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
+import { ensureId } from '@/lib/id-utils';
 
 export default function ClientsPage() {
   const { user } = useAuth();
@@ -61,7 +62,10 @@ export default function ClientsPage() {
     try {
       setLoading(true);
       const response = await clientAPI.getClients();
-      setClients(response);
+      
+      // Transform the response to ensure we have 'id' field from '_id'
+      const transformedClients = ensureId(response);
+      setClients(transformedClients);
     } catch (error) {
       toast.error('Failed to load clients');
       console.error('Error loading clients:', error);
@@ -102,6 +106,15 @@ export default function ClientsPage() {
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
+  };
+
+  // Check if form is valid for submit button state
+  const isFormValid = (): boolean => {
+    return !!(
+      formData.name?.trim() && 
+      formData.contact_email?.trim() && 
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contact_email)
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -150,7 +163,15 @@ export default function ClientsPage() {
   };
 
   const handleDelete = async () => {
-    if (!selectedClient) return;
+    if (!selectedClient) {
+      toast.error('No client selected for deletion');
+      return;
+    }
+
+    if (!selectedClient.id) {
+      toast.error('Client ID is missing');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -254,6 +275,10 @@ export default function ClientsPage() {
       label: 'Manage',
       icon: Eye,
       onClick: (client) => {
+        if (!client.id) {
+          toast.error('Client ID not found');
+          return;
+        }
         router.push(`/dashboard/clients/${client.id}`);
       }
     },
@@ -262,6 +287,10 @@ export default function ClientsPage() {
       label: 'View Users',
       icon: Users,
       onClick: (client) => {
+        if (!client.id) {
+          toast.error('Client ID not found');
+          return;
+        }
         router.push(`/dashboard/clients/${client.id}`);
       }
     },
@@ -277,6 +306,10 @@ export default function ClientsPage() {
       icon: Trash2,
       variant: 'destructive',
       onClick: (client) => {
+        if (!client) {
+          toast.error('Client data not available');
+          return;
+        }
         setSelectedClient(client);
         setShowDeleteModal(true);
       }
@@ -564,7 +597,11 @@ export default function ClientsPage() {
             >
               Cancel
             </Button>
-            <Button type="submit" loading={isSubmitting}>
+            <Button 
+              type="submit" 
+              loading={isSubmitting}
+              disabled={isSubmitting || !isFormValid()}
+            >
               {selectedClient ? 'Update Client' : 'Create Client'}
             </Button>
           </FormActions>
