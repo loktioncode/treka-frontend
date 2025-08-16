@@ -22,6 +22,7 @@ export interface CreateUserRequest {
   password: string;
   first_name: string;
   last_name: string;
+  role?: string; // Optional, defaults to "user"
   notification_preferences: {
     email: boolean;
     whatsapp: boolean;

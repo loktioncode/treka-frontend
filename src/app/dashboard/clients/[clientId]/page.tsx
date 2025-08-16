@@ -195,12 +195,25 @@ export default function ClientDetailPage() {
     setIsSubmitting(true);
     try {
       if (isCreatingAdmin) {
-        // Create admin user
-        await userAPI.createAdmin(userFormData as CreateAdminRequest);
+        // Create admin user - ensure client_id and role are included
+        const adminData = {
+          ...userFormData,
+          client_id: clientId,
+          role: "admin"  // Explicitly set role for admin users
+        };
+        await userAPI.createAdmin(adminData as CreateAdminRequest);
         toast.success('Admin user created successfully');
       } else {
-        // Create regular user for client
-        await clientAPI.createClientUser(clientId, userFormData as CreateUserRequest);
+        // Create regular user for client - the API endpoint should handle client assignment
+        const userData = {
+          email: userFormData.email!,
+          password: userFormData.password!,
+          first_name: userFormData.first_name!,
+          last_name: userFormData.last_name!,
+          role: "user",  // Explicitly set role for regular users
+          notification_preferences: userFormData.notification_preferences!
+        };
+        await clientAPI.createClientUser(clientId, userData);
         toast.success('User created successfully');
       }
       
