@@ -221,6 +221,12 @@ export const userAPI = {
     return response.data;
   },
 
+  updateUser: async (userId: string, userData: Partial<User>) => {
+    // Note: This endpoint doesn't exist yet in the backend
+    // For now, we'll return an error to inform the user
+    throw new Error('User update functionality is not yet implemented in the backend. Please contact support to enable this feature.');
+  },
+
   toggleUserActivation: async (userId: string, activate: boolean) => {
     const response = await api.post(`/auth/users/${userId}/activate`, { activate });
     return response.data;

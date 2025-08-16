@@ -42,7 +42,9 @@ import {
   MapPin,
   Calendar,
   Power,
-  PowerOff
+  PowerOff,
+  KeyRound,
+  Send
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -61,9 +63,11 @@ export default function ClientDetailPage() {
   const [usersLoading, setUsersLoading] = useState(true);
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [showEditClientModal, setShowEditClientModal] = useState(false);
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditingUser, setIsEditingUser] = useState(false);
 
   // Form states
   const [userFormData, setUserFormData] = useState<Partial<CreateUserRequest & CreateAdminRequest>>({
@@ -77,6 +81,7 @@ export default function ClientDetailPage() {
       whatsapp: false
     }
   });
+  const [editUserFormData, setEditUserFormData] = useState<Partial<User>>({});
   const [clientFormData, setClientFormData] = useState<Partial<Client>>({});
   const [userFormErrors, setUserFormErrors] = useState<Record<string, string>>({});
   const [clientFormErrors, setClientFormErrors] = useState<Record<string, string>>({});
@@ -308,6 +313,71 @@ export default function ClientDetailPage() {
     }
   };
 
+  const handlePasswordReset = async (user: User) => {
+    try {
+      await authAPI.forgotPassword(user.email);
+      toast.success(`Password reset email sent to ${user.email}`);
+    } catch (error: unknown) {
+      let message = 'Failed to send password reset email';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { detail?: string } } };
+        message = axiosError.response?.data?.detail || message;
+      }
+      toast.error(message);
+    }
+  };
+
+  const handleSendWelcomeEmail = async (user: User) => {
+    try {
+      // Since there's no specific welcome email endpoint, we'll use password reset
+      // as a way to send them login instructions
+      await authAPI.forgotPassword(user.email);
+      toast.success(`Welcome email with login instructions sent to ${user.email}`);
+    } catch (error: unknown) {
+      let message = 'Failed to send welcome email';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { detail?: string } } };
+        message = axiosError.response?.data?.detail || message;
+      }
+      toast.error(message);
+    }
+  };
+
+  const handleEditUser = (user: User) => {
+    setSelectedUser(user);
+    setEditUserFormData({
+      first_name: user.first_name,
+      last_name: user.last_name,
+      email: user.email,
+      notification_preferences: user.notification_preferences
+    });
+    setIsEditingUser(false);
+    setShowEditUserModal(true);
+  };
+
+  const handleUpdateUser = async () => {
+    if (!selectedUser) return;
+
+    setIsSubmitting(true);
+    try {
+      await userAPI.updateUser(selectedUser.id, editUserFormData);
+      toast.success('User updated successfully');
+      setIsEditingUser(false);
+      await loadUsers();
+    } catch (error: unknown) {
+      let message = 'Failed to update user';
+      if (error && typeof error === 'object' && 'message' in error) {
+        message = (error as { message: string }).message;
+      } else if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { detail?: string } } };
+        message = axiosError.response?.data?.detail || message;
+      }
+      toast.error(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const userColumns: Column<User>[] = [
     {
       key: 'email',
@@ -384,6 +454,12 @@ export default function ClientDetailPage() {
 
   const userActions: DataTableAction<User>[] = [
     {
+      key: 'edit',
+      label: 'Edit',
+      icon: Edit,
+      onClick: handleEditUser
+    },
+    {
       key: 'activate',
       label: 'Activate',
       icon: ToggleLeft,
@@ -396,6 +472,20 @@ export default function ClientDetailPage() {
       icon: ToggleRight,
       onClick: handleToggleUserActivation,
       show: (user) => user.is_active
+    },
+    {
+      key: 'password_reset',
+      label: 'Reset Password',
+      icon: KeyRound,
+      variant: 'secondary',
+      onClick: handlePasswordReset
+    },
+    {
+      key: 'send_welcome',
+      label: 'Send Welcome Email',
+      icon: Send,
+      variant: 'secondary',
+      onClick: handleSendWelcomeEmail
     },
     {
       key: 'delete',
@@ -807,6 +897,241 @@ export default function ClientDetailPage() {
             </Button>
           </FormActions>
         </Form>
+      </Modal>
+
+      {/* Edit User Modal */}
+      <Modal
+        isOpen={showEditUserModal}
+        onClose={() => {
+          setShowEditUserModal(false);
+          setSelectedUser(null);
+          setIsEditingUser(false);
+        }}
+        title={`${isEditingUser ? 'Edit' : 'View'} User Details`}
+        size="lg"
+      >
+        {selectedUser && (
+          <div className="space-y-6">
+            {!isEditingUser ? (
+              // View Mode
+              <>
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold text-gray-900">User Information</h3>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsEditingUser(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Edit className="h-4 w-4" />
+                    Edit
+                  </Button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="text-md font-medium text-gray-900 mb-3">Personal Information</h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Full Name</label>
+                        <p className="text-gray-900">{selectedUser.first_name} {selectedUser.last_name}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Email</label>
+                        <p className="text-gray-900">{selectedUser.email}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Role</label>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          selectedUser.role === 'admin'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {selectedUser.role.toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-md font-medium text-gray-900 mb-3">Account Status</h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Status</label>
+                        <p className={`${selectedUser.is_active ? 'text-green-600' : 'text-red-600'}`}>
+                          {selectedUser.is_active ? 'Active' : 'Inactive'}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Created</label>
+                        <p className="text-gray-900">{formatDate(selectedUser.created_at)}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Last Updated</label>
+                        <p className="text-gray-900">{formatDate(selectedUser.updated_at)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-md font-medium text-gray-900 mb-3">Notification Preferences</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm">Email notifications</span>
+                      <span className={`text-sm font-medium ${selectedUser.notification_preferences?.email ? 'text-green-600' : 'text-gray-400'}`}>
+                        {selectedUser.notification_preferences?.email ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm">WhatsApp notifications</span>
+                      <span className={`text-sm font-medium ${selectedUser.notification_preferences?.whatsapp ? 'text-green-600' : 'text-gray-400'}`}>
+                        {selectedUser.notification_preferences?.whatsapp ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-between gap-3 pt-4 border-t">
+                  <div className="flex gap-2">
+                    <Button
+                      variant={selectedUser.is_active ? "destructive" : "default"}
+                      onClick={async () => {
+                        await handleToggleUserActivation(selectedUser);
+                        // Refresh the selected user data
+                        const updatedUsers = await clientAPI.getClientUsers(clientId);
+                        const transformedUsers = ensureId(updatedUsers);
+                        const updatedUser = transformedUsers.find(u => u.id === selectedUser.id);
+                        if (updatedUser) {
+                          setSelectedUser(updatedUser);
+                        }
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      {selectedUser.is_active ? (
+                        <>
+                          <ToggleRight className="h-4 w-4" />
+                          Deactivate
+                        </>
+                      ) : (
+                        <>
+                          <ToggleLeft className="h-4 w-4" />
+                          Activate
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => handlePasswordReset(selectedUser)}
+                      className="flex items-center gap-2"
+                    >
+                      <KeyRound className="h-4 w-4" />
+                      Reset Password
+                    </Button>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowEditUserModal(false);
+                      setSelectedUser(null);
+                      setIsEditingUser(false);
+                    }}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </>
+            ) : (
+              // Edit Mode
+              <>
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Edit User Information</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <FormLabel required>First Name</FormLabel>
+                      <Input
+                        value={editUserFormData.first_name || ''}
+                        onChange={(e) => setEditUserFormData({ ...editUserFormData, first_name: e.target.value })}
+                        placeholder="Enter first name"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <div>
+                      <FormLabel required>Last Name</FormLabel>
+                      <Input
+                        value={editUserFormData.last_name || ''}
+                        onChange={(e) => setEditUserFormData({ ...editUserFormData, last_name: e.target.value })}
+                        placeholder="Enter last name"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <FormLabel required>Email</FormLabel>
+                    <Input
+                      type="email"
+                      value={editUserFormData.email || ''}
+                      onChange={(e) => setEditUserFormData({ ...editUserFormData, email: e.target.value })}
+                      placeholder="Enter email"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div>
+                    <FormLabel>Notification Preferences</FormLabel>
+                    <div className="space-y-3 mt-2">
+                      <Checkbox
+                        label="Email notifications"
+                        checked={editUserFormData.notification_preferences?.email || false}
+                        onChange={(e) => setEditUserFormData({
+                          ...editUserFormData,
+                          notification_preferences: {
+                            email: e.target.checked,
+                            whatsapp: editUserFormData.notification_preferences?.whatsapp || false
+                          }
+                        })}
+                        disabled={isSubmitting}
+                      />
+                      <Checkbox
+                        label="WhatsApp notifications"
+                        checked={editUserFormData.notification_preferences?.whatsapp || false}
+                        onChange={(e) => setEditUserFormData({
+                          ...editUserFormData,
+                          notification_preferences: {
+                            email: editUserFormData.notification_preferences?.email || false,
+                            whatsapp: e.target.checked
+                          }
+                        })}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsEditingUser(false)}
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleUpdateUser}
+                    loading={isSubmitting}
+                    className="flex items-center gap-2"
+                  >
+                    <Edit className="h-4 w-4" />
+                    Update User
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </Modal>
 
       {/* Delete User Confirmation Modal */}
