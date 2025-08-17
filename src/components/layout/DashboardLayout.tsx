@@ -310,7 +310,10 @@ function SidebarContent({ navigation, pathname, user, onClose, isMobile }: Sideb
           <li>
             <ul role="list" className="-mx-2 space-y-1">
               {navigation.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                // Special handling for dashboard route to avoid conflicts with sub-routes
+                const isActive = item.href === '/dashboard' 
+                  ? pathname === '/dashboard'
+                  : pathname === item.href || pathname.startsWith(item.href + '/');
                 return (
                   <li key={item.name}>
                     <Link
@@ -318,14 +321,14 @@ function SidebarContent({ navigation, pathname, user, onClose, isMobile }: Sideb
                       onClick={onClose}
                       className={cn(
                         isActive
-                          ? 'bg-blue-50 text-blue-700'
-                          : 'text-gray-700 hover:text-blue-700 hover:bg-blue-50',
+                          ? 'bg-teal-50 text-teal-700'
+                          : 'text-gray-700 hover:text-teal-700 hover:bg-teal-50',
                         'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors cursor-pointer'
                       )}
                     >
                       <item.icon
                         className={cn(
-                          isActive ? 'text-blue-700' : 'text-gray-400 group-hover:text-blue-700',
+                          isActive ? 'text-teal-700' : 'text-gray-400 group-hover:text-teal-700',
                           'h-6 w-6 shrink-0'
                         )}
                       />
