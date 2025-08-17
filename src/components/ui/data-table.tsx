@@ -138,19 +138,28 @@ export function DataTable<T extends { id: string }>({
 
   const renderActions = (item: T) => {
     // Helper function to safely get icon
-    const getIcon = (icon: DataTableAction<T>['icon']): React.ComponentType<{ className?: string }> | null => {
-      if (!icon) return null;
-      if (typeof icon === 'function' && icon.length > 0) {
+    const getIcon = (action: DataTableAction<T>['icon']): React.ComponentType<{ className?: string }> | null => {
+      if (!action) return null;
+      if (typeof action === 'function' && action.length > 0) {
         // Check if it's a function that takes parameters (not a React component)
         try {
-          return (icon as (item: T) => React.ComponentType<{ className?: string }>)(item);
+          return (action as (item: T) => React.ComponentType<{ className?: string }>)(item);
         } catch {
-          return icon as React.ComponentType<{ className?: string }>;
+          return action as React.ComponentType<{ className?: string }>;
         }
       }
-      return icon as React.ComponentType<{ className?: string }>;
+      return action as React.ComponentType<{ className?: string }>;
     };
     const visibleActions = actions.filter(action => action.show ? action.show(item) : true);
+    
+    // Debug logging for actions
+    if (actions.length > 0) {
+      console.log('🔍 Actions for item:', item.id || 'unknown', {
+        totalActions: actions.length,
+        visibleActions: visibleActions.length,
+        actions: actions.map(a => ({ key: a.key, label: typeof a.label === 'function' ? a.label(item) : a.label, visible: a.show ? a.show(item) : true }))
+      });
+    }
     
     if (visibleActions.length === 0) return null;
 

@@ -339,16 +339,23 @@ export default function UsersPage() {
 
     setIsSubmitting(true);
     try {
-      await userAPI.deleteUser(selectedUser.id);
+      // Use the utility function to get a valid user ID
+      const userId = getValidUserId(selectedUser);
+      console.log('🗑️ Deleting user with ID:', userId);
+      console.log('🗑️ Selected user data:', selectedUser);
+      
+      await userAPI.deleteUser(userId);
       toast.success('User deleted successfully');
       setShowDeleteModal(false);
       setSelectedUser(null);
       await loadUsers();
     } catch (error: unknown) {
+      console.error('❌ Error deleting user:', error);
       let message = 'Failed to delete user';
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as { response?: { data?: { detail?: string } } };
         message = axiosError.response?.data?.detail || message;
+        console.error('❌ API Error details:', axiosError.response?.data);
       }
       toast.error(message);
     } finally {
@@ -357,11 +364,13 @@ export default function UsersPage() {
   };
 
   const handleViewUser = (user: User) => {
+    console.log('👁️ View user clicked:', user);
     setSelectedUser(user);
     setShowViewModal(true);
   };
 
   const handleEditUser = (user: User) => {
+    console.log('✏️ Edit user clicked:', user);
     setSelectedUser(user);
     setEditFormData({
       first_name: user.first_name,
@@ -424,7 +433,7 @@ export default function UsersPage() {
       
       // If no fields have changed, show a message and return
       if (Object.keys(changedFields).length === 0) {
-        toast.info('No changes detected');
+        toast.success('No changes detected');
         return;
       }
       
@@ -452,14 +461,12 @@ export default function UsersPage() {
         message = axiosError.response?.data?.detail || message;
         console.error('API Error Details:', axiosError.response?.data);
         
-        // Handle specific error cases
-        if (axiosError.response?.status === 400) {
-          message = 'Invalid data provided. Please check your input.';
-        } else if (axiosError.response?.status === 409) {
+        // Handle specific error cases based on error message
+        if (message.includes('already exists') || message.includes('duplicate')) {
           message = 'Email address already exists. Please use a different email.';
-        } else if (axiosError.response?.status === 403) {
+        } else if (message.includes('permission') || message.includes('forbidden')) {
           message = 'You do not have permission to update this user.';
-        } else if (axiosError.response?.status === 404) {
+        } else if (message.includes('not found')) {
           message = 'User not found.';
         }
       } else if (error && typeof error === 'object' && 'message' in error) {
@@ -592,16 +599,14 @@ export default function UsersPage() {
         message = axiosError.response?.data?.detail || message;
         console.error('Role Update API Error Details:', axiosError.response?.data);
         
-        // Handle specific error cases for role updates
-        if (axiosError.response?.status === 400) {
-          message = 'Invalid role data provided. Please check your selection.';
-        } else if (axiosError.response?.status === 409) {
+        // Handle specific error cases for role updates based on error message
+        if (message.includes('conflict') || message.includes('not allowed')) {
           message = 'Role change conflict. This role change is not allowed.';
-        } else if (axiosError.response?.status === 403) {
+        } else if (message.includes('permission') || message.includes('forbidden')) {
           message = 'You do not have permission to change this user\'s role.';
-        } else if (axiosError.response?.status === 404) {
+        } else if (message.includes('not found')) {
           message = 'User not found.';
-        } else if (axiosError.response?.status === 422) {
+        } else if (message.includes('validation') || message.includes('client assignment')) {
           message = 'Role change validation failed. Please check the client assignment.';
         }
       } else if (error && typeof error === 'object' && 'message' in error) {
@@ -753,10 +758,22 @@ export default function UsersPage() {
       icon: Trash2,
       variant: 'destructive',
       onClick: (u) => {
+        console.log('🗑️ Delete action clicked for user:', u);
+        console.log('🗑️ Current user ID:', user?.id);
+        console.log('🗑️ User ID to delete:', u.id);
         setSelectedUser(u);
         setShowDeleteModal(true);
       },
-      show: (u) => u.id !== user?.id // Can't delete yourself
+      show: (u) => {
+        const canDelete = u.id !== user?.id;
+        console.log('🗑️ Delete action visibility check:', {
+          userId: u.id,
+          currentUserId: user?.id,
+          canDelete,
+          userEmail: u.email
+        });
+        return canDelete; // Can't delete yourself
+      }
     }
   ];
 

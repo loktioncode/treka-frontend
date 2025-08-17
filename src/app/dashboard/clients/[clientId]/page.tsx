@@ -296,16 +296,29 @@ export default function ClientDetailPage() {
 
     setIsSubmitting(true);
     try {
-      await userAPI.deleteUser(selectedUser.id);
+      // Get the valid user ID
+      const userId = selectedUser._id || selectedUser.id;
+      if (!userId) {
+        throw new Error('No valid user ID found');
+      }
+      
+      console.log('🗑️ Deleting user with ID:', userId);
+      console.log('🗑️ Selected user data:', selectedUser);
+      
+      await userAPI.deleteUser(userId);
       toast.success('User deleted successfully');
       setShowDeleteUserModal(false);
       setSelectedUser(null);
       await loadUsers();
     } catch (error: unknown) {
+      console.error('❌ Error deleting user:', error);
       let message = 'Failed to delete user';
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as { response?: { data?: { detail?: string } } };
         message = axiosError.response?.data?.detail || message;
+        console.error('❌ API Error details:', axiosError.response?.data);
+      } else if (error instanceof Error) {
+        message = error.message;
       }
       toast.error(message);
     } finally {
