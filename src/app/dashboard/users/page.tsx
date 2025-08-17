@@ -139,30 +139,42 @@ export default function UsersPage() {
   // Load data
   useEffect(() => {
     loadUsers();
-    if (user?.role === 'super_admin') {
+    if (user?.role === 'super_admin' || user?.role === 'admin') {
       loadClients();
     }
   }, [user, loadUsers]);
 
   const loadClients = async () => {
     try {
-      const response = await clientAPI.getClients();
-      console.log('🔍 Raw clients API response:', response);
-      
-      // Check client structure
-      if (response.length > 0) {
-        const sampleClient = response[0];
-        console.log('🔍 Sample client structure:', {
-          keys: Object.keys(sampleClient),
-          id: sampleClient.id,
-          _id: sampleClient._id,
-          name: sampleClient.name
-        });
+      if (user?.role === 'super_admin') {
+        // Super admin can see all clients
+        const response = await clientAPI.getClients();
+        console.log('🔍 Raw clients API response:', response);
+        
+        // Check client structure
+        if (response.length > 0) {
+          const sampleClient = response[0];
+          console.log('🔍 Sample client structure:', {
+            keys: Object.keys(sampleClient),
+            id: sampleClient.id,
+            _id: sampleClient._id,
+            name: sampleClient.name
+          });
+        }
+        
+        setClients(response);
+      } else if (user?.role === 'admin' && user.client_id) {
+        // Client admin can only see their own client
+        const response = await clientAPI.getClient(user.client_id);
+        console.log('🔍 Client admin client response:', response);
+        setClients([response]);
+      } else {
+        // Regular users don't need client list
+        setClients([]);
       }
-      
-      setClients(response);
     } catch (error) {
       console.error('Error loading clients:', error);
+      setClients([]);
     }
   };
 

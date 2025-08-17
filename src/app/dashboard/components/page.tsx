@@ -122,19 +122,29 @@ export default function ComponentsPage() {
   const loadClients = useCallback(async () => {
     try {
       if (user?.role === 'super_admin') {
+        // Super admin can see all clients
         const response = await clientAPI.getClients();
         const transformedClients = ensureId(response);
         setClients(transformedClients);
+      } else if (user?.role === 'admin' && user.client_id) {
+        // Client admin can only see their own client
+        const response = await clientAPI.getClient(user.client_id);
+        const transformedClient = ensureId([response]);
+        setClients(transformedClient);
+      } else {
+        // Regular users don't need client list
+        setClients([]);
       }
     } catch (error) {
       console.error('Error loading clients:', error);
+      setClients([]);
     }
   }, [user]);
 
   // Load data
   useEffect(() => {
     loadComponents();
-    if (user?.role === 'super_admin') {
+    if (user?.role === 'super_admin' || user?.role === 'admin') {
       loadClients();
     }
     loadAssets();

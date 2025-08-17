@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { SmartLink } from '@/components/SmartLink';
 import {
   Bars3Icon,
   XMarkIcon,
@@ -36,15 +36,15 @@ export default function Navigation() {
           <div className="flex h-16 justify-between">
             <div className="flex">
               <div className="flex flex-shrink-0 items-center">
-                <Link href="/dashboard" className="text-2xl font-bold text-blue-900 cursor-pointer">
+                <SmartLink href="/dashboard" className="text-2xl font-bold text-blue-900 cursor-pointer">
                   TREKA
-                </Link>
+                </SmartLink>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                 {navigation.map((item) => {
                   const Icon = item.icon;
                   return (
-                    <Link
+                    <SmartLink
                       key={item.name}
                       href={item.href}
                       className={`inline-flex items-center px-1 pt-1 text-sm font-medium cursor-pointer ${
@@ -52,10 +52,11 @@ export default function Navigation() {
                           ? 'border-b-2 border-teal-500 text-gray-900'
                           : 'border-b-2 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                       }`}
+                      variant="nav"
                     >
                       <Icon className="h-5 w-5 mr-1" />
                       {item.name}
-                    </Link>
+                    </SmartLink>
                   );
                 })}
               </div>
@@ -96,7 +97,7 @@ export default function Navigation() {
             {navigation.map((item) => {
               const Icon = item.icon;
               return (
-                <Link
+                <SmartLink
                   key={item.name}
                   href={item.href}
                   className={`block py-2 pl-3 pr-4 text-base font-medium cursor-pointer ${
@@ -105,12 +106,13 @@ export default function Navigation() {
                       : 'border-l-4 border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700'
                   }`}
                   onClick={() => setMobileMenuOpen(false)}
+                  variant="default"
                 >
                   <div className="flex items-center">
                     <Icon className="h-5 w-5 mr-2" />
                     {item.name}
                   </div>
-                </Link>
+                </SmartLink>
               );
             })}
           </div>

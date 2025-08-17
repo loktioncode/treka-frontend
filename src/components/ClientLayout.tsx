@@ -2,6 +2,7 @@
 
 
 import { AuthProvider } from '@/contexts/AuthContext';
+import { NavigationProvider } from '@/contexts/NavigationContext';
 import { ToastProvider } from '@/components/ToastProvider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
@@ -43,7 +44,9 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
     <QueryClientProvider client={queryClient}>
       <ToastProvider />
       <AuthProvider>
-        {children}
+        <NavigationProvider>
+          {children}
+        </NavigationProvider>
       </AuthProvider>
       {/* Show React Query devtools in development only */}
       {process.env.NODE_ENV === 'development' && (

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { clientAPI, type Client, type CreateClientRequest } from '@/services/api';
+import { type Client, type CreateClientRequest } from '@/services/api';
 import { DataTable, type Column, type DataTableAction } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,17 +16,25 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
 import { ensureId } from '@/lib/id-utils';
+import { PageTransition } from '@/components/PageTransition';
+import { useNavigation } from '@/contexts/NavigationContext';
+import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from '@/hooks/useClients';
 
 export default function ClientsPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { navigateTo } = useNavigation();
+  
+  // React Query hooks
+  const { data: clients = [], isLoading: loading } = useClients();
+  const createClientMutation = useCreateClient();
+  const updateClientMutation = useUpdateClient();
+  const deleteClientMutation = useDeleteClient();
+  
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<Partial<CreateClientRequest>>({
@@ -53,26 +61,7 @@ export default function ClientsPage() {
     }
   }, [user]);
 
-  // Load clients
-  useEffect(() => {
-    loadClients();
-  }, []);
-
-  const loadClients = async () => {
-    try {
-      setLoading(true);
-      const response = await clientAPI.getClients();
-      
-      // Transform the response to ensure we have 'id' field from '_id'
-      const transformedClients = ensureId(response);
-      setClients(transformedClients);
-    } catch (error) {
-      toast.error('Failed to load clients');
-      console.error('Error loading clients:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // React Query handles data loading automatically
 
   const resetForm = () => {
     setFormData({
@@ -117,36 +106,32 @@ export default function ClientsPage() {
     );
   };
 
+  // Get loading state from mutations
+  const isSubmitting = createClientMutation.isPending || updateClientMutation.isPending;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
 
-    setIsSubmitting(true);
     try {
       if (selectedClient) {
         // Update client
-        await clientAPI.updateClient(selectedClient.id, formData);
-        toast.success('Client updated successfully');
+        await updateClientMutation.mutateAsync({ 
+          clientId: selectedClient.id, 
+          data: formData 
+        });
         setShowEditModal(false);
       } else {
         // Create client
-        await clientAPI.createClient(formData as CreateClientRequest);
-        toast.success('Client created successfully');
+        await createClientMutation.mutateAsync(formData as CreateClientRequest);
         setShowCreateModal(false);
       }
       
-      await loadClients();
       resetForm();
       setSelectedClient(null);
-    } catch (error: unknown) {
-      let message = 'Failed to save client';
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: { detail?: string } } };
-        message = axiosError.response?.data?.detail || message;
-      }
-      toast.error(message);
-    } finally {
-      setIsSubmitting(false);
+    } catch (error) {
+      // Error handling is done by the mutation hooks
+      console.error('Submit error:', error);
     }
   };
 
@@ -173,22 +158,13 @@ export default function ClientsPage() {
       return;
     }
 
-    setIsSubmitting(true);
     try {
-      await clientAPI.deleteClient(selectedClient.id);
-      toast.success('Client deleted successfully');
+      await deleteClientMutation.mutateAsync(selectedClient.id);
       setShowDeleteModal(false);
       setSelectedClient(null);
-      await loadClients();
-    } catch (error: unknown) {
-      let message = 'Failed to delete client';
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: { detail?: string } } };
-        message = axiosError.response?.data?.detail || message;
-      }
-      toast.error(message);
-    } finally {
-      setIsSubmitting(false);
+    } catch (error) {
+      // Error handling is done by the mutation hook
+      console.error('Delete error:', error);
     }
   };
 
@@ -279,7 +255,7 @@ export default function ClientsPage() {
           toast.error('Client ID not found');
           return;
         }
-        router.push(`/dashboard/clients/${client.id}`);
+        navigateTo(`/dashboard/clients/${client.id}`);
       },
       variant: 'secondary'
     },
@@ -292,7 +268,7 @@ export default function ClientsPage() {
           toast.error('Client ID not found');
           return;
         }
-        router.push(`/dashboard/clients/${client.id}`);
+        navigateTo(`/dashboard/clients/${client.id}`);
       },
       variant: 'secondary'
     },
@@ -324,13 +300,14 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
-      >
+    <PageTransition>
+      <div className="space-y-6">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between"
+        >
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Clients</h1>
           <p className="text-gray-600 mt-1">Manage client organizations and their settings</p>
@@ -641,13 +618,14 @@ export default function ClientsPage() {
             <Button
               variant="destructive"
               onClick={handleDelete}
-              loading={isSubmitting}
+              loading={deleteClientMutation.isPending}
             >
               Delete Client
             </Button>
           </div>
         </div>
       </Modal>
-    </div>
+      </div>
+    </PageTransition>
   );
 }

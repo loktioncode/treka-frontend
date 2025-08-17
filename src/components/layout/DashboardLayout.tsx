@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield,
@@ -23,6 +22,10 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SkeletonProfile } from '@/components/ui/skeleton';
+import { SmartLink } from '@/components/SmartLink';
+import { useNavigation } from '@/contexts/NavigationContext';
+import { useRoutePrefetch } from '@/hooks/useRoutePrefetch';
+import { Tooltip } from '@/components/ui/tooltip';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -91,8 +94,31 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, logout, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { navigateTo } = useNavigation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    // Initialize from localStorage if available
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebarCollapsed');
+      return saved ? JSON.parse(saved) : false;
+    }
+    return false;
+  });
+  
+  // Enable automatic route prefetching
+  useRoutePrefetch();
+
+  // Handle sidebar collapse toggle with persistence
+  const handleSidebarToggle = useCallback(() => {
+    const newCollapsed = !sidebarCollapsed;
+    setSidebarCollapsed(newCollapsed);
+    
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sidebarCollapsed', JSON.stringify(newCollapsed));
+    }
+  }, [sidebarCollapsed]);
 
   // Filter navigation based on user role
   const filteredNavigation = navigation.filter(item => 
@@ -169,17 +195,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </AnimatePresence>
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
+      <div className={`hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-all duration-300 ${
+        sidebarCollapsed ? 'lg:w-16' : 'lg:w-64'
+      }`}>
         <SidebarContent 
           navigation={filteredNavigation} 
           pathname={pathname}
           user={user}
           isMobile={false}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={handleSidebarToggle}
         />
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className={`transition-all duration-300 ${
+        sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-64'
+      }`}>
         {/* Top navigation */}
         <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
           <button
@@ -240,7 +272,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       <button
                         onClick={() => {
                           setProfileDropdownOpen(false);
-                          router.push('/dashboard/profile');
+                          navigateTo('/dashboard/profile');
                         }}
                         className="flex w-full items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
                       >
@@ -282,27 +314,55 @@ interface SidebarContentProps {
   user: { role: string; first_name: string; last_name: string; id: string };
   onClose?: () => void;
   isMobile: boolean;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-function SidebarContent({ navigation, pathname, user, onClose, isMobile }: SidebarContentProps) {
+function SidebarContent({ navigation, pathname, user, onClose, isMobile, collapsed = false, onToggleCollapse }: SidebarContentProps) {
   return (
     <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4 shadow-xl">
-      <div className="flex h-16 shrink-0 items-center justify-between">
-        <div className="flex items-center gap-x-3">
-          <div className="h-8 w-8 rounded bg-gradient-to-r from-teal-600 to-teal-700 flex items-center justify-center">
-            <Shield className="h-5 w-5 text-white" />
+              <div className="flex h-16 shrink-0 items-center justify-between">
+          <div className="flex items-center gap-x-3">
+            {collapsed ? (
+              <Tooltip content="TREKA Dashboard" position="right">
+                <SmartLink href="/dashboard" className="flex items-center gap-x-3 hover:opacity-80 transition-opacity">
+                  <div className="h-8 w-8 rounded bg-gradient-to-r from-teal-600 to-teal-700 flex items-center justify-center">
+                    <Shield className="h-5 w-5 text-white" />
+                  </div>
+                </SmartLink>
+              </Tooltip>
+            ) : (
+              <SmartLink href="/dashboard" className="flex items-center gap-x-3 hover:opacity-80 transition-opacity">
+                <div className="h-8 w-8 rounded bg-gradient-to-r from-teal-700 flex items-center justify-center">
+                  <Shield className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-xl font-bold text-gray-900">TREKA</span>
+              </SmartLink>
+            )}
           </div>
-          <span className="text-xl font-bold text-gray-900">TREKA</span>
+        <div className="flex items-center gap-2">
+          {!isMobile && onToggleCollapse && (
+            <button
+              type="button"
+              className="p-1 rounded-md hover:bg-gray-100 cursor-pointer transition-colors"
+              onClick={onToggleCollapse}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
+                collapsed ? 'rotate-180' : ''
+              }`} />
+            </button>
+          )}
+          {isMobile && (
+            <button
+              type="button"
+              className="-m-2.5 p-2.5 cursor-pointer"
+              onClick={onClose}
+            >
+              <X className="h-6 w-6 text-gray-400" />
+            </button>
+          )}
         </div>
-        {isMobile && (
-          <button
-            type="button"
-            className="-m-2.5 p-2.5 cursor-pointer"
-            onClick={onClose}
-          >
-            <X className="h-6 w-6 text-gray-400" />
-          </button>
-        )}
       </div>
 
       <nav className="flex flex-1 flex-col">
@@ -314,26 +374,39 @@ function SidebarContent({ navigation, pathname, user, onClose, isMobile }: Sideb
                 const isActive = item.href === '/dashboard' 
                   ? pathname === '/dashboard'
                   : pathname === item.href || pathname.startsWith(item.href + '/');
+                
+                const navigationItem = (
+                  <SmartLink
+                    href={item.href}
+                    onClick={onClose}
+                    className={cn(
+                      isActive
+                        ? 'bg-teal-50 text-teal-700'
+                        : 'text-gray-700 hover:text-teal-700 hover:bg-teal-50',
+                      'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors cursor-pointer',
+                      collapsed && 'justify-center'
+                    )}
+                    variant="default"
+                  >
+                    <item.icon
+                      className={cn(
+                        isActive ? 'text-teal-700' : 'text-gray-400 group-hover:text-teal-700',
+                        'h-6 w-6 shrink-0'
+                      )}
+                    />
+                    {!collapsed && item.name}
+                  </SmartLink>
+                );
+
                 return (
                   <li key={item.name}>
-                    <Link
-                      href={item.href}
-                      onClick={onClose}
-                      className={cn(
-                        isActive
-                          ? 'bg-teal-50 text-teal-700'
-                          : 'text-gray-700 hover:text-teal-700 hover:bg-teal-50',
-                        'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors cursor-pointer'
-                      )}
-                    >
-                      <item.icon
-                        className={cn(
-                          isActive ? 'text-teal-700' : 'text-gray-400 group-hover:text-teal-700',
-                          'h-6 w-6 shrink-0'
-                        )}
-                      />
-                      {item.name}
-                    </Link>
+                    {collapsed ? (
+                      <Tooltip content={item.name} position="right">
+                        {navigationItem}
+                      </Tooltip>
+                    ) : (
+                      navigationItem
+                    )}
                   </li>
                 );
               })}
@@ -342,18 +415,23 @@ function SidebarContent({ navigation, pathname, user, onClose, isMobile }: Sideb
 
           {/* User info */}
           <li className="mt-auto">
-            <div className="flex items-center gap-x-4 px-2 py-3 text-sm font-semibold leading-6 text-gray-900">
+            <div className={cn(
+              "flex items-center px-2 py-3 text-sm font-semibold leading-6 text-gray-900",
+              collapsed ? "justify-center" : "gap-x-4"
+            )}>
               <div className="h-8 w-8 rounded-full bg-gradient-to-r from-teal-600 to-teal-700 flex items-center justify-center">
                 <User className="h-4 w-4 text-white" />
               </div>
-              <div className="flex-1">
-                <div className="text-sm font-medium text-gray-900">
-                  {user.first_name} {user.last_name}
+              {!collapsed && (
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-gray-900">
+                    {user.first_name} {user.last_name}
+                  </div>
+                  <div className="text-xs text-gray-500 capitalize">
+                    {user.role.replace('_', ' ')}
+                  </div>
                 </div>
-                <div className="text-xs text-gray-500 capitalize">
-                  {user.role.replace('_', ' ')}
-                </div>
-              </div>
+              )}
             </div>
           </li>
         </ul>
