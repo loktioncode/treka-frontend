@@ -183,13 +183,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             transition={{ type: 'tween', duration: 0.3 }}
             className="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl lg:hidden"
           >
-            <SidebarContent 
-              navigation={filteredNavigation} 
-              pathname={pathname}
-              user={user}
-              onClose={() => setSidebarOpen(false)}
-              isMobile={true}
-            />
+                    <SidebarContent 
+          navigation={filteredNavigation} 
+          pathname={pathname}
+          user={user}
+          onClose={() => setSidebarOpen(false)}
+          isMobile={true}
+          onLogout={handleLogout}
+        />
           </motion.div>
         )}
       </AnimatePresence>
@@ -205,6 +206,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           isMobile={false}
           collapsed={sidebarCollapsed}
           onToggleCollapse={handleSidebarToggle}
+          onLogout={handleLogout}
         />
       </div>
 
@@ -322,9 +324,10 @@ interface SidebarContentProps {
   isMobile: boolean;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  onLogout: () => void;
 }
 
-function SidebarContent({ navigation, pathname, user, onClose, isMobile, collapsed = false, onToggleCollapse }: SidebarContentProps) {
+function SidebarContent({ navigation, pathname, user, onClose, isMobile, collapsed = false, onToggleCollapse, onLogout }: SidebarContentProps) {
   return (
     <div className={cn(
       "flex grow flex-col gap-y-5 overflow-y-auto bg-white pb-4 shadow-xl",
@@ -439,27 +442,22 @@ function SidebarContent({ navigation, pathname, user, onClose, isMobile, collaps
           {/* User info */}
           <li className="mt-auto" style={{ overflow: 'visible' }}>
             {collapsed ? (
-              <Tooltip content={`${user.first_name} ${user.last_name} (${user.role.replace('_', ' ')})`} position="right">
-                <div className="flex items-center justify-center py-3 px-1">
-                  <div className="h-8 w-8 rounded-full bg-gradient-to-r from-teal-600 to-teal-700 flex items-center justify-center">
-                    <User className="h-4 w-4 text-white" />
-                  </div>
-                </div>
+              <Tooltip content="Logout" position="right">
+                <button
+                  onClick={onLogout}
+                  className="flex items-center justify-center py-3 px-1 w-10 h-10 rounded-md hover:bg-gray-100 transition-colors cursor-pointer"
+                >
+                  <LogOut className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                </button>
               </Tooltip>
             ) : (
-              <div className="flex items-center py-3 px-2 gap-x-4">
-                <div className="h-8 w-8 rounded-full bg-gradient-to-r from-teal-600 to-teal-700 flex items-center justify-center">
-                  <User className="h-4 w-4 text-white" />
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-gray-900">
-                    {user.first_name} {user.last_name}
-                  </div>
-                  <div className="text-xs text-gray-500 capitalize">
-                    {user.role.replace('_', ' ')}
-                  </div>
-                </div>
-              </div>
+              <button
+                onClick={onLogout}
+                className="flex items-center py-3 px-2 gap-x-4 w-full rounded-md hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                <LogOut className="h-5 w-5 text-gray-400" />
+                <span className="text-sm font-medium text-gray-700">Logout</span>
+              </button>
             )}
           </li>
         </ul>
