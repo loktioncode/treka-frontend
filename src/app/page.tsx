@@ -123,10 +123,15 @@ export default function Home() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-              <Link href="/login">
-                <Button size="lg" className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 flex items-center gap-2">
+              <Link href="/login" aria-label="Get started with TREKA - Sign up or login to your account">
+                <Button 
+                  size="lg" 
+                  variant="outline"
+                  className="border-teal-700 text-teal-700 hover:bg-teal-700 hover:text-white flex items-center gap-2"
+                  aria-label="Get started with TREKA"
+                >
                   Get Started
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </Link>
               <Link href="#features">

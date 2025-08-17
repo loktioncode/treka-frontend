@@ -14,11 +14,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const baseClasses = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 focus-visible:rounded-lg disabled:pointer-events-none disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
     
     const variants = {
-      default: "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-white",
-      destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 hover:text-white",
-      outline: "border border-input bg-background hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200",
+      default: "bg-primary text-primary-foreground border border-teal-700 hover:bg-primary/90 hover:text-teal-700",
+      destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 hover:text-teal-700",
+      outline: "border border-input bg-background hover:bg-teal-50 hover:text-teal-700 hover:border-teal-700",
       secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:text-teal-700",
-      ghost: "hover:bg-teal-50 hover:text-teal-700",
+      ghost: "hover:bg-teal-50 hover:text-teal-700 focus:bg-teal-50 focus:text-teal-700",
       link: "text-primary underline-offset-4 hover:underline hover:text-teal-600",
     }
     

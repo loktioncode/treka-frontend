@@ -183,7 +183,7 @@ function LoginForm() {
                 type="submit"
                 loading={isLoading}
                 disabled={isLoading}
-                className="w-full h-11 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+                className="w-full h-11 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
               >
                 {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>

@@ -33,7 +33,13 @@ import {
   Mail, 
   Shield, 
   ToggleLeft, 
-  ToggleRight
+  ToggleRight,
+  Eye,
+  Edit,
+  MoreHorizontal,
+  Phone,
+  Calendar,
+  Clock
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -46,8 +52,11 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editFormData, setEditFormData] = useState<Partial<User>>({});
 
   // Form state
   const [formData, setFormData] = useState<Partial<CreateUserRequest & CreateAdminRequest>>({
@@ -229,6 +238,40 @@ export default function UsersPage() {
     }
   };
 
+  const handleViewUser = (user: User) => {
+    setSelectedUser(user);
+    setShowViewModal(true);
+  };
+
+  const handleEditUser = (user: User) => {
+    setSelectedUser(user);
+    setEditFormData({
+      first_name: user.first_name,
+      last_name: user.last_name,
+      email: user.email,
+      notification_preferences: user.notification_preferences
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateUser = async () => {
+    if (!selectedUser) return;
+    
+    setIsSubmitting(true);
+    try {
+      await userAPI.updateUser(selectedUser.id, editFormData);
+      toast.success('User updated successfully');
+      setShowEditModal(false);
+      setSelectedUser(null);
+      await loadUsers();
+    } catch (error) {
+      toast.error('Failed to update user');
+      console.error('Error updating user:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const columns: Column<User>[] = [
     {
       key: 'email',
@@ -314,6 +357,20 @@ export default function UsersPage() {
   }
 
   const actions: DataTableAction<User>[] = [
+    {
+      key: 'view',
+      label: 'View',
+      icon: Eye,
+      onClick: handleViewUser,
+      variant: 'outline'
+    },
+    {
+      key: 'edit',
+      label: 'Edit',
+      icon: Edit,
+      onClick: handleEditUser,
+      variant: 'outline'
+    },
     {
       key: 'activate',
       label: 'Activate',
@@ -639,6 +696,219 @@ export default function UsersPage() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* View User Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedUser(null);
+        }}
+        title="User Details"
+        size="lg"
+      >
+        {selectedUser && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="text-md font-medium text-gray-900 mb-3">Personal Information</h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Full Name</label>
+                    <p className="text-gray-900">{selectedUser.first_name} {selectedUser.last_name}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Email</label>
+                    <p className="text-gray-900">{selectedUser.email}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Role</label>
+                    <RoleBadge role={selectedUser.role} />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-md font-medium text-gray-900 mb-3">Account Status</h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Status</label>
+                    <StatusBadge status={selectedUser.is_active ? 'active' : 'inactive'} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Created</label>
+                    <p className="text-gray-900">{formatDate(selectedUser.created_at)}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Last Updated</label>
+                    <p className="text-gray-900">{formatDate(selectedUser.updated_at)}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-md font-medium text-gray-900 mb-3">Notification Preferences</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-gray-400" />
+                  <span className="text-sm">Email notifications</span>
+                  <span className={`text-sm font-medium ${selectedUser.notification_preferences?.email ? 'text-green-600' : 'text-gray-400'}`}>
+                    {selectedUser.notification_preferences?.email ? 'Enabled' : 'Disabled'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-gray-400" />
+                  <span className="text-sm">WhatsApp notifications</span>
+                  <span className={`text-sm font-medium ${selectedUser.notification_preferences?.whatsapp ? 'text-green-600' : 'text-gray-400'}`}>
+                    {selectedUser.notification_preferences?.whatsapp ? 'Enabled' : 'Disabled'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-between gap-3 pt-4 border-t">
+              <div className="flex gap-2">
+                <Button
+                  variant={selectedUser.is_active ? "destructive" : "default"}
+                  onClick={async () => {
+                    await handleToggleActivation(selectedUser);
+                    setShowViewModal(false);
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  {selectedUser.is_active ? (
+                    <>
+                      <ToggleRight className="h-4 w-4" />
+                      Deactivate
+                    </>
+                  ) : (
+                    <>
+                      <ToggleLeft className="h-4 w-4" />
+                      Activate
+                    </>
+                  )}
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowViewModal(false);
+                    handleEditUser(selectedUser);
+                  }}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit User
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowViewModal(false);
+                    setSelectedUser(null);
+                  }}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Edit User Modal */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedUser(null);
+        }}
+        title="Edit User"
+        size="lg"
+      >
+        <Form onSubmit={handleUpdateUser} isSubmitting={isSubmitting}>
+          <FormSection title="Personal Information">
+            <FormGrid cols={2}>
+              <FormField name="first_name">
+                <FormLabel required>First Name</FormLabel>
+                <Input
+                  value={editFormData.first_name || ''}
+                  onChange={(e) => setEditFormData({ ...editFormData, first_name: e.target.value })}
+                  placeholder="Enter first name"
+                  disabled={isSubmitting}
+                />
+              </FormField>
+
+              <FormField name="last_name">
+                <FormLabel required>Last Name</FormLabel>
+                <Input
+                  value={editFormData.last_name || ''}
+                  onChange={(e) => setEditFormData({ ...editFormData, last_name: e.target.value })}
+                  placeholder="Enter last name"
+                  disabled={isSubmitting}
+                />
+              </FormField>
+            </FormGrid>
+
+            <FormField name="email">
+              <FormLabel required>Email Address</FormLabel>
+              <Input
+                type="email"
+                value={editFormData.email || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                placeholder="Enter email address"
+                disabled={isSubmitting}
+              />
+            </FormField>
+          </FormSection>
+
+          <FormSection title="Notification Preferences">
+            <div className="space-y-3">
+              <Checkbox
+                label="Email notifications"
+                checked={editFormData.notification_preferences?.email || false}
+                onChange={(e) => setEditFormData({
+                  ...editFormData,
+                  notification_preferences: {
+                    email: e.target.checked,
+                    whatsapp: editFormData.notification_preferences?.whatsapp || false
+                  }
+                })}
+                disabled={isSubmitting}
+              />
+              <Checkbox
+                label="WhatsApp notifications"
+                checked={editFormData.notification_preferences?.whatsapp || false}
+                onChange={(e) => setEditFormData({
+                  ...editFormData,
+                  notification_preferences: {
+                    email: editFormData.notification_preferences?.email || false,
+                    whatsapp: e.target.checked
+                  }
+                })}
+                disabled={isSubmitting}
+              />
+            </div>
+          </FormSection>
+
+          <FormActions>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowEditModal(false);
+                setSelectedUser(null);
+              }}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" loading={isSubmitting}>
+              Update User
+            </Button>
+          </FormActions>
+        </Form>
       </Modal>
     </div>
   );

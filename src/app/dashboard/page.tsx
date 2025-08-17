@@ -288,165 +288,169 @@ export default function Dashboard() {
       <QuickStats stats={allStats} />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Recent Activity */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.6 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                Recent Activity
-              </CardTitle>
-              <CardDescription>
-                Latest updates from your assets and components
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {recentActivities.map((activity, index) => (
-                <motion.div
-                  key={activity.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className={`flex items-start gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${
-                    activity.priority === 'high' 
-                      ? 'border-red-200 bg-red-50 hover:bg-red-100' 
-                      : activity.priority === 'medium'
-                      ? 'border-yellow-200 bg-yellow-50 hover:bg-yellow-100'
-                      : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
-                  }`}
-                >
-                  <div className={`p-2 rounded-full ${
-                    activity.priority === 'high' 
-                      ? 'bg-red-100' 
-                      : activity.priority === 'medium'
-                      ? 'bg-yellow-100'
-                      : 'bg-teal-100'
-                  }`}>
-                    <activity.icon className={`h-4 w-4 ${
+        {/* Recent Activity - Only show for non-super-admin users */}
+        {user?.role !== 'super_admin' && (
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.6 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Recent Activity
+                </CardTitle>
+                <CardDescription>
+                  Latest updates from your assets and components
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {recentActivities.map((activity, index) => (
+                  <motion.div
+                    key={activity.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className={`flex items-start gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${
                       activity.priority === 'high' 
-                        ? 'text-red-600' 
+                        ? 'border-red-200 bg-red-50 hover:bg-red-100' 
                         : activity.priority === 'medium'
-                        ? 'text-yellow-600'
-                        : 'text-teal-600'
-                    }`} />
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-start justify-between">
-                      <p className="text-sm font-medium text-gray-900">{activity.message}</p>
-                      <StatusBadge status={activity.status} size="sm" />
+                        ? 'border-yellow-200 bg-yellow-50 hover:bg-yellow-100'
+                        : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className={`p-2 rounded-full ${
+                      activity.priority === 'high' 
+                        ? 'bg-red-100' 
+                        : activity.priority === 'medium'
+                        ? 'bg-yellow-100'
+                        : 'bg-teal-100'
+                    }`}>
+                      <activity.icon className={`h-4 w-4 ${
+                        activity.priority === 'high' 
+                          ? 'text-red-600' 
+                          : activity.priority === 'medium'
+                          ? 'text-yellow-600'
+                          : 'text-teal-600'
+                      }`} />
                     </div>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {activity.time}
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-start justify-between">
+                        <p className="text-sm font-medium text-gray-900">{activity.message}</p>
+                        <StatusBadge status={activity.status} size="sm" />
+                      </div>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {activity.time}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
+                {recentActivities.length === 0 && (
+                  <div className="text-center py-8">
+                    <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground text-sm">
+                      No recent activity to display.
                     </p>
                   </div>
-                </motion.div>
-              ))}
-              {recentActivities.length === 0 && (
-                <div className="text-center py-8">
-                  <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground text-sm">
-                    No recent activity to display.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
-        {/* Quick Actions */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.7 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Quick Actions
-              </CardTitle>
-              <CardDescription>
-                Common tasks and shortcuts
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <motion.button 
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="w-full p-4 text-left rounded-xl border border-teal-200 bg-gradient-to-r from-teal-50 to-teal-100 hover:from-teal-100 hover:to-teal-200 transition-all duration-200 group"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="p-2 bg-teal-500 rounded-lg group-hover:bg-teal-600 transition-colors">
-                    <Package className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-teal-900">Add New Asset</p>
-                    <p className="text-sm text-teal-700">Register a new asset in the system</p>
-                  </div>
-                  <Zap className="h-4 w-4 text-teal-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-              </motion.button>
-              
-              <motion.button 
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="w-full p-4 text-left rounded-xl border border-green-200 bg-gradient-to-r from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 transition-all duration-200 group"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="p-2 bg-green-500 rounded-lg group-hover:bg-green-600 transition-colors">
-                    <Wrench className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-green-900">Schedule Maintenance</p>
-                    <p className="text-sm text-green-700">Plan maintenance activities</p>
-                  </div>
-                  <Zap className="h-4 w-4 text-green-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-              </motion.button>
-
-              {user?.role !== 'user' && (
+        {/* Quick Actions - Only show for non-super-admin users */}
+        {user?.role !== 'super_admin' && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.7 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Quick Actions
+                </CardTitle>
+                <CardDescription>
+                  Common tasks and shortcuts
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
                 <motion.button 
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="w-full p-4 text-left rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 transition-all duration-200 group"
+                  className="w-full p-4 text-left rounded-xl border border-teal-200 bg-gradient-to-r from-teal-50 to-teal-100 hover:from-teal-100 hover:to-teal-200 transition-all duration-200 group"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="p-2 bg-purple-500 rounded-lg group-hover:bg-purple-600 transition-colors">
-                      <Users className="h-5 w-5 text-white" />
+                    <div className="p-2 bg-teal-500 rounded-lg group-hover:bg-teal-600 transition-colors">
+                      <Package className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="font-semibold text-purple-900">Manage Users</p>
-                      <p className="text-sm text-purple-700">Add or edit user accounts</p>
+                      <p className="font-semibold text-teal-900">Add New Asset</p>
+                      <p className="text-sm text-teal-700">Register a new asset in the system</p>
                     </div>
-                    <Zap className="h-4 w-4 text-purple-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Zap className="h-4 w-4 text-teal-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 </motion.button>
-              )}
+                
+                <motion.button 
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full p-4 text-left rounded-xl border border-green-200 bg-gradient-to-r from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 transition-all duration-200 group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 bg-green-500 rounded-lg group-hover:bg-green-600 transition-colors">
+                      <Wrench className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-green-900">Schedule Maintenance</p>
+                      <p className="text-sm text-green-700">Plan maintenance activities</p>
+                    </div>
+                    <Zap className="h-4 w-4 text-green-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </motion.button>
 
-              <motion.button 
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="w-full p-4 text-left rounded-xl border border-teal-200 bg-gradient-to-r from-teal-50 to-teal-100 hover:from-teal-100 hover:to-teal-200 transition-all duration-200 group"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="p-2 bg-teal-600 rounded-lg group-hover:bg-teal-700 transition-colors">
-                    <BarChart3 className="h-5 w-5 text-white" />
+                {user?.role !== 'user' && (
+                  <motion.button 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full p-4 text-left rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 transition-all duration-200 group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="p-2 bg-purple-500 rounded-lg group-hover:bg-purple-600 transition-colors">
+                        <Users className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-purple-900">Manage Users</p>
+                        <p className="text-sm text-purple-700">Add or edit user accounts</p>
+                      </div>
+                      <Zap className="h-4 w-4 text-purple-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </motion.button>
+                )}
+
+                <motion.button 
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full p-4 text-left rounded-xl border border-teal-200 bg-gradient-to-r from-teal-50 to-teal-100 hover:from-teal-100 hover:to-teal-200 transition-all duration-200 group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 bg-teal-600 rounded-lg group-hover:bg-teal-700 transition-colors">
+                      <BarChart3 className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-teal-900">View Reports</p>
+                      <p className="text-sm text-teal-700">Generate analytics reports</p>
+                    </div>
+                    <Zap className="h-4 w-4 text-teal-600 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  <div>
-                    <p className="font-semibold text-teal-900">View Reports</p>
-                    <p className="text-sm text-teal-700">Generate analytics reports</p>
-                  </div>
-                  <Zap className="h-4 w-4 text-teal-600 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-              </motion.button>
-            </CardContent>
-          </Card>
-        </motion.div>
+                </motion.button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
       </div>
     </div>
   );
