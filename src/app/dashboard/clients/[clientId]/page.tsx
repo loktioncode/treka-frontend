@@ -443,23 +443,25 @@ export default function ClientDetailPage() {
       key: 'edit',
       label: 'Edit',
       icon: Edit,
-      onClick: handleEditUser
+      onClick: handleEditUser,
+      variant: 'secondary'
     },
     {
       key: 'activate',
       label: 'Activate',
       icon: ToggleLeft,
       onClick: handleToggleUserActivation,
-      show: (user) => !user.is_active
+      show: (user) => !user.is_active,
+      variant: 'secondary'
     },
     {
       key: 'deactivate', 
       label: 'Deactivate',
       icon: ToggleRight,
       onClick: handleToggleUserActivation,
-      show: (user) => user.is_active
+      show: (user) => user.is_active,
+      variant: 'secondary'
     },
-
     {
       key: 'send_welcome',
       label: 'Send Welcome Email',

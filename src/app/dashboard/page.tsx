@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { QuickStats } from '@/components/ui/stats-card';
 import { StatusBadge, RoleBadge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { analyticsAPI } from '@/services/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -60,7 +60,7 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadDashboardStats = async (isRefresh = false) => {
+  const loadDashboardStats = useCallback(async (isRefresh = false) => {
     try {
       if (isRefresh) {
         setRefreshing(true);
@@ -86,13 +86,13 @@ export default function Dashboard() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [user, setLoading, setRefreshing, setError, setDashboardStats]);
 
   useEffect(() => {
     if (user) {
       loadDashboardStats();
     }
-  }, [user]);
+  }, [user, loadDashboardStats]);
 
   const handleRefresh = () => {
     loadDashboardStats(true);
@@ -338,7 +338,7 @@ export default function Dashboard() {
                     <div className="flex-1 space-y-2">
                       <div className="flex items-start justify-between">
                         <p className="text-sm font-medium text-gray-900">{activity.message}</p>
-                        <StatusBadge status={activity.status} size="sm" />
+                        <StatusBadge status={activity.status as 'operational' | 'warning' | 'critical' | 'maintenance' | 'inactive'} size="sm" />
                       </div>
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         <Clock className="h-3 w-3" />

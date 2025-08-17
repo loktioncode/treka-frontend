@@ -8,7 +8,6 @@ import {
   Search,
   Filter,
   Plus,
-  MoreHorizontal,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -32,7 +31,7 @@ export interface DataTableAction<T> {
   label: string | ((item: T) => string);
   icon?: React.ComponentType<{ className?: string }> | ((item: T) => React.ComponentType<{ className?: string }>);
   onClick: (item: T) => void;
-  variant?: 'default' | 'destructive' | 'secondary' | 'warning' | 'success' | ((item: T) => 'default' | 'destructive' | 'secondary' | 'warning' | 'success');
+  variant?: 'default' | 'destructive' | 'secondary' | 'outline' | 'ghost' | ((item: T) => 'default' | 'destructive' | 'secondary' | 'outline' | 'ghost');
   show?: (item: T) => boolean;
 }
 
@@ -138,13 +137,26 @@ export function DataTable<T extends { id: string }>({
   };
 
   const renderActions = (item: T) => {
+    // Helper function to safely get icon
+    const getIcon = (icon: DataTableAction<T>['icon']): React.ComponentType<{ className?: string }> | null => {
+      if (!icon) return null;
+      if (typeof icon === 'function' && icon.length > 0) {
+        // Check if it's a function that takes parameters (not a React component)
+        try {
+          return (icon as (item: T) => React.ComponentType<{ className?: string }>)(item);
+        } catch {
+          return icon as React.ComponentType<{ className?: string }>;
+        }
+      }
+      return icon as React.ComponentType<{ className?: string }>;
+    };
     const visibleActions = actions.filter(action => action.show ? action.show(item) : true);
     
     if (visibleActions.length === 0) return null;
 
     if (visibleActions.length === 1) {
       const action = visibleActions[0];
-      const Icon = typeof action.icon === 'function' ? action.icon(item) : action.icon;
+      const Icon = getIcon(action.icon);
       const label = typeof action.label === 'function' ? action.label(item) : action.label;
       const variant = typeof action.variant === 'function' ? action.variant(item) : action.variant;
       
@@ -164,7 +176,7 @@ export function DataTable<T extends { id: string }>({
     return (
       <div className="flex items-center gap-1">
         {visibleActions.map((action) => {
-          const Icon = typeof action.icon === 'function' ? action.icon(item) : action.icon;
+          const Icon = getIcon(action.icon);
           const label = typeof action.label === 'function' ? action.label(item) : action.label;
           const variant = typeof action.variant === 'function' ? action.variant(item) : action.variant;
           
@@ -179,7 +191,7 @@ export function DataTable<T extends { id: string }>({
 
                 action.onClick(item);
               }}
-              className="h-8 w-8 p-0 hover:bg-primary hover:text-primary-foreground transition-colors"
+              className="h-8 w-8 p-0"
               title={label}
             >
               {Icon ? <Icon className="h-4 w-4" /> : label.slice(0, 1)}
@@ -287,7 +299,7 @@ export function DataTable<T extends { id: string }>({
                           {searchQuery ? (
                             <div className="space-y-3">
                               <h3 className="font-medium text-gray-900">No results found</h3>
-                              <p className="text-gray-500">No items match your search "{searchQuery}"</p>
+                              <p className="text-gray-500">No items match your search &quot;{searchQuery}&quot;</p>
                             </div>
                           ) : emptyState ? (
                             <div className="space-y-3">
@@ -320,7 +332,7 @@ export function DataTable<T extends { id: string }>({
                         const value = getValue(item, column);
                         return (
                           <td
-                            key={`${item.id || `item-${index}`}-${column.key || `col-${columns.indexOf(column)}`}`}
+                            key={`${item.id || `item-${index}`}-${String(column.key) || `col-${columns.indexOf(column)}`}`}
                             className={cn("px-4 py-3 text-sm text-gray-900", column.className)}
                           >
                             {column.render ? column.render(item, value) : (

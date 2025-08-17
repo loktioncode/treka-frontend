@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { QuickStats } from '@/components/ui/stats-card';
 import { StatusBadge } from '@/components/ui/badge';
-import { Form, FormField, FormLabel, FormSection, FormGrid, FormActions, Select, Textarea } from '@/components/ui/form';
+import { FormField, FormLabel, FormSection, FormGrid, FormActions, Select, Textarea } from '@/components/ui/form';
 import { 
   Package, 
   Edit, 
@@ -23,7 +23,8 @@ import {
   Wrench,
   MapPin,
   DollarSign,
-  Calendar
+  Calendar,
+  Eye
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -59,7 +60,7 @@ export default function AssetsPage() {
     vehicle_details: undefined,
     machinery_details: undefined
   });
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  // const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Load assets based on filters
   const loadAssets = useCallback(async () => {
@@ -68,8 +69,8 @@ export default function AssetsPage() {
       
       const filters: AssetFilters = {
         search: searchTerm || undefined,
-        status: statusFilter || undefined,
-        asset_type: typeFilter || undefined,
+        status: (statusFilter as 'active' | 'maintenance' | 'retired' | 'damaged' | undefined) || undefined,
+        asset_type: (typeFilter as 'vehicle' | 'machinery' | 'equipment' | 'infrastructure' | undefined) || undefined,
         client_id: selectedClient || undefined
       };
 
@@ -95,7 +96,7 @@ export default function AssetsPage() {
   }, [user, selectedClient, searchTerm, statusFilter, typeFilter]);
 
   // Load clients for super admin
-  const loadClients = async () => {
+  const loadClients = useCallback(async () => {
     try {
       if (user?.role === 'super_admin') {
         const response = await clientAPI.getClients();
@@ -107,7 +108,7 @@ export default function AssetsPage() {
       toast.error('Failed to load clients');
       setClients([]); // Set to empty array on error to prevent undefined
     }
-  };
+  }, [user]);
 
   // Load data
   useEffect(() => {
@@ -115,7 +116,7 @@ export default function AssetsPage() {
     if (user?.role === 'super_admin') {
       loadClients();
     }
-  }, [user, loadAssets]);
+  }, [user, loadAssets, loadClients]);
 
   // Stats
   const stats = [
@@ -177,7 +178,7 @@ export default function AssetsPage() {
       key: 'status',
       title: 'Status',
       sortable: true,
-      render: (asset) => <StatusBadge status={asset.status} type="asset" />
+      render: (asset) => <StatusBadge status={asset.status} />
     },
     {
       key: 'location',
@@ -238,6 +239,17 @@ export default function AssetsPage() {
   // Table actions
   const actions: DataTableAction<Asset>[] = [
     {
+      key: 'view',
+      label: 'View',
+      icon: Eye,
+      onClick: (asset) => {
+        setSelectedAsset(asset);
+        // TODO: Implement view modal
+      },
+      variant: 'secondary'
+    },
+    {
+      key: 'edit',
       label: 'Edit',
       icon: Edit,
       onClick: (asset) => {
@@ -255,9 +267,11 @@ export default function AssetsPage() {
           machinery_details: asset.machinery_details
         });
         setShowCreateModal(true);
-      }
+      },
+      variant: 'secondary'
     },
     {
+      key: 'delete',
       label: 'Delete',
       icon: Trash2,
       variant: 'destructive',
@@ -270,7 +284,7 @@ export default function AssetsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormErrors({});
+    // setFormErrors({});
     setIsSubmitting(true);
 
     try {
@@ -297,13 +311,13 @@ export default function AssetsPage() {
         machinery_details: undefined
       });
       loadAssets();
-    } catch (error: any) {
-      if (error.response?.data?.detail) {
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'detail' in error.response.data) {
         const detail = error.response.data.detail;
-        if (typeof detail === 'object') {
-          setFormErrors(detail);
+        if (typeof detail === 'object' && detail !== null) {
+          // setFormErrors(detail as Record<string, string>);
         } else {
-          toast.error(detail);
+          toast.error(detail as string);
         }
       } else {
         toast.error('Failed to save asset');
@@ -323,7 +337,7 @@ export default function AssetsPage() {
       setShowDeleteModal(false);
       setSelectedAsset(null);
       loadAssets();
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete asset');
     } finally {
       setIsSubmitting(false);
@@ -373,12 +387,11 @@ export default function AssetsPage() {
                 value={selectedClient}
                 onChange={(e) => setSelectedClient(e.target.value)}
                 className="w-full"
-              >
-                <option value="">All Clients</option>
-                {clients?.map(client => (
-                  <option key={client.id} value={client.id}>{client.name}</option>
-                )) || []}
-              </Select>
+                options={[
+                  { value: '', label: 'All Clients' },
+                  ...(clients?.map(client => ({ value: client.id, label: client.name })) || [])
+                ]}
+              />
             </div>
           )}
           
@@ -400,13 +413,14 @@ export default function AssetsPage() {
             <Select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="maintenance">Maintenance</option>
-              <option value="retired">Retired</option>
-              <option value="damaged">Damaged</option>
-            </Select>
+              options={[
+                { value: '', label: 'All Statuses' },
+                { value: 'active', label: 'Active' },
+                { value: 'maintenance', label: 'Maintenance' },
+                { value: 'retired', label: 'Retired' },
+                { value: 'damaged', label: 'Damaged' }
+              ]}
+            />
           </div>
           
           <div className="space-y-2">
@@ -414,13 +428,14 @@ export default function AssetsPage() {
             <Select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-            >
-              <option value="">All Types</option>
-              <option value="vehicle">Vehicle</option>
-              <option value="machinery">Machinery</option>
-              <option value="equipment">Equipment</option>
-              <option value="infrastructure">Infrastructure</option>
-            </Select>
+              options={[
+                { value: '', label: 'All Types' },
+                { value: 'vehicle', label: 'Vehicle' },
+                { value: 'machinery', label: 'Machinery' },
+                { value: 'equipment', label: 'Equipment' },
+                { value: 'infrastructure', label: 'Infrastructure' }
+              ]}
+            />
           </div>
         </div>
       </div>
@@ -449,94 +464,96 @@ export default function AssetsPage() {
         onClose={() => {
           setShowCreateModal(false);
           setSelectedAsset(null);
-          setFormErrors({});
+          // setFormErrors({});
         }}
         title={selectedAsset ? 'Edit Asset' : 'Create New Asset'}
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-6">
           <FormSection title="Basic Information">
-            <FormGrid columns={2}>
-              <FormField>
+            <FormGrid cols={2}>
+              <FormField name="name">
                 <FormLabel htmlFor="name" required>Asset Name</FormLabel>
                 <Input
                   id="name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  error={formErrors.name}
+
                   required
                 />
               </FormField>
 
-              <FormField>
+              <FormField name="asset_type">
                 <FormLabel htmlFor="asset_type" required>Asset Type</FormLabel>
                 <Select
                   id="asset_type"
                   value={formData.asset_type}
-                  onChange={(e) => setFormData({ ...formData, asset_type: e.target.value as any })}
-                  error={formErrors.asset_type}
+                  onChange={(e) => setFormData({ ...formData, asset_type: e.target.value as 'vehicle' | 'machinery' | 'equipment' | 'infrastructure' })}
+
                   required
-                >
-                  <option value="vehicle">Vehicle</option>
-                  <option value="machinery">Machinery</option>
-                  <option value="equipment">Equipment</option>
-                  <option value="infrastructure">Infrastructure</option>
-                </Select>
+                  options={[
+                    { value: 'vehicle', label: 'Vehicle' },
+                    { value: 'machinery', label: 'Machinery' },
+                    { value: 'equipment', label: 'Equipment' },
+                    { value: 'infrastructure', label: 'Infrastructure' }
+                  ]}
+                />
               </FormField>
 
-              <FormField>
+              <FormField name="status">
                 <FormLabel htmlFor="status" required>Status</FormLabel>
                 <Select
                   id="status"
                   value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                  error={formErrors.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'maintenance' | 'retired' | 'damaged' })}
+
                   required
-                >
-                  <option value="active">Active</option>
-                  <option value="maintenance">Maintenance</option>
-                  <option value="retired">Retired</option>
-                  <option value="damaged">Damaged</option>
-                </Select>
+                  options={[
+                    { value: 'active', label: 'Active' },
+                    { value: 'maintenance', label: 'Maintenance' },
+                    { value: 'retired', label: 'Retired' },
+                    { value: 'damaged', label: 'Damaged' }
+                  ]}
+                />
               </FormField>
 
-              <FormField>
+              <FormField name="location">
                 <FormLabel htmlFor="location">Location</FormLabel>
                 <Input
                   id="location"
                   value={formData.location}
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  error={formErrors.location}
+
                 />
               </FormField>
             </FormGrid>
 
-            <FormField>
+            <FormField name="description">
               <FormLabel htmlFor="description">Description</FormLabel>
               <Textarea
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                error={formErrors.description}
+
                 rows={3}
               />
             </FormField>
           </FormSection>
 
           <FormSection title="Financial Information">
-            <FormGrid columns={3}>
-              <FormField>
+            <FormGrid cols={3}>
+              <FormField name="purchase_date">
                 <FormLabel htmlFor="purchase_date">Purchase Date</FormLabel>
                 <Input
                   type="date"
                   id="purchase_date"
                   value={formData.purchase_date}
                   onChange={(e) => setFormData({ ...formData, purchase_date: e.target.value })}
-                  error={formErrors.purchase_date}
+
                 />
               </FormField>
 
-              <FormField>
+              <FormField name="purchase_cost">
                 <FormLabel htmlFor="purchase_cost">Purchase Cost</FormLabel>
                 <Input
                   type="number"
@@ -544,11 +561,11 @@ export default function AssetsPage() {
                   id="purchase_cost"
                   value={formData.purchase_cost}
                   onChange={(e) => setFormData({ ...formData, purchase_cost: parseFloat(e.target.value) || undefined })}
-                  error={formErrors.purchase_cost}
+
                 />
               </FormField>
 
-              <FormField>
+              <FormField name="current_value">
                 <FormLabel htmlFor="current_value">Current Value</FormLabel>
                 <Input
                   type="number"
@@ -556,7 +573,7 @@ export default function AssetsPage() {
                   id="current_value"
                   value={formData.current_value}
                   onChange={(e) => setFormData({ ...formData, current_value: parseFloat(e.target.value) || undefined })}
-                  error={formErrors.current_value}
+
                 />
               </FormField>
             </FormGrid>
@@ -569,7 +586,7 @@ export default function AssetsPage() {
               onClick={() => {
                 setShowCreateModal(false);
                 setSelectedAsset(null);
-                setFormErrors({});
+                // setFormErrors({});
               }}
             >
               Cancel

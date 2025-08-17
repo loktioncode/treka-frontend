@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { notificationAPI } from '@/services/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -13,8 +13,7 @@ import {
   CheckCircle,
   AlertTriangle,
   Info,
-  Clock,
-  MarkAsRead
+  Clock
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -73,7 +72,7 @@ export default function NotificationsPage() {
       setNotifications(prev => 
         prev.map(notif => 
           notif.id === notificationId 
-            ? { ...notif, status: 'read' }
+            ? { ...notif, read_status: true }
             : notif
         )
       );
@@ -89,7 +88,7 @@ export default function NotificationsPage() {
       setMarkingAllRead(true);
       await notificationAPI.markAllAsRead();
       setNotifications(prev => 
-        prev.map(notif => ({ ...notif, status: 'read' }))
+        prev.map(notif => ({ ...notif, read_status: true }))
       );
       toast.success('All notifications marked as read');
     } catch (error) {
@@ -219,7 +218,7 @@ export default function NotificationsPage() {
               No notifications yet
             </h3>
             <p className="text-gray-600">
-              You're all caught up! We'll notify you when there are new updates.
+              You&apos;re all caught up! We&apos;ll notify you when there are new updates.
             </p>
           </motion.div>
         ) : (

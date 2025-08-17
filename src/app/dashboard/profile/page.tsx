@@ -13,26 +13,22 @@ import {
   FormLabel, 
   FormSection, 
   FormGrid, 
-  FormActions,
   Checkbox 
 } from '@/components/ui/form';
 import { 
   User, 
   Mail, 
-  Shield, 
   Settings, 
   Save,
   Edit,
   X,
-  Check,
-  Bell,
   MessageSquare,
   Calendar,
   Building
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { formatDate } from '@/lib/utils';
+
 
 interface ProfileFormData {
   first_name: string;
@@ -98,13 +94,15 @@ export default function ProfilePage() {
   const handleInputChange = (field: string, value: string | boolean) => {
     if (field.includes('.')) {
       const [parent, child] = field.split('.');
-      setFormData(prev => ({
-        ...prev,
-        [parent]: {
-          ...prev[parent as keyof ProfileFormData],
-          [child]: value
-        }
-      }));
+      if (parent === 'notification_preferences') {
+        setFormData(prev => ({
+          ...prev,
+          notification_preferences: {
+            ...prev.notification_preferences,
+            [child]: value
+          }
+        }));
+      }
     } else {
       setFormData(prev => ({
         ...prev,
@@ -135,11 +133,11 @@ export default function ProfilePage() {
       
       // Reload user data to get updated info
       await loadUser();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating profile:', error);
       
       // Handle the case where update endpoint is not implemented
-      if (error.message?.includes('not yet implemented')) {
+      if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' && error.message.includes('not yet implemented')) {
         toast.error('Profile update functionality is not yet available. Please contact support.');
       } else {
         toast.error('Failed to update profile. Please try again.');
@@ -296,7 +294,7 @@ export default function ProfilePage() {
               <div className="pt-4 border-t border-gray-200 space-y-2">
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <Calendar className="h-3 w-3" />
-                  <span>Joined {formatDate(user.created_at || new Date().toISOString())}</span>
+                  <span>Account Active</span>
                 </div>
               </div>
             </CardContent>
@@ -320,33 +318,33 @@ export default function ProfilePage() {
             <CardContent>
               <Form>
                 <FormSection title="Personal Information">
-                  <FormGrid columns={2}>
-                    <FormField>
+                  <FormGrid cols={2}>
+                    <FormField name="first_name">
                       <FormLabel htmlFor="first_name" required>First Name</FormLabel>
                       <Input
                         id="first_name"
                         value={formData.first_name}
                         onChange={(e) => handleInputChange('first_name', e.target.value)}
                         disabled={!editing}
-                        error={formErrors.first_name}
+
                         placeholder="Enter your first name"
                       />
                     </FormField>
 
-                    <FormField>
+                    <FormField name="last_name">
                       <FormLabel htmlFor="last_name" required>Last Name</FormLabel>
                       <Input
                         id="last_name"
                         value={formData.last_name}
                         onChange={(e) => handleInputChange('last_name', e.target.value)}
                         disabled={!editing}
-                        error={formErrors.last_name}
+
                         placeholder="Enter your last name"
                       />
                     </FormField>
                   </FormGrid>
 
-                  <FormField>
+                  <FormField name="email">
                     <FormLabel htmlFor="email" required>Email Address</FormLabel>
                     <Input
                       id="email"
@@ -354,7 +352,7 @@ export default function ProfilePage() {
                       value={formData.email}
                       onChange={(e) => handleInputChange('email', e.target.value)}
                       disabled={!editing}
-                      error={formErrors.email}
+                      
                       placeholder="Enter your email address"
                     />
                   </FormField>
@@ -373,8 +371,9 @@ export default function ProfilePage() {
                         </div>
                       </div>
                       <Checkbox
+                        label=""
                         checked={formData.notification_preferences.email}
-                        onChange={(checked) => handleInputChange('notification_preferences.email', checked)}
+                        onChange={(e) => handleInputChange('notification_preferences.email', e.target.checked)}
                         disabled={!editing}
                       />
                     </div>
@@ -390,8 +389,9 @@ export default function ProfilePage() {
                         </div>
                       </div>
                       <Checkbox
+                        label=""
                         checked={formData.notification_preferences.whatsapp}
-                        onChange={(checked) => handleInputChange('notification_preferences.whatsapp', checked)}
+                        onChange={(e) => handleInputChange('notification_preferences.whatsapp', e.target.checked)}
                         disabled={!editing}
                       />
                     </div>

@@ -36,10 +36,7 @@ import {
   ToggleRight,
   Eye,
   Edit,
-  MoreHorizontal,
-  Phone,
-  Calendar,
-  Clock
+  Phone
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -362,14 +359,14 @@ export default function UsersPage() {
       label: 'View',
       icon: Eye,
       onClick: handleViewUser,
-      variant: 'outline'
+      variant: 'secondary'
     },
     {
       key: 'edit',
       label: 'Edit',
       icon: Edit,
       onClick: handleEditUser,
-      variant: 'outline'
+      variant: 'secondary'
     },
     {
       key: 'activate',

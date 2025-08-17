@@ -18,13 +18,12 @@ import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { QuickStats } from '@/components/ui/stats-card';
 import { StatusBadge } from '@/components/ui/badge';
-import { Form, FormField, FormLabel, FormSection, FormGrid, FormActions, Select, Textarea } from '@/components/ui/form';
+import { FormField, FormLabel, FormSection, FormGrid, FormActions, Select, Textarea } from '@/components/ui/form';
 import { 
   Wrench, 
   Edit, 
   Trash2, 
   Plus, 
-  TrendingUp, 
   Search, 
   Filter,
   Building2,
@@ -32,8 +31,8 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  Activity,
-  Calendar
+  Calendar,
+  Eye
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -69,7 +68,7 @@ export default function ComponentsPage() {
     next_maintenance_date: '',
     maintenance_interval_days: 30
   });
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
 
   // Load components based on filters
   const loadComponents = useCallback(async () => {
@@ -78,7 +77,7 @@ export default function ComponentsPage() {
       
       const filters: ComponentFilters = {
         search: searchTerm || undefined,
-        status: statusFilter || undefined,
+        status: (statusFilter as 'operational' | 'warning' | 'critical' | 'maintenance' | 'inactive' | undefined) || undefined,
         asset_id: selectedAsset || undefined,
         client_id: selectedClient || undefined
       };
@@ -105,7 +104,7 @@ export default function ComponentsPage() {
   }, [user, selectedClient, selectedAsset, searchTerm, statusFilter]);
 
   // Load assets and clients
-  const loadAssets = async () => {
+  const loadAssets = useCallback(async () => {
     try {
       let response;
       if (selectedClient) {
@@ -118,9 +117,9 @@ export default function ComponentsPage() {
     } catch (error) {
       console.error('Error loading assets:', error);
     }
-  };
+  }, [selectedClient]);
 
-  const loadClients = async () => {
+  const loadClients = useCallback(async () => {
     try {
       if (user?.role === 'super_admin') {
         const response = await clientAPI.getClients();
@@ -130,7 +129,7 @@ export default function ComponentsPage() {
     } catch (error) {
       console.error('Error loading clients:', error);
     }
-  };
+  }, [user]);
 
   // Load data
   useEffect(() => {
@@ -139,13 +138,13 @@ export default function ComponentsPage() {
       loadClients();
     }
     loadAssets();
-  }, [user, loadComponents]);
+  }, [user, loadClients, loadComponents, loadAssets]);
 
   // Reload assets when client filter changes
   useEffect(() => {
     loadAssets();
     setSelectedAsset(''); // Reset asset filter when client changes
-  }, [selectedClient]);
+  }, [selectedClient, loadAssets]);
 
   // Stats
   const stats = [
@@ -211,7 +210,7 @@ export default function ComponentsPage() {
       key: 'status',
       title: 'Status',
       sortable: true,
-      render: (component) => <StatusBadge status={component.status} type="component" />
+      render: (component) => <StatusBadge status={component.status} />
     },
     {
       key: 'asset_id',
@@ -293,6 +292,17 @@ export default function ComponentsPage() {
   // Table actions
   const actions: DataTableAction<Component>[] = [
     {
+      key: 'view',
+      label: 'View',
+      icon: Eye,
+      onClick: (component) => {
+        setSelectedComponent(component);
+        // TODO: Implement view modal
+      },
+      variant: 'secondary'
+    },
+    {
+      key: 'edit',
       label: 'Edit',
       icon: Edit,
       onClick: (component) => {
@@ -309,9 +319,11 @@ export default function ComponentsPage() {
           maintenance_interval_days: component.maintenance_interval_days
         });
         setShowCreateModal(true);
-      }
+      },
+      variant: 'secondary'
     },
     {
+      key: 'delete',
       label: 'Delete',
       icon: Trash2,
       variant: 'destructive',
@@ -324,7 +336,7 @@ export default function ComponentsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormErrors({});
+
     setIsSubmitting(true);
 
     try {
@@ -350,13 +362,13 @@ export default function ComponentsPage() {
         maintenance_interval_days: 30
       });
       loadComponents();
-    } catch (error: any) {
-      if (error.response?.data?.detail) {
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'detail' in error.response.data) {
         const detail = error.response.data.detail;
-        if (typeof detail === 'object') {
-          setFormErrors(detail);
+        if (typeof detail === 'object' && detail !== null) {
+          // Form errors handling removed
         } else {
-          toast.error(detail);
+          toast.error(detail as string);
         }
       } else {
         toast.error('Failed to save component');
@@ -376,7 +388,7 @@ export default function ComponentsPage() {
       setShowDeleteModal(false);
       setSelectedComponent(null);
       loadComponents();
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete component');
     } finally {
       setIsSubmitting(false);
@@ -426,12 +438,11 @@ export default function ComponentsPage() {
                 value={selectedClient}
                 onChange={(e) => setSelectedClient(e.target.value)}
                 className="w-full"
-              >
-                <option value="">All Clients</option>
-                {clients.map(client => (
-                  <option key={client.id} value={client.id}>{client.name}</option>
-                ))}
-              </Select>
+                options={[
+                  { value: '', label: 'All Clients' },
+                  ...(clients.map(client => ({ value: client.id, label: client.name })))
+                ]}
+              />
             </div>
           )}
           
@@ -440,12 +451,11 @@ export default function ComponentsPage() {
             <Select
               value={selectedAsset}
               onChange={(e) => setSelectedAsset(e.target.value)}
-            >
-              <option value="">All Assets</option>
-              {assets.map(asset => (
-                <option key={asset.id} value={asset.id}>{asset.name}</option>
-              ))}
-            </Select>
+              options={[
+                { value: '', label: 'All Assets' },
+                ...(assets.map(asset => ({ value: asset.id, label: asset.name })))
+              ]}
+            />
           </div>
           
           <div className="space-y-2">
@@ -466,14 +476,15 @@ export default function ComponentsPage() {
             <Select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="">All Statuses</option>
-              <option value="operational">Operational</option>
-              <option value="warning">Warning</option>
-              <option value="critical">Critical</option>
-              <option value="maintenance">Maintenance</option>
-              <option value="inactive">Inactive</option>
-            </Select>
+              options={[
+                { value: '', label: 'All Statuses' },
+                { value: 'operational', label: 'Operational' },
+                { value: 'warning', label: 'Warning' },
+                { value: 'critical', label: 'Critical' },
+                { value: 'maintenance', label: 'Maintenance' },
+                { value: 'inactive', label: 'Inactive' }
+              ]}
+            />
           </div>
         </div>
       </div>
@@ -502,116 +513,114 @@ export default function ComponentsPage() {
         onClose={() => {
           setShowCreateModal(false);
           setSelectedComponent(null);
-          setFormErrors({});
+
         }}
         title={selectedComponent ? 'Edit Component' : 'Create New Component'}
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-6">
           <FormSection title="Basic Information">
-            <FormGrid columns={2}>
-              <FormField>
+            <FormGrid cols={2}>
+              <FormField name="name">
                 <FormLabel htmlFor="name" required>Component Name</FormLabel>
                 <Input
                   id="name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  error={formErrors.name}
+
                   required
                 />
               </FormField>
 
-              <FormField>
+              <FormField name="component_type">
                 <FormLabel htmlFor="component_type" required>Component Type</FormLabel>
                 <Input
                   id="component_type"
                   value={formData.component_type}
                   onChange={(e) => setFormData({ ...formData, component_type: e.target.value })}
-                  error={formErrors.component_type}
+
                   placeholder="e.g., Engine, Brake System, etc."
                   required
                 />
               </FormField>
 
-              <FormField>
+              <FormField name="status">
                 <FormLabel htmlFor="status" required>Status</FormLabel>
                 <Select
                   id="status"
                   value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                  error={formErrors.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as 'operational' | 'warning' | 'critical' | 'maintenance' | 'inactive' })}
+                  options={[
+                    { value: 'operational', label: 'Operational' },
+                    { value: 'warning', label: 'Warning' },
+                    { value: 'critical', label: 'Critical' },
+                    { value: 'maintenance', label: 'Maintenance' },
+                    { value: 'inactive', label: 'Inactive' }
+                  ]}
                   required
-                >
-                  <option value="operational">Operational</option>
-                  <option value="warning">Warning</option>
-                  <option value="critical">Critical</option>
-                  <option value="maintenance">Maintenance</option>
-                  <option value="inactive">Inactive</option>
-                </Select>
+                />
               </FormField>
 
-              <FormField>
+              <FormField name="asset_id">
                 <FormLabel htmlFor="asset_id" required>Asset</FormLabel>
                 <Select
                   id="asset_id"
                   value={formData.asset_id}
                   onChange={(e) => setFormData({ ...formData, asset_id: e.target.value })}
-                  error={formErrors.asset_id}
+                  options={[
+                    { value: '', label: 'Select an asset' },
+                    ...assets.map(asset => ({ value: asset.id, label: asset.name }))
+                  ]}
                   required
-                >
-                  <option value="">Select an asset</option>
-                  {assets.map(asset => (
-                    <option key={asset.id} value={asset.id}>{asset.name}</option>
-                  ))}
-                </Select>
+                />
               </FormField>
             </FormGrid>
 
-            <FormField>
-              <FormLabel htmlFor="description">Description</FormLabel>
+                          <FormField name="description">
+                <FormLabel htmlFor="description">Description</FormLabel>
               <Textarea
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                error={formErrors.description}
+
                 rows={3}
               />
             </FormField>
           </FormSection>
 
           <FormSection title="Maintenance Schedule">
-            <FormGrid columns={3}>
-              <FormField>
+            <FormGrid cols={3}>
+              <FormField name="last_maintenance_date">
                 <FormLabel htmlFor="last_maintenance_date">Last Maintenance</FormLabel>
                 <Input
                   type="date"
                   id="last_maintenance_date"
                   value={formData.last_maintenance_date}
                   onChange={(e) => setFormData({ ...formData, last_maintenance_date: e.target.value })}
-                  error={formErrors.last_maintenance_date}
+
                 />
               </FormField>
 
-              <FormField>
+              <FormField name="maintenance_interval_days">
                 <FormLabel htmlFor="maintenance_interval_days">Interval (Days)</FormLabel>
                 <Input
                   type="number"
                   id="maintenance_interval_days"
                   value={formData.maintenance_interval_days}
                   onChange={(e) => setFormData({ ...formData, maintenance_interval_days: parseInt(e.target.value) || 30 })}
-                  error={formErrors.maintenance_interval_days}
+
                   min="1"
                 />
               </FormField>
 
-              <FormField>
+              <FormField name="next_maintenance_date">
                 <FormLabel htmlFor="next_maintenance_date">Next Maintenance</FormLabel>
                 <Input
                   type="date"
                   id="next_maintenance_date"
                   value={formData.next_maintenance_date}
                   onChange={(e) => setFormData({ ...formData, next_maintenance_date: e.target.value })}
-                  error={formErrors.next_maintenance_date}
+
                 />
               </FormField>
             </FormGrid>
@@ -624,7 +633,7 @@ export default function ComponentsPage() {
               onClick={() => {
                 setShowCreateModal(false);
                 setSelectedComponent(null);
-                setFormErrors({});
+
               }}
             >
               Cancel

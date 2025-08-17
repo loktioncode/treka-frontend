@@ -11,7 +11,8 @@ import type {
   AssetFilters,
   ComponentFilters,
   UserFilters,
-  PaginationParams
+  PaginationParams,
+  User
 } from '@/types/api';
 
 // Extend AxiosRequestConfig to include metadata

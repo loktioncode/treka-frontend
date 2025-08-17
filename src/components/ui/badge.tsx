@@ -42,12 +42,10 @@ function Badge({ className, variant = "default", size = "md", ...props }: BadgeP
 // Specialized status badges
 export function StatusBadge({ 
   status, 
-  type = 'general',
   className, 
   ...props 
 }: { 
-  status: 'active' | 'inactive' | 'pending' | 'critical' | 'maintenance' | 'retired' | 'damaged' | 'operational' | 'warning',
-  type?: 'asset' | 'component' | 'general'
+  status: 'active' | 'inactive' | 'pending' | 'critical' | 'maintenance' | 'retired' | 'damaged' | 'operational' | 'warning'
 } & Omit<BadgeProps, 'variant'>) {
   const statusConfig = {
     // Asset statuses

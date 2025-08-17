@@ -280,7 +280,8 @@ export default function ClientsPage() {
           return;
         }
         router.push(`/dashboard/clients/${client.id}`);
-      }
+      },
+      variant: 'secondary'
     },
     {
       key: 'users',
@@ -292,13 +293,15 @@ export default function ClientsPage() {
           return;
         }
         router.push(`/dashboard/clients/${client.id}`);
-      }
+      },
+      variant: 'secondary'
     },
     {
       key: 'edit',
       label: 'Edit',
       icon: Edit,
-      onClick: handleEdit
+      onClick: handleEdit,
+      variant: 'secondary'
     },
     {
       key: 'delete',

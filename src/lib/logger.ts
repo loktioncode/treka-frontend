@@ -218,10 +218,10 @@ class Logger {
     this.error('API error', {
       method,
       url,
-      status: error?.response?.status,
-      errorCode: error?.response?.data?.error?.code,
+      status: (error as { response?: { status?: number; data?: { error?: { code?: string } } } })?.response?.status,
+      errorCode: (error as { response?: { status?: number; data?: { error?: { code?: string } } } })?.response?.data?.error?.code,
       category: 'api',
-    }, error);
+    }, error instanceof Error ? error : undefined);
   }
 
   userAction(action: string, context?: Record<string, unknown>): void {

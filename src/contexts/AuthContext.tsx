@@ -36,6 +36,7 @@ interface AuthContextType {
   logout: () => void;
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (token: string, password: string) => Promise<void>;
+  loadUser: () => Promise<User>;
   isLoading: boolean;
 }
 
@@ -221,6 +222,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logout, 
         forgotPassword, 
         resetPassword, 
+        loadUser,
         isLoading 
       }}
     >
