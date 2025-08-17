@@ -1,6 +1,6 @@
 // User types
 export interface User {
-  _id: string;
+  id: string;
   email: string;
   first_name: string;
   last_name: string;
@@ -39,7 +39,7 @@ export interface UpdateUserRoleRequest {
 
 // Client types
 export interface Client {
-  _id: string;
+  id: string;
   name: string;
   description?: string;
   contact_email: string;
@@ -103,7 +103,6 @@ export interface AssetImage {
 
 export interface Asset {
   id: string;
-  _id?: string; // Backend might return _id instead of id
   name: string;
   description?: string;
   asset_type: AssetType;
@@ -139,7 +138,6 @@ export type ComponentStatus = 'operational' | 'warning' | 'critical' | 'maintena
 
 export interface Component {
   id: string;
-  _id?: string; // Backend might return _id instead of id
   name: string;
   description?: string;
   component_type: string;
@@ -193,7 +191,6 @@ export type NotificationStatus = 'pending' | 'sent' | 'failed' | 'delivered' | '
 
 export interface Notification {
   id: string;
-  _id?: string; // Backend might return _id instead of id
   title: string;
   message: string;
   notification_type: NotificationType;

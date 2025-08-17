@@ -55,7 +55,7 @@ export default function UsersPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<User>>({});
   const [showRoleChangeModal, setShowRoleChangeModal] = useState(false);
-  const [roleChangeData, setRoleChangeData] = useState<{ role: string; client_id?: string }>({ role: '' });
+  const [roleChangeData, setRoleChangeData] = useState<{ role: 'super_admin' | 'admin' | 'user' | ''; client_id?: string }>({ role: '' });
   const [showRoleChangeConfirmation, setShowRoleChangeConfirmation] = useState(false);
   
   // Debug role change data changes
@@ -99,7 +99,6 @@ export default function UsersPage() {
         response.forEach((userItem: User, index: number) => {
           console.log(`User ${index}:`, {
             id: userItem.id,
-            _id: userItem._id,
             email: userItem.email,
             role: userItem.role
           });
@@ -108,8 +107,7 @@ export default function UsersPage() {
         // Normalize user data to ensure we have valid ID fields
         const normalizedUsers = response.map((userItem: User) => ({
           ...userItem,
-          id: userItem.id || userItem._id || `temp-${Date.now()}-${Math.random()}`,
-          _id: userItem._id || userItem.id
+          id: userItem.id || `temp-${Date.now()}-${Math.random()}`
         }));
         
         console.log('🔍 Normalized users data:', normalizedUsers);
@@ -120,10 +118,9 @@ export default function UsersPage() {
         console.log('🔍 Loaded client users data:', response);
         
         // Normalize user data for admin view too
-        const normalizedUsers = response.map(userItem => ({
+        const normalizedUsers = response.map((userItem: User) => ({
           ...userItem,
-          id: userItem.id || userItem._id || `temp-${Date.now()}-${Math.random()}`,
-          _id: userItem._id || userItem.id
+          id: userItem.id || `temp-${Date.now()}-${Math.random()}`
         }));
         
         setUsers(normalizedUsers);
@@ -136,15 +133,7 @@ export default function UsersPage() {
     }
   }, [user]);
 
-  // Load data
-  useEffect(() => {
-    loadUsers();
-    if (user?.role === 'super_admin' || user?.role === 'admin') {
-      loadClients();
-    }
-  }, [user, loadUsers]);
-
-  const loadClients = async () => {
+  const loadClients = useCallback(async () => {
     try {
       if (user?.role === 'super_admin') {
         // Super admin can see all clients
@@ -157,7 +146,6 @@ export default function UsersPage() {
           console.log('🔍 Sample client structure:', {
             keys: Object.keys(sampleClient),
             id: sampleClient.id,
-            _id: sampleClient._id,
             name: sampleClient.name
           });
         }
@@ -176,11 +164,19 @@ export default function UsersPage() {
       console.error('Error loading clients:', error);
       setClients([]);
     }
-  };
+  }, [user]);
+
+  // Load data
+  useEffect(() => {
+    loadUsers();
+    if (user?.role === 'super_admin' || user?.role === 'admin') {
+      loadClients();
+    }
+  }, [user, loadUsers, loadClients]);
 
   // Utility function to get valid user ID
   const getValidUserId = (userItem: User): string => {
-    const userId = userItem._id || userItem.id;
+    const userId = userItem.id;
     if (!userId) {
       console.error('❌ No valid user ID found in user data:', userItem);
       throw new Error('User ID not found');
@@ -211,16 +207,13 @@ export default function UsersPage() {
         console.log('Testing role update endpoint accessibility...');
         console.log('Test user:', { 
           id: testUser.id, 
-          _id: testUser._id,
           role: testUser.role,
           email: testUser.email,
           fullData: testUser
         });
         
         // Check which ID field is available
-        if (testUser._id) {
-          console.log('✅ Using _id field for backend operations');
-        } else if (testUser.id) {
+        if (testUser.id) {
           console.log('✅ Using id field for backend operations');
         } else {
           console.log('❌ No ID field found - this will cause issues!');
@@ -565,7 +558,7 @@ export default function UsersPage() {
       // Log the role change data for debugging
       console.log('Role change request:', {
         userId: selectedUser.id,
-        _id: selectedUser._id,
+        id: selectedUser.id,
         currentRole: selectedUser.role,
         newRole: roleChangeData.role,
         clientId: roleChangeData.client_id,
@@ -575,7 +568,7 @@ export default function UsersPage() {
       // Validate client_id if it's being sent
       if (roleChangeData.client_id) {
         // Check if client_id is actually a valid client ID (not a name)
-        const client = clients.find(c => (c._id || c.id) === roleChangeData.client_id);
+        const client = clients.find(c => c.id === roleChangeData.client_id);
         if (!client) {
           console.error('❌ Invalid client_id:', roleChangeData.client_id);
           console.log('Available clients:', clients);
@@ -716,7 +709,7 @@ export default function UsersPage() {
         if (user.role === 'super_admin') {
           return <span className="text-gray-400">-</span>;
         }
-        const client = clients.find(c => (c._id || c.id) === user.client_id);
+        const client = clients.find(c => c.id === user.client_id);
         return (
           <span className="text-sm text-gray-600">
             {client?.name || 'Unknown'}
@@ -810,8 +803,8 @@ export default function UsersPage() {
     : [];
 
   const clientOptions = clients.map(client => ({
-    key: client._id || client.id,
-    value: client._id || client.id,
+            key: client.id,
+        value: client.id,
     label: client.name
   }));
   
@@ -1460,7 +1453,7 @@ export default function UsersPage() {
                   ...(user?.role === 'super_admin' ? [{ key: 'super_admin', value: 'super_admin', label: 'Super Admin' }] : [])
                 ]}
                 value={roleChangeData.role}
-                onChange={(e) => setRoleChangeData({ ...roleChangeData, role: e.target.value })}
+                onChange={(e) => setRoleChangeData({ ...roleChangeData, role: e.target.value as 'super_admin' | 'admin' | 'user' })}
                 disabled={isSubmitting}
               />
             </div>
@@ -1547,19 +1540,19 @@ export default function UsersPage() {
         <div className="space-y-4">
           <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <div className="text-sm text-yellow-800">
-              <strong>Warning:</strong> Changing a user's role will affect their permissions and access to the system.
+              <strong>Warning:</strong> Changing a user&apos;s role will affect their permissions and access to the system.
             </div>
           </div>
           
           <div className="space-y-2">
             <p className="text-gray-600">
-              Are you sure you want to change <strong>{selectedUser?.first_name} {selectedUser?.last_name}</strong>'s role?
+              Are you sure you want to change <strong>{selectedUser?.first_name} {selectedUser?.last_name}</strong>&apos;s role?
             </p>
             <div className="flex items-center gap-2 text-sm">
               <span className="text-gray-500">From:</span>
               <RoleBadge role={selectedUser?.role || 'user'} size="sm" />
               <span className="text-gray-500">To:</span>
-              <RoleBadge role={roleChangeData.role as any || 'user'} size="sm" />
+              <RoleBadge role={roleChangeData.role || 'user'} size="sm" />
             </div>
           </div>
 

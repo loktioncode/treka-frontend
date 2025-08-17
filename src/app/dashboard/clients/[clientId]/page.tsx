@@ -49,7 +49,7 @@ import {
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
-import { ensureId } from '@/lib/id-utils';
+
 
 export default function ClientDetailPage() {
   const { user } = useAuth();
@@ -100,8 +100,7 @@ export default function ClientDetailPage() {
     try {
       setLoading(true);
       const response = await clientAPI.getClient(clientId);
-      const transformedClient = ensureId(response);
-      setClient(transformedClient);
+      setClient(response);
       setClientFormData(response);
     } catch (error) {
       toast.error('Failed to load client details');
@@ -115,8 +114,7 @@ export default function ClientDetailPage() {
     try {
       setUsersLoading(true);
       const response = await clientAPI.getClientUsers(clientId);
-      const transformedUsers = ensureId(response);
-      setUsers(transformedUsers);
+      setUsers(response);
     } catch (error) {
       toast.error('Failed to load client users');
       console.error('Error loading users:', error);
@@ -261,7 +259,7 @@ export default function ClientDetailPage() {
 
   const handleToggleUserActivation = async (user: User) => {
     try {
-      await userAPI.toggleUserActivation(user._id, !user.is_active);
+      await userAPI.toggleUserActivation(user.id, !user.is_active);
       toast.success(`User ${user.is_active ? 'deactivated' : 'activated'} successfully`);
       await loadUsers();
     } catch (error: unknown) {
@@ -278,7 +276,7 @@ export default function ClientDetailPage() {
     if (!client) return;
     
     try {
-      await clientAPI.toggleClientActivation(client._id, !client.is_active);
+      await clientAPI.toggleClientActivation(client.id, !client.is_active);
       toast.success(`Client ${client.is_active ? 'deactivated' : 'activated'} successfully`);
       await loadClient();
     } catch (error: unknown) {
@@ -297,7 +295,7 @@ export default function ClientDetailPage() {
     setIsSubmitting(true);
     try {
       // Get the valid user ID
-      const userId = selectedUser._id;
+      const userId = selectedUser.id;
       if (!userId) {
         throw new Error('No valid user ID found');
       }
@@ -359,7 +357,7 @@ export default function ClientDetailPage() {
 
     setIsSubmitting(true);
     try {
-      await userAPI.updateUser(selectedUser._id, editUserFormData);
+      await userAPI.updateUser(selectedUser.id, editUserFormData);
       toast.success('User updated successfully');
       setIsEditingUser(false);
       await loadUsers();
@@ -997,8 +995,7 @@ export default function ClientDetailPage() {
                         await handleToggleUserActivation(selectedUser);
                         // Refresh the selected user data
                         const updatedUsers = await clientAPI.getClientUsers(clientId);
-                        const transformedUsers = ensureId(updatedUsers);
-                        const updatedUser = transformedUsers.find((u: User) => u._id === selectedUser._id);
+                        const updatedUser = updatedUsers.find((u: User) => u.id === selectedUser.id);
                         if (updatedUser) {
                           setSelectedUser(updatedUser);
                         }

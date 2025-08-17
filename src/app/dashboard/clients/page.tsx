@@ -326,7 +326,7 @@ export default function ClientsPage() {
               icon: Building2,
               color: 'blue',
               trend: { 
-                value: clients.filter(c => {
+                value: clients.filter((c: Client) => {
                   const created = new Date(c.created_at);
                   const lastMonth = new Date();
                   lastMonth.setMonth(lastMonth.getMonth() - 1);
@@ -338,19 +338,19 @@ export default function ClientsPage() {
             },
             {
               title: 'Active Clients',
-              value: clients.filter(c => c.is_active).length.toString(),
+              value: clients.filter((c: Client) => c.is_active).length.toString(),
               description: 'Currently operational',
               icon: TrendingUp,
               color: 'green',
               trend: {
-                value: `${Math.round((clients.filter(c => c.is_active).length / clients.length) * 100) || 0}%`,
+                value: `${Math.round((clients.filter((c: Client) => c.is_active).length / clients.length) * 100) || 0}%`,
                 isPositive: true,
                 label: 'activation rate'
               }
             },
             {
               title: 'New This Month',
-              value: clients.filter(c => {
+              value: clients.filter((c: Client) => {
                 const created = new Date(c.created_at);
                 const now = new Date();
                 return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();

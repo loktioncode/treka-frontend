@@ -11,25 +11,19 @@ interface PageTransitionProps {
 
 export function PageTransition({ children, className = '' }: PageTransitionProps) {
   const pathname = usePathname();
-  const [isLoading, setIsLoading] = useState(false);
+
   const [showSkeleton, setShowSkeleton] = useState(false);
 
   useEffect(() => {
     // Show skeleton for a brief moment on route change
-    setIsLoading(true);
     setShowSkeleton(true);
     
     const timer = setTimeout(() => {
       setShowSkeleton(false);
     }, 300);
 
-    const loadingTimer = setTimeout(() => {
-      setIsLoading(false);
-    }, 500);
-
     return () => {
       clearTimeout(timer);
-      clearTimeout(loadingTimer);
     };
   }, [pathname]);
 

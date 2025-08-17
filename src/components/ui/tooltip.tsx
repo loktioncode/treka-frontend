@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useState, useRef, useEffect } from 'react';
+import { ReactNode, useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface TooltipProps {
@@ -15,7 +15,7 @@ export function Tooltip({ children, content, position = 'top', className = '' }:
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const triggerRef = useRef<HTMLDivElement>(null);
 
-  const updateTooltipPosition = () => {
+  const updateTooltipPosition = useCallback(() => {
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
@@ -45,7 +45,7 @@ export function Tooltip({ children, content, position = 'top', className = '' }:
       
       setTooltipPosition({ x, y });
     }
-  };
+  }, [position]);
 
   useEffect(() => {
     if (isVisible) {
@@ -58,7 +58,7 @@ export function Tooltip({ children, content, position = 'top', className = '' }:
         window.removeEventListener('resize', updateTooltipPosition);
       };
     }
-  }, [isVisible, position]);
+  }, [isVisible, position, updateTooltipPosition]);
 
   const getPositionStyles = () => {
     switch (position) {

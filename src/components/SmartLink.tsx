@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ReactNode, useCallback, useState } from 'react';
+import { ReactNode, useCallback } from 'react';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { motion } from 'framer-motion';
 
@@ -25,7 +25,7 @@ export function SmartLink({
   disabled = false
 }: SmartLinkProps) {
   const { navigateTo, preloadPage } = useNavigation();
-  const [isHovered, setIsHovered] = useState(false);
+
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     if (disabled) {
@@ -46,11 +46,10 @@ export function SmartLink({
     if (preload && !disabled) {
       preloadPage(href);
     }
-    setIsHovered(true);
   }, [preload, href, disabled, preloadPage]);
 
   const handleMouseLeave = useCallback(() => {
-    setIsHovered(false);
+    // No hover state needed
   }, []);
 
   const baseClasses = {
