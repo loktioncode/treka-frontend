@@ -43,7 +43,6 @@ import {
   Calendar,
   Power,
   PowerOff,
-  KeyRound,
   Send
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -313,20 +312,6 @@ export default function ClientDetailPage() {
     }
   };
 
-  const handlePasswordReset = async (user: User) => {
-    try {
-      await authAPI.forgotPassword(user.email);
-      toast.success(`Password reset email sent to ${user.email}`);
-    } catch (error: unknown) {
-      let message = 'Failed to send password reset email';
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: { detail?: string } } };
-        message = axiosError.response?.data?.detail || message;
-      }
-      toast.error(message);
-    }
-  };
-
   const handleSendWelcomeEmail = async (user: User) => {
     try {
       // Since there's no specific welcome email endpoint, we'll use password reset
@@ -473,13 +458,7 @@ export default function ClientDetailPage() {
       onClick: handleToggleUserActivation,
       show: (user) => user.is_active
     },
-    {
-      key: 'password_reset',
-      label: 'Reset Password',
-      icon: KeyRound,
-      variant: 'secondary',
-      onClick: handlePasswordReset
-    },
+
     {
       key: 'send_welcome',
       label: 'Send Welcome Email',
@@ -688,7 +667,8 @@ export default function ClientDetailPage() {
           columns={userColumns}
           actions={userActions}
           loading={usersLoading}
-          searchPlaceholder="Search users..."
+          searchPlaceholder="Search users by name or email..."
+          searchFields={['first_name', 'last_name', 'email']}
           emptyState={{
             title: 'No users found',
             description: 'This client has no users yet. Create the first user to get started.',
@@ -1021,14 +1001,7 @@ export default function ClientDetailPage() {
                         </>
                       )}
                     </Button>
-                    <Button
-                      variant="secondary"
-                      onClick={() => handlePasswordReset(selectedUser)}
-                      className="flex items-center gap-2"
-                    >
-                      <KeyRound className="h-4 w-4" />
-                      Reset Password
-                    </Button>
+
                   </div>
                   <Button
                     variant="outline"

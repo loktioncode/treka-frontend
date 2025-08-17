@@ -431,8 +431,16 @@ export default function AssetsPage() {
         columns={columns}
         actions={actions}
         loading={loading}
-        searchable={false}
-        emptyMessage="No assets found. Create your first asset to get started."
+        searchPlaceholder="Search assets by name or description..."
+        searchFields={['name', 'description', 'location']}
+        emptyState={{
+          title: 'No assets found',
+          description: 'Create your first asset to get started.',
+          action: {
+            label: 'Add Asset',
+            onClick: () => setShowCreateModal(true)
+          }
+        }}
       />
 
       {/* Create/Edit Asset Modal */}

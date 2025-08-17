@@ -402,6 +402,8 @@ export default function ClientsPage() {
           columns={columns}
           actions={actions}
           loading={loading}
+          searchPlaceholder="Search clients by name or email..."
+          searchFields={['name', 'contact_email', 'description']}
           addButton={{
             label: 'Add Client',
             onClick: () => {

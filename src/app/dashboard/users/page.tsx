@@ -450,6 +450,8 @@ export default function UsersPage() {
           columns={columns}
           actions={actions}
           loading={loading}
+          searchPlaceholder="Search users by name or email..."
+          searchFields={['first_name', 'last_name', 'email']}
           addButton={{
             label: 'Add User',
             onClick: () => {

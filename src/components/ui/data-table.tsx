@@ -43,6 +43,7 @@ interface DataTableProps<T> {
   loading?: boolean;
   searchable?: boolean;
   searchPlaceholder?: string;
+  searchFields?: (keyof T)[];  // Fields to search across
   onSearch?: (query: string) => void;
   filterable?: boolean;
   onFilter?: () => void;
@@ -74,6 +75,7 @@ export function DataTable<T extends { id: string }>({
   loading = false,
   searchable = true,
   searchPlaceholder = 'Search...',
+  searchFields = [],
   onSearch,
   filterable = false,
   onFilter,
@@ -90,6 +92,24 @@ export function DataTable<T extends { id: string }>({
     setSearchQuery(query);
     onSearch?.(query);
   };
+
+  // Filter data based on search query
+  const filteredData = searchQuery && searchFields.length > 0 
+    ? data.filter(item => {
+        const searchLower = searchQuery.toLowerCase();
+        return searchFields.some(field => {
+          const value = item[field];
+          if (typeof value === 'string') {
+            return value.toLowerCase().includes(searchLower);
+          }
+          if (typeof value === 'object' && value !== null) {
+            // Handle nested objects (like notification_preferences)
+            return JSON.stringify(value).toLowerCase().includes(searchLower);
+          }
+          return false;
+        });
+      })
+    : data;
 
   const handleSort = (column: Column<T>) => {
     if (!column.sortable) return;
@@ -259,12 +279,17 @@ export function DataTable<T extends { id: string }>({
             </thead>
             <tbody>
               <AnimatePresence mode="wait">
-                {data.length === 0 ? (
+                {filteredData.length === 0 ? (
                   <tr>
                     <td colSpan={columns.length + (actions.length > 0 ? 1 : 0)} className="px-4 py-8">
                       <div className="text-center">
                         <div className="text-gray-500 text-sm">
-                          {emptyState ? (
+                          {searchQuery ? (
+                            <div className="space-y-3">
+                              <h3 className="font-medium text-gray-900">No results found</h3>
+                              <p className="text-gray-500">No items match your search "{searchQuery}"</p>
+                            </div>
+                          ) : emptyState ? (
                             <div className="space-y-3">
                               <h3 className="font-medium text-gray-900">{emptyState.title}</h3>
                               <p className="text-gray-500">{emptyState.description}</p>
@@ -282,7 +307,7 @@ export function DataTable<T extends { id: string }>({
                     </td>
                   </tr>
                 ) : (
-                  data.map((item, index) => (
+                  filteredData.map((item, index) => (
                     <motion.tr
                       key={item.id || `item-${index}`}
                       initial={{ opacity: 0, y: 20 }}

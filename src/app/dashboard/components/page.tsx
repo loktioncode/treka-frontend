@@ -484,8 +484,16 @@ export default function ComponentsPage() {
         columns={columns}
         actions={actions}
         loading={loading}
-        searchable={false}
-        emptyMessage="No components found. Create your first component to get started."
+        searchPlaceholder="Search components by name or type..."
+        searchFields={['name', 'description', 'component_type']}
+        emptyState={{
+          title: 'No components found',
+          description: 'Create your first component to get started.',
+          action: {
+            label: 'Add Component',
+            onClick: () => setShowCreateModal(true)
+          }
+        }}
       />
 
       {/* Create/Edit Component Modal */}
