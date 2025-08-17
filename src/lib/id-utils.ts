@@ -1,38 +1,39 @@
 /**
  * Utility functions for handling ID fields from backend
- * Backend returns _id but frontend expects id
+ * Backend returns _id and frontend uses _id consistently
  */
 
 export interface HasId {
-  id?: string;
-  _id?: string;
+  _id: string;
 }
 
 /**
- * Transform an object or array of objects to ensure they have 'id' field
- * Uses _id as fallback if id doesn't exist
+ * Transform an object or array of objects to ensure they have '_id' field
  */
-export function ensureId<T extends HasId>(item: T): T & { id: string };
-export function ensureId<T extends HasId>(items: T[]): (T & { id: string })[];
-export function ensureId<T extends HasId>(data: T | T[]): (T & { id: string }) | (T & { id: string })[] {
+export function ensureId<T extends HasId>(item: T): T;
+export function ensureId<T extends HasId>(items: T[]): T[];
+export function ensureId<T extends HasId>(data: T | T[]): T | T[] {
   if (Array.isArray(data)) {
-    return data.map(item => ({
-      ...item,
-      id: item.id || item._id || ''
-    }));
+    return data.map(item => {
+      if (!item._id) {
+        console.warn('Item missing _id field:', item);
+      }
+      return item;
+    });
   }
   
-  return {
-    ...data,
-    id: data.id || data._id || ''
-  };
+  if (!data._id) {
+    console.warn('Item missing _id field:', data);
+  }
+  
+  return data;
 }
 
 /**
- * Get the ID from an object that might have either 'id' or '_id'
+ * Get the ID from an object that has '_id'
  */
 export function getId(item: HasId): string {
-  return item.id || item._id || '';
+  return item._id || '';
 }
 
 /**

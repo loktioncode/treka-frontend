@@ -67,7 +67,7 @@ interface DataTableProps<T> {
   className?: string;
 }
 
-export function DataTable<T extends { id: string }>({
+export function DataTable<T extends { _id: string }>({
   data,
   columns,
   actions = [],
@@ -154,7 +154,7 @@ export function DataTable<T extends { id: string }>({
     
     // Debug logging for actions
     if (actions.length > 0) {
-      console.log('🔍 Actions for item:', item.id || 'unknown', {
+              console.log('🔍 Actions for item:', item._id || 'unknown', {
         totalActions: actions.length,
         visibleActions: visibleActions.length,
         actions: actions.map(a => ({ key: a.key, label: typeof a.label === 'function' ? a.label(item) : a.label, visible: a.show ? a.show(item) : true }))
@@ -191,7 +191,7 @@ export function DataTable<T extends { id: string }>({
           
           return (
             <Button
-              key={`${item.id || `item-${Math.random()}`}-action-${action.key}`}
+                              key={`${item._id || `item-${Math.random()}`}-action-${action.key}`}
               variant={variant || 'ghost'}
               size="sm"
               onClick={(e) => {
@@ -330,7 +330,7 @@ export function DataTable<T extends { id: string }>({
                 ) : (
                   filteredData.map((item, index) => (
                     <motion.tr
-                      key={item.id || `item-${index}`}
+                      key={item._id || `item-${index}`}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
@@ -341,7 +341,7 @@ export function DataTable<T extends { id: string }>({
                         const value = getValue(item, column);
                         return (
                           <td
-                            key={`${item.id || `item-${index}`}-${String(column.key) || `col-${columns.indexOf(column)}`}`}
+                            key={`${item._id || `item-${index}`}-${String(column.key) || `col-${columns.indexOf(column)}`}`}
                             className={cn("px-4 py-3 text-sm text-gray-900", column.className)}
                           >
                             {column.render ? column.render(item, value) : (

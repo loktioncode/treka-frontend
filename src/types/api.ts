@@ -1,7 +1,6 @@
 // User types
 export interface User {
-  id: string;
-  _id?: string; // Backend might return _id instead of id
+  _id: string;
   email: string;
   first_name: string;
   last_name: string;
@@ -40,8 +39,7 @@ export interface UpdateUserRoleRequest {
 
 // Client types
 export interface Client {
-  id: string;
-  _id?: string; // Backend might return _id instead of id
+  _id: string;
   name: string;
   description?: string;
   contact_email: string;

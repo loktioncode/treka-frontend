@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
 import { type Client, type CreateClientRequest } from '@/services/api';
 import { DataTable, type Column, type DataTableAction } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
@@ -15,14 +14,12 @@ import { Building2, Edit, Trash2, Users, Eye, Mail, Phone, MapPin, Plus, Trendin
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
-import { ensureId } from '@/lib/id-utils';
 import { PageTransition } from '@/components/PageTransition';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from '@/hooks/useClients';
 
 export default function ClientsPage() {
   const { user } = useAuth();
-  const router = useRouter();
   const { navigateTo } = useNavigation();
   
   // React Query hooks
