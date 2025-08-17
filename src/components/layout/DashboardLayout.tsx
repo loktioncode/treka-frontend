@@ -61,31 +61,31 @@ const navigation: NavigationItem[] = [
     name: 'Assets',
     href: '/dashboard/assets',
     icon: Package,
-    roles: ['super_admin', 'admin', 'user']
+    roles: ['admin', 'user']
   },
   {
     name: 'Components',
     href: '/dashboard/components',
     icon: Wrench,
-    roles: ['super_admin', 'admin', 'user']
+    roles: ['admin', 'user']
   },
   {
     name: 'Analytics',
     href: '/dashboard/analytics',
     icon: BarChart3,
-    roles: ['super_admin', 'admin']
+    roles: ['admin']
   },
   {
     name: 'Notifications',
     href: '/dashboard/notifications',
     icon: Bell,
-    roles: ['super_admin', 'admin', 'user']
+    roles: ['admin', 'user']
   },
   {
     name: 'Settings',
     href: '/dashboard/settings',
     icon: Settings,
-    roles: ['super_admin', 'admin']
+    roles: ['admin']
   }
 ];
 

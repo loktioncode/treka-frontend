@@ -5,6 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { QuickStats } from '@/components/ui/stats-card';
 import { StatusBadge, RoleBadge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { analyticsAPI } from '@/services/api';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Package,
   Wrench,
@@ -16,47 +19,160 @@ import {
   BarChart3,
   Activity,
   Zap,
-  Shield
+  Shield,
+  RefreshCw
 } from 'lucide-react';
 
 
 
+interface DashboardStats {
+  assets: {
+    total: number;
+    active: number;
+    maintenance: number;
+    total_value: number;
+  };
+  components: {
+    total: number;
+    operational: number;
+    critical: number;
+    maintenance_due: number;
+  };
+  notifications: {
+    pending: number;
+  };
+  recent_activities: Array<{
+    id: string;
+    type: string;
+    message: string;
+    time: string;
+    status: string;
+    priority: string;
+  }>;
+  total_clients?: number;
+  total_users?: number;
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Sample data - this would come from API calls
+  const loadDashboardStats = async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+      const stats = await analyticsAPI.getDashboardStats();
+      setDashboardStats(stats);
+    } catch (err) {
+      console.error('Error loading dashboard stats:', err);
+      setError('Failed to load dashboard statistics');
+      // Fallback to dummy data on error
+      setDashboardStats({
+        assets: { total: 0, active: 0, maintenance: 0, total_value: 0 },
+        components: { total: 0, operational: 0, critical: 0, maintenance_due: 0 },
+        notifications: { pending: 0 },
+        recent_activities: [],
+        total_clients: user?.role === 'super_admin' ? 0 : undefined,
+        total_users: user?.role === 'super_admin' ? 0 : undefined
+      });
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      loadDashboardStats();
+    }
+  }, [user]);
+
+  const handleRefresh = () => {
+    loadDashboardStats(true);
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !dashboardStats) {
+    return (
+      <div className="space-y-8">
+        <div className="text-center py-8">
+          <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            Unable to Load Dashboard
+          </h3>
+          <p className="text-gray-600">{error || 'Failed to load dashboard data'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Create stats array from real data
   const baseStats = [
     {
       title: 'Total Assets',
-      value: '24',
+      value: dashboardStats.assets.total.toString(),
       description: 'Active in system',
       icon: Package,
       color: 'blue' as const,
-      trend: { value: '12%', isPositive: true, label: 'vs last month' }
+      trend: { 
+        value: `${dashboardStats.assets.active}`, 
+        isPositive: dashboardStats.assets.active > dashboardStats.assets.maintenance, 
+        label: 'active assets' 
+      }
     },
     {
       title: 'Active Components',
-      value: '156',
+      value: dashboardStats.components.operational.toString(),
       description: 'Operational status',
       icon: Wrench,
       color: 'green' as const,
-      trend: { value: '3%', isPositive: true, label: 'vs last week' }
+      trend: { 
+        value: `${dashboardStats.components.total}`, 
+        isPositive: true, 
+        label: 'total components' 
+      }
     },
     {
-      title: 'Pending Maintenance',
-      value: '8',
-      description: 'Scheduled this week',
+      title: 'Maintenance Due',
+      value: dashboardStats.components.maintenance_due.toString(),
+      description: 'Within 7 days',
       icon: Clock,
       color: 'yellow' as const,
-      trend: { value: '2', isPositive: false, label: 'new this week' }
+      trend: { 
+        value: `${dashboardStats.assets.maintenance}`, 
+        isPositive: false, 
+        label: 'assets in maintenance' 
+      }
     },
     {
       title: 'Critical Issues',
-      value: '2',
+      value: dashboardStats.components.critical.toString(),
       description: 'Require immediate attention',
       icon: AlertTriangle,
       color: 'red' as const,
-      trend: { value: '1', isPositive: false, label: 'new today' }
+      trend: { 
+        value: `${dashboardStats.notifications.pending}`, 
+        isPositive: false, 
+        label: 'pending notifications' 
+      }
     }
   ];
 
@@ -64,62 +180,75 @@ export default function Dashboard() {
   const superAdminStats = user?.role === 'super_admin' ? [
     {
       title: 'Total Clients',
-      value: '12',
+      value: dashboardStats.total_clients?.toString() || '0',
       description: 'Active organizations',
       icon: Building2,
       color: 'purple' as const,
-      trend: { value: '2', isPositive: true, label: 'new this month' }
+      trend: { 
+        value: 'Active', 
+        isPositive: true, 
+        label: 'organizations' 
+      }
     },
     {
       title: 'Total Users',
-      value: '48',
+      value: dashboardStats.total_users?.toString() || '0',
       description: 'Across all clients',
       icon: Users,
       color: 'indigo' as const,
-      trend: { value: '8%', isPositive: true, label: 'growth rate' }
+      trend: { 
+        value: 'System-wide', 
+        isPositive: true, 
+        label: 'access' 
+      }
+    },
+    {
+      title: 'Total Asset Value',
+      value: `$${dashboardStats.assets.total_value.toLocaleString()}`,
+      description: 'All assets combined',
+      icon: TrendingUp,
+      color: 'green' as const,
+      trend: { 
+        value: 'Portfolio', 
+        isPositive: true, 
+        label: 'value' 
+      }
     }
   ] : [];
 
   const allStats = [...superAdminStats, ...baseStats];
 
-  const recentActivities = [
-    {
-      id: 1,
-      type: 'maintenance',
-      message: 'Maintenance completed on Excavator CAT-320',
-      time: '2 hours ago',
-      icon: Wrench,
-      status: 'active' as const,
-      priority: 'low'
-    },
-    {
-      id: 2,
-      type: 'alert',
-      message: 'Critical alert: Engine temperature high on Truck-001',
-      time: '4 hours ago',
-      icon: AlertTriangle,
-      status: 'critical' as const,
-      priority: 'high'
-    },
-    {
-      id: 3,
-      type: 'update',
-      message: 'Asset location updated for Crane-15',
-      time: '6 hours ago',
-      icon: Activity,
-      status: 'active' as const,
-      priority: 'medium'
-    },
-    {
-      id: 4,
-      type: 'maintenance',
-      message: 'Scheduled maintenance for Generator-05',
-      time: '1 day ago',
-      icon: Clock,
-      status: 'pending' as const,
-      priority: 'medium'
-    }
-  ];
+  // Map real activities with proper icons
+  const recentActivities = dashboardStats.recent_activities.map(activity => {
+    let icon = Activity;
+    if (activity.type === 'maintenance') icon = Wrench;
+    else if (activity.type === 'alert') icon = AlertTriangle;
+    else if (activity.type === 'update') icon = Activity;
+    
+    return {
+      ...activity,
+      icon,
+      time: formatTimeAgo(activity.time)
+    };
+  });
+
+  // Helper function to format time ago
+  function formatTimeAgo(isoString: string): string {
+    const now = new Date();
+    const past = new Date(isoString);
+    const diffInMinutes = Math.floor((now.getTime() - past.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours} hours ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays} days ago`;
+    
+    return past.toLocaleDateString();
+  }
 
   return (
     <div className="space-y-8">
@@ -139,6 +268,14 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
             <RoleBadge role={user?.role || 'user'} />
             <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full">
               <Shield className="h-6 w-6 text-white" />

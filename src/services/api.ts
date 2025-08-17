@@ -436,6 +436,25 @@ export const notificationAPI = {
   }
 };
 
+// Analytics API endpoints
+export const analyticsAPI = {
+  getDashboardStats: async (clientId?: string) => {
+    const params = clientId ? { client_id: clientId } : {};
+    const response = await api.get('/analytics/dashboard-stats', { params });
+    return response.data;
+  },
+
+  getClientStats: async () => {
+    const response = await api.get('/analytics/client-stats');
+    return response.data;
+  },
+
+  getSystemHealth: async () => {
+    const response = await api.get('/analytics/system-health');
+    return response.data;
+  }
+};
+
 export default api;
 
 // Re-export types for convenience
