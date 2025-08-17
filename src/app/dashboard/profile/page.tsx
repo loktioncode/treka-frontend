@@ -316,7 +316,7 @@ export default function ProfilePage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Form>
+              <Form errors={{}} touched={{}} isSubmitting={false}>
                 <FormSection title="Personal Information">
                   <FormGrid cols={2}>
                     <FormField name="first_name">

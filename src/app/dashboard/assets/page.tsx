@@ -59,12 +59,34 @@ export default function AssetsPage() {
     asset_type: 'equipment',
     status: 'active',
     purchase_date: '',
-    purchase_cost: undefined,
-    current_value: undefined,
+    purchase_cost: '',
+    current_value: '',
     location: '',
-    vehicle_details: undefined,
-    machinery_details: undefined,
-    infrastructure_details: undefined
+    vehicle_details: {
+      make: '',
+      model: '',
+      year: '',
+      vin: '',
+      license_plate: '',
+      engine_type: '',
+      fuel_type: '',
+      mileage: ''
+    },
+    machinery_details: {
+      make: '',
+      model: '',
+      year: '',
+      serial_number: '',
+      operating_hours: '',
+      capacity: '',
+      power_rating: ''
+    },
+    infrastructure_details: {
+      type: '',
+      age: '',
+      material: '',
+      condition: ''
+    }
   });
   // const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -82,7 +104,7 @@ export default function AssetsPage() {
         fuel_type: prev.vehicle_details?.fuel_type || '',
         mileage: prev.vehicle_details?.mileage || 0,
         [field]: value
-      }
+      } as VehicleDetails
     }));
   };
 
@@ -99,7 +121,7 @@ export default function AssetsPage() {
         capacity: prev.machinery_details?.capacity || '',
         power_rating: prev.machinery_details?.power_rating || '',
         [field]: value
-      }
+      } as MachineryDetails
     }));
   };
 
@@ -545,7 +567,7 @@ export default function AssetsPage() {
         title={selectedAsset ? 'Edit Asset' : 'Create New Asset'}
         size="lg"
       >
-        <Form onSubmit={handleSubmit}>
+        <Form onSubmit={handleSubmit} errors={{}} touched={{}} isSubmitting={isSubmitting}>
           <FormSection title="Basic Information">
             <FormGrid cols={2}>
               <FormField name="name">
@@ -1123,7 +1145,7 @@ export default function AssetsPage() {
                   type="number"
                   step="0.01"
                   id="purchase_cost"
-                  value={formData.purchase_cost}
+                  value={formData.purchase_cost || ''}
                   onChange={(e) => setFormData({ ...formData, purchase_cost: parseFloat(e.target.value) || undefined })}
                 />
               </FormField>
@@ -1134,7 +1156,7 @@ export default function AssetsPage() {
                   type="number"
                   step="0.01"
                   id="current_value"
-                  value={formData.current_value}
+                  value={formData.current_value || ''}
                   onChange={(e) => setFormData({ ...formData, current_value: parseFloat(e.target.value) || undefined })}
                 />
               </FormField>

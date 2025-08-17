@@ -528,7 +528,7 @@ export default function ComponentsPage() {
         title={selectedComponent ? 'Edit Component' : 'Create New Component'}
         size="lg"
       >
-        <Form onSubmit={handleSubmit}>
+        <Form onSubmit={handleSubmit} errors={{}} touched={{}} isSubmitting={isSubmitting}>
           <FormSection title="Basic Information">
             <FormGrid cols={2}>
               <FormField name="name">

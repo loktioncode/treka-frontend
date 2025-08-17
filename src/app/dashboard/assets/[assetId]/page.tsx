@@ -53,6 +53,62 @@ export default function AssetViewPage() {
     maintenance_interval_days: 30
   });
 
+  // Dynamic component types based on asset type
+  const getComponentTypes = (assetType: string) => {
+    const baseTypes = [
+      { value: 'general', label: 'General Component' },
+      { value: 'electrical_general', label: 'Electrical Component' },
+      { value: 'mechanical', label: 'Mechanical Component' },
+      { value: 'hydraulic', label: 'Hydraulic Component' },
+      { value: 'pneumatic', label: 'Pneumatic Component' }
+    ];
+
+    const assetSpecificTypes = {
+      vehicle: [
+        { value: 'engine', label: 'Engine Component' },
+        { value: 'transmission', label: 'Transmission Component' },
+        { value: 'brake', label: 'Brake Component' },
+        { value: 'suspension', label: 'Suspension Component' },
+        { value: 'electrical_system', label: 'Electrical System' },
+        { value: 'fuel_system', label: 'Fuel System' },
+        { value: 'cooling_system', label: 'Cooling System' },
+        { value: 'consumable', label: 'Consumable (Oil, Filters, etc.)' }
+      ],
+      machinery: [
+        { value: 'motor', label: 'Motor/Engine' },
+        { value: 'belt', label: 'Belts & Pulleys' },
+        { value: 'bearing', label: 'Bearings' },
+        { value: 'seal', label: 'Seals & Gaskets' },
+        { value: 'filter', label: 'Filters' },
+        { value: 'actuator', label: 'Actuators' },
+        { value: 'sensor', label: 'Sensors' },
+        { value: 'control_system', label: 'Control System' },
+        { value: 'consumable', label: 'Consumable Parts' }
+      ],
+      equipment: [
+        { value: 'power_supply', label: 'Power Supply' },
+        { value: 'circuit_board', label: 'Circuit Board' },
+        { value: 'display', label: 'Display/Screen' },
+        { value: 'connector', label: 'Connectors' },
+        { value: 'battery', label: 'Battery' },
+        { value: 'cooling_fan', label: 'Cooling Fan' },
+        { value: 'storage', label: 'Storage Device' },
+        { value: 'consumable', label: 'Consumable Parts' }
+      ],
+      infrastructure: [
+        { value: 'structural', label: 'Structural Component' },
+        { value: 'electrical_infrastructure', label: 'Electrical System' },
+        { value: 'plumbing', label: 'Plumbing System' },
+        { value: 'hvac', label: 'HVAC System' },
+        { value: 'security', label: 'Security System' },
+        { value: 'lighting', label: 'Lighting System' },
+        { value: 'consumable', label: 'Consumable Parts' }
+      ]
+    };
+
+    return [...baseTypes, ...(assetSpecificTypes[assetType as keyof typeof assetSpecificTypes] || [])];
+  };
+
   // Load asset and components
   useEffect(() => {
     if (assetId) {
@@ -88,14 +144,24 @@ export default function AssetViewPage() {
     setIsSubmitting(true);
 
     try {
+      // Convert date strings to proper format for the API
+      const processedData = {
+        ...componentFormData,
+        asset_id: assetId as string,
+        // Convert date strings to ISO datetime format or undefined if empty
+        last_maintenance_date: componentFormData.last_maintenance_date 
+          ? new Date(componentFormData.last_maintenance_date).toISOString()
+          : undefined,
+        next_maintenance_date: componentFormData.next_maintenance_date 
+          ? new Date(componentFormData.next_maintenance_date).toISOString()
+          : undefined
+      };
+
       if (selectedComponent) {
-        await componentAPI.updateComponent(selectedComponent.id, componentFormData);
+        await componentAPI.updateComponent(selectedComponent.id, processedData);
         toast.success('Component updated successfully');
       } else {
-        await componentAPI.createComponent({
-          ...componentFormData,
-          asset_id: assetId as string
-        } as CreateComponentRequest);
+        await componentAPI.createComponent(processedData as CreateComponentRequest);
         toast.success('Component created successfully');
       }
       
@@ -121,14 +187,27 @@ export default function AssetViewPage() {
 
   const handleEditComponent = (component: Component) => {
     setSelectedComponent(component);
+    
+    // Convert dates to YYYY-MM-DD format for HTML date inputs
+    const formatDateForInput = (dateString: string | undefined) => {
+      if (!dateString) return '';
+      try {
+        const date = new Date(dateString);
+        return date.toISOString().split('T')[0]; // Convert to YYYY-MM-DD format
+      } catch (error) {
+        console.error('Error formatting date:', error);
+        return '';
+      }
+    };
+
     setComponentFormData({
       name: component.name,
       description: component.description,
       component_type: component.component_type,
       status: component.status,
       specifications: component.specifications || {},
-      last_maintenance_date: component.last_maintenance_date,
-      next_maintenance_date: component.next_maintenance_date,
+      last_maintenance_date: formatDateForInput(component.last_maintenance_date),
+      next_maintenance_date: formatDateForInput(component.next_maintenance_date),
       maintenance_interval_days: component.maintenance_interval_days
     });
     setShowComponentModal(true);
@@ -469,9 +548,9 @@ export default function AssetViewPage() {
         }}
         title={selectedComponent ? 'Edit Component' : 'Add Component'}
       >
-        <form onSubmit={handleComponentSubmit} className="space-y-6">
+        <Form onSubmit={handleComponentSubmit} errors={{}} touched={{}} isSubmitting={isSubmitting}>
           <FormGrid>
-            <FormField>
+            <FormField name="name">
               <FormLabel>Name *</FormLabel>
               <Input
                 value={componentFormData.name}
@@ -481,18 +560,19 @@ export default function AssetViewPage() {
               />
             </FormField>
             
-            <FormField>
+            <FormField name="component_type">
               <FormLabel>Type *</FormLabel>
-              <Input
+              <Select
+                options={getComponentTypes(asset?.asset_type || 'equipment')}
                 value={componentFormData.component_type}
                 onChange={(e) => setComponentFormData({ ...componentFormData, component_type: e.target.value })}
-                placeholder="Component type"
+                placeholder="Select component type"
                 required
               />
             </FormField>
           </FormGrid>
           
-          <FormField>
+          <FormField name="description">
             <FormLabel>Description</FormLabel>
             <Textarea
               value={componentFormData.description}
@@ -503,11 +583,11 @@ export default function AssetViewPage() {
           </FormField>
           
           <FormGrid>
-            <FormField>
+            <FormField name="status">
               <FormLabel>Status *</FormLabel>
               <Select
-                value={componentFormData.status}
-                onChange={(e) => setComponentFormData({ ...componentFormData, status: e.target.value as any })}
+                value={componentFormData.status || 'operational'}
+                onChange={(e) => setComponentFormData({ ...componentFormData, status: e.target.value })}
                 options={[
                   { value: 'operational', label: 'Operational' },
                   { value: 'warning', label: 'Warning' },
@@ -518,7 +598,7 @@ export default function AssetViewPage() {
               />
             </FormField>
             
-            <FormField>
+            <FormField name="maintenance_interval_days">
               <FormLabel>Maintenance Interval (days)</FormLabel>
               <Input
                 type="number"
@@ -530,7 +610,7 @@ export default function AssetViewPage() {
           </FormGrid>
           
           <FormGrid>
-            <FormField>
+            <FormField name="last_maintenance_date">
               <FormLabel>Last Maintenance Date</FormLabel>
               <Input
                 type="date"
@@ -539,7 +619,7 @@ export default function AssetViewPage() {
               />
             </FormField>
             
-            <FormField>
+            <FormField name="next_maintenance_date">
               <FormLabel>Next Maintenance Date</FormLabel>
               <Input
                 type="date"
@@ -564,7 +644,7 @@ export default function AssetViewPage() {
               {isSubmitting ? 'Saving...' : (selectedComponent ? 'Update' : 'Create')}
             </Button>
           </FormActions>
-        </form>
+        </Form>
       </Modal>
     </div>
   );
