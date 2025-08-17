@@ -100,7 +100,7 @@ export function RoleBadge({
       label: "Super Admin"
     },
     admin: { 
-      className: "bg-blue-600 text-white border-blue-200",
+      className: "bg-teal-600 text-white border-teal-200",
       label: "Admin"
     },
     user: { 

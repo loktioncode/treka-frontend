@@ -370,8 +370,8 @@ export default function ClientDetailPage() {
       sortable: true,
       render: (user) => (
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <Users className="h-4 w-4 text-blue-600" />
+          <div className="p-2 bg-teal-100 rounded-lg">
+            <Users className="h-4 w-4 text-teal-600" />
           </div>
           <div>
             <div className="font-medium text-gray-900">
@@ -391,9 +391,9 @@ export default function ClientDetailPage() {
       render: (user) => (
         <div className="flex items-center gap-2">
           <Shield className="h-4 w-4 text-gray-400" />
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            user.role === 'admin'
-              ? 'bg-blue-100 text-blue-800'
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          user.role === 'admin'
+                            ? 'bg-teal-100 text-teal-800'
               : 'bg-gray-100 text-gray-800'
           }`}>
             {user.role.toUpperCase()}
@@ -485,7 +485,7 @@ export default function ClientDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
       </div>
     );
   }
@@ -525,7 +525,7 @@ export default function ClientDetailPage() {
           </Button>
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <Building2 className="h-8 w-8 text-blue-600" />
+              <Building2 className="h-8 w-8 text-teal-600" />
               {client.name}
             </h1>
             <p className="text-gray-600 mt-1">Manage client details, admins, and users</p>
@@ -625,7 +625,7 @@ export default function ClientDetailPage() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Admins</span>
-              <span className="text-2xl font-bold text-blue-600">{admins.length}</span>
+              <span className="text-2xl font-bold text-teal-600">{admins.length}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Regular Users</span>
@@ -923,7 +923,7 @@ export default function ClientDetailPage() {
                         <label className="text-sm font-medium text-gray-500">Role</label>
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           selectedUser.role === 'admin'
-                            ? 'bg-blue-100 text-blue-800'
+                            ? 'bg-teal-100 text-teal-800'
                             : 'bg-gray-100 text-gray-800'
                         }`}>
                           {selectedUser.role.toUpperCase()}

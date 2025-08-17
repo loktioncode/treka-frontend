@@ -22,11 +22,11 @@ interface StatsCardProps {
 
 const colorConfigs = {
   blue: {
-    gradient: "from-blue-500 to-blue-600",
-    bg: "bg-blue-500",
-    light: "bg-blue-50",
-    text: "text-blue-600",
-    border: "border-blue-200"
+    gradient: "from-teal-500 to-teal-600",
+    bg: "bg-teal-500",
+    light: "bg-teal-50",
+    text: "text-teal-600",
+    border: "border-teal-200"
   },
   green: {
     gradient: "from-green-500 to-green-600", 
@@ -57,11 +57,11 @@ const colorConfigs = {
     border: "border-purple-200"
   },
   indigo: {
-    gradient: "from-indigo-500 to-indigo-600",
-    bg: "bg-indigo-500",
-    light: "bg-indigo-50",
-    text: "text-indigo-600",
-    border: "border-indigo-200"
+    gradient: "from-teal-600 to-teal-700",
+    bg: "bg-teal-600",
+    light: "bg-teal-50",
+    text: "text-teal-700",
+    border: "border-teal-200"
   },
   pink: {
     gradient: "from-pink-500 to-pink-600",
@@ -85,7 +85,7 @@ export function StatsCard({
   description, 
   icon: Icon, 
   trend, 
-  color = 'blue', 
+  color = 'teal', 
   delay = 0,
   onClick,
   className 

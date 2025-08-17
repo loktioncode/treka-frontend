@@ -197,8 +197,8 @@ export default function ComponentsPage() {
       sortable: true,
       render: (component) => (
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-50 rounded-lg">
-            <Wrench className="w-4 h-4 text-blue-600" />
+          <div className="p-2 bg-teal-50 rounded-lg">
+            <Wrench className="w-4 h-4 text-teal-600" />
           </div>
           <div>
             <div className="font-medium text-gray-900">{component.name}</div>

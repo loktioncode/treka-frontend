@@ -117,7 +117,7 @@ export default function VerifyOTP() {
               initial={{ scale: 0.8 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, duration: 0.3 }}
-              className="mx-auto w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center shadow-lg"
+              className="mx-auto w-16 h-16 bg-gradient-to-r from-teal-600 to-teal-700 rounded-full flex items-center justify-center shadow-lg"
             >
               {isVerified ? <Key className="w-8 h-8 text-white" /> : <Mail className="w-8 h-8 text-white" />}
             </motion.div>
@@ -170,7 +170,7 @@ export default function VerifyOTP() {
                   type="submit"
                   loading={isLoading}
                   disabled={isLoading || code.length !== 6}
-                  className="w-full h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                  className="w-full h-11 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800"
                 >
                   {isLoading ? 'Verifying...' : 'Verify Code'}
                 </Button>
@@ -185,7 +185,7 @@ export default function VerifyOTP() {
                     onClick={handleResendCode}
                     loading={isResending}
                     disabled={isResending}
-                    className="text-blue-600 hover:text-blue-700"
+                    className="text-teal-600 hover:text-teal-700"
                   >
                     {isResending ? 'Sending...' : 'Resend Code'}
                   </Button>

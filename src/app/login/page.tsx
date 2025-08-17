@@ -94,7 +94,7 @@ function LoginForm() {
               initial={{ scale: 0.8 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, duration: 0.3 }}
-              className="mx-auto w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center shadow-lg"
+              className="mx-auto w-16 h-16 bg-gradient-to-r from-teal-600 to-teal-700 rounded-full flex items-center justify-center shadow-lg"
             >
               <Shield className="w-8 h-8 text-white" />
             </motion.div>
@@ -138,7 +138,7 @@ function LoginForm() {
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={isLoading}
                     required
-                    className="h-11 transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="h-11 transition-all duration-200 focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   />
                 </div>
 
@@ -156,7 +156,7 @@ function LoginForm() {
                       onChange={(e) => setPassword(e.target.value)}
                       disabled={isLoading}
                       required
-                      className="h-11 pr-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="h-11 pr-10 transition-all duration-200 focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                     />
                     <button
                       type="button"
@@ -173,7 +173,7 @@ function LoginForm() {
               <div className="flex items-center justify-end">
                 <Link
                   href="/forgot-password"
-                  className="text-sm text-blue-600 hover:text-blue-500 transition-colors font-medium cursor-pointer"
+                  className="text-sm text-teal-600 hover:text-teal-500 transition-colors font-medium cursor-pointer"
                 >
                   Forgot password?
                 </Link>
@@ -183,7 +183,7 @@ function LoginForm() {
                 type="submit"
                 loading={isLoading}
                 disabled={isLoading}
-                className="w-full h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+                className="w-full h-11 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
               >
                 {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>

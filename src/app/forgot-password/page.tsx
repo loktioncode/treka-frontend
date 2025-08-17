@@ -62,7 +62,7 @@ export default function ForgotPassword() {
               className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center shadow-lg ${
                 isEmailSent 
                   ? 'bg-gradient-to-r from-green-600 to-emerald-600' 
-                  : 'bg-gradient-to-r from-blue-600 to-indigo-600'
+                  : 'bg-gradient-to-r from-teal-600 to-teal-700'
               }`}
             >
               {isEmailSent ? (
@@ -110,7 +110,7 @@ export default function ForgotPassword() {
                     disabled={isLoading}
                     required
                     placeholder="Enter your email address"
-                    className="h-11 transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="h-11 transition-all duration-200 focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   />
                 </div>
 
@@ -118,7 +118,7 @@ export default function ForgotPassword() {
                   type="submit"
                   loading={isLoading}
                   disabled={isLoading || !email}
-                  className="w-full h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+                  className="w-full h-11 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
                   {isLoading ? 'Sending...' : 'Send Verification Code'}
                 </Button>

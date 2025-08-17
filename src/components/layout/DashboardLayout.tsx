@@ -218,7 +218,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   className="flex items-center gap-x-2 rounded-full bg-gray-50 p-1.5 text-sm leading-6 text-gray-900 hover:bg-gray-100 cursor-pointer"
                   onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
                 >
-                  <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center">
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-r from-teal-600 to-teal-700 flex items-center justify-center">
                     <User className="h-4 w-4 text-white" />
                   </div>
                   <span className="hidden lg:flex lg:items-center">
@@ -289,7 +289,7 @@ function SidebarContent({ navigation, pathname, user, onClose, isMobile }: Sideb
     <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4 shadow-xl">
       <div className="flex h-16 shrink-0 items-center justify-between">
         <div className="flex items-center gap-x-3">
-          <div className="h-8 w-8 rounded bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center">
+          <div className="h-8 w-8 rounded bg-gradient-to-r from-teal-600 to-teal-700 flex items-center justify-center">
             <Shield className="h-5 w-5 text-white" />
           </div>
           <span className="text-xl font-bold text-gray-900">TREKA</span>
@@ -340,7 +340,7 @@ function SidebarContent({ navigation, pathname, user, onClose, isMobile }: Sideb
           {/* User info */}
           <li className="mt-auto">
             <div className="flex items-center gap-x-4 px-2 py-3 text-sm font-semibold leading-6 text-gray-900">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center">
+              <div className="h-8 w-8 rounded-full bg-gradient-to-r from-teal-600 to-teal-700 flex items-center justify-center">
                 <User className="h-4 w-4 text-white" />
               </div>
               <div className="flex-1">

@@ -88,7 +88,7 @@ export default function Home() {
           className="flex justify-between items-center mb-16"
         >
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg">
+            <div className="p-2 bg-gradient-to-r from-teal-600 to-teal-700 rounded-lg">
               <Shield className="h-6 w-6 text-white" />
             </div>
             <div className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
@@ -112,7 +112,7 @@ export default function Home() {
           <div className="max-w-4xl mx-auto">
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-6">
               Asset Management
-              <span className="block bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              <span className="block bg-gradient-to-r from-teal-600 to-teal-700 bg-clip-text text-transparent">
                 Redefined
               </span>
             </h1>
@@ -124,7 +124,7 @@ export default function Home() {
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
               <Link href="/login">
-                <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 flex items-center gap-2">
+                <Button size="lg" className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 flex items-center gap-2">
                   Get Started
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -240,7 +240,7 @@ export default function Home() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.6 }}
-                className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl p-8 text-white shadow-2xl"
+                className="bg-gradient-to-br from-teal-600 to-teal-700 rounded-2xl p-8 text-white shadow-2xl"
               >
                 <div className="flex items-center gap-3 mb-6">
                   <Zap className="h-8 w-8" />
@@ -265,18 +265,18 @@ export default function Home() {
           transition={{ duration: 0.6 }}
           className="text-center"
         >
-          <Card className="border-0 shadow-2xl bg-gradient-to-r from-blue-600 to-indigo-600">
+          <Card className="border-0 shadow-2xl bg-gradient-to-r from-teal-600 to-teal-700">
             <CardContent className="p-12">
               <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
                 Ready to Transform Your Operations?
               </h2>
-              <p className="text-blue-100 mb-8 text-lg max-w-2xl mx-auto">
+              <p className="text-teal-100 mb-8 text-lg max-w-2xl mx-auto">
                 Join thousands of organizations already using TREKA to optimize their asset management processes.
               </p>
               <Link href="/login">
                 <Button 
                   size="lg" 
-                  className="bg-white text-blue-600 hover:bg-gray-50 font-semibold flex items-center gap-2"
+                  className="bg-white text-teal-600 hover:bg-gray-50 font-semibold flex items-center gap-2"
                 >
                   Access Your Dashboard
                   <ArrowRight className="h-4 w-4" />

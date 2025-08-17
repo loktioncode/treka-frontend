@@ -240,7 +240,7 @@ export function Checkbox({ label, className, id, ...props }: CheckboxProps) {
         type="checkbox"
         id={inputId}
         className={cn(
-          "h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500",
+          "h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500",
           className
         )}
         {...props}
@@ -264,7 +264,7 @@ export function FileInput({ onFilesChange, className, ...props }: FileInputProps
     <input
       type="file"
       className={cn(
-        "block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100",
+        "block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100",
         className
       )}
       onChange={(e) => onFilesChange?.(e.target.files)}

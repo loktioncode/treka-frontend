@@ -124,7 +124,7 @@ export default function NotificationsPage() {
       case 'medium':
         return 'text-yellow-600 bg-yellow-50 border-yellow-200';
       case 'low':
-        return 'text-blue-600 bg-blue-50 border-blue-200';
+        return 'text-teal-600 bg-teal-50 border-teal-200';
       default:
         return 'text-gray-600 bg-gray-50 border-gray-200';
     }
@@ -236,7 +236,7 @@ export default function NotificationsPage() {
               >
                 <Card className={`transition-all duration-200 hover:shadow-md ${
                   !notification.read_status 
-                    ? 'border-l-4 border-l-blue-500 shadow-sm' 
+                    ? 'border-l-4 border-l-teal-500 shadow-sm' 
                     : 'opacity-75'
                 }`}>
                   <CardContent className="p-6">

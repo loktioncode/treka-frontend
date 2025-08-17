@@ -271,13 +271,13 @@ export default function Dashboard() {
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
               {refreshing ? 'Refreshing...' : 'Refresh'}
             </button>
             <RoleBadge role={user?.role || 'user'} />
-            <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full">
+            <div className="p-3 bg-gradient-to-r from-teal-500 to-teal-700 rounded-full">
               <Shield className="h-6 w-6 text-white" />
             </div>
           </div>
@@ -324,14 +324,14 @@ export default function Dashboard() {
                       ? 'bg-red-100' 
                       : activity.priority === 'medium'
                       ? 'bg-yellow-100'
-                      : 'bg-blue-100'
+                      : 'bg-teal-100'
                   }`}>
                     <activity.icon className={`h-4 w-4 ${
                       activity.priority === 'high' 
                         ? 'text-red-600' 
                         : activity.priority === 'medium'
                         ? 'text-yellow-600'
-                        : 'text-blue-600'
+                        : 'text-teal-600'
                     }`} />
                   </div>
                   <div className="flex-1 space-y-2">
@@ -378,17 +378,17 @@ export default function Dashboard() {
               <motion.button 
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full p-4 text-left rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 transition-all duration-200 group"
+                className="w-full p-4 text-left rounded-xl border border-teal-200 bg-gradient-to-r from-teal-50 to-teal-100 hover:from-teal-100 hover:to-teal-200 transition-all duration-200 group"
               >
                 <div className="flex items-center gap-4">
-                  <div className="p-2 bg-blue-500 rounded-lg group-hover:bg-blue-600 transition-colors">
+                  <div className="p-2 bg-teal-500 rounded-lg group-hover:bg-teal-600 transition-colors">
                     <Package className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <p className="font-semibold text-blue-900">Add New Asset</p>
-                    <p className="text-sm text-blue-700">Register a new asset in the system</p>
+                    <p className="font-semibold text-teal-900">Add New Asset</p>
+                    <p className="text-sm text-teal-700">Register a new asset in the system</p>
                   </div>
-                  <Zap className="h-4 w-4 text-blue-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <Zap className="h-4 w-4 text-teal-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               </motion.button>
               
@@ -431,17 +431,17 @@ export default function Dashboard() {
               <motion.button 
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full p-4 text-left rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-indigo-100 hover:from-indigo-100 hover:to-indigo-200 transition-all duration-200 group"
+                className="w-full p-4 text-left rounded-xl border border-teal-200 bg-gradient-to-r from-teal-50 to-teal-100 hover:from-teal-100 hover:to-teal-200 transition-all duration-200 group"
               >
                 <div className="flex items-center gap-4">
-                  <div className="p-2 bg-indigo-500 rounded-lg group-hover:bg-indigo-600 transition-colors">
+                  <div className="p-2 bg-teal-600 rounded-lg group-hover:bg-teal-700 transition-colors">
                     <BarChart3 className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <p className="font-semibold text-indigo-900">View Reports</p>
-                    <p className="text-sm text-indigo-700">Generate analytics reports</p>
+                    <p className="font-semibold text-teal-900">View Reports</p>
+                    <p className="text-sm text-teal-700">Generate analytics reports</p>
                   </div>
-                  <Zap className="h-4 w-4 text-indigo-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <Zap className="h-4 w-4 text-teal-600 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               </motion.button>
             </CardContent>

@@ -236,8 +236,8 @@ export default function UsersPage() {
       sortable: true,
       render: (user) => (
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <Users className="h-4 w-4 text-blue-600" />
+          <div className="p-2 bg-teal-100 rounded-lg">
+            <Users className="h-4 w-4 text-teal-600" />
           </div>
           <div>
             <div className="font-medium text-gray-900">
@@ -388,7 +388,7 @@ export default function UsersPage() {
                 <p className="text-sm font-medium text-gray-600">Total Users</p>
                 <p className="text-2xl font-bold text-gray-900">{users.length}</p>
               </div>
-              <Users className="h-8 w-8 text-blue-600" />
+              <Users className="h-8 w-8 text-teal-600" />
             </div>
           </CardContent>
         </Card>
@@ -425,7 +425,7 @@ export default function UsersPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">This Month</p>
-                <p className="text-2xl font-bold text-blue-600">
+                <p className="text-2xl font-bold text-teal-600">
                   {users.filter(u => {
                     const created = new Date(u.created_at);
                     const now = new Date();
@@ -433,7 +433,7 @@ export default function UsersPage() {
                   }).length}
                 </p>
               </div>
-              <UserPlus className="h-8 w-8 text-blue-600" />
+              <UserPlus className="h-8 w-8 text-teal-600" />
             </div>
           </CardContent>
         </Card>

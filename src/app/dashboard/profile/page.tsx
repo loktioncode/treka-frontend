@@ -256,7 +256,7 @@ export default function ProfilePage() {
             <CardContent className="space-y-6">
               {/* Avatar */}
               <div className="flex flex-col items-center text-center">
-                <div className="h-24 w-24 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center mb-4">
+                <div className="h-24 w-24 rounded-full bg-gradient-to-r from-teal-600 to-teal-700 flex items-center justify-center mb-4">
                   <User className="h-12 w-12 text-white" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -364,7 +364,7 @@ export default function ProfilePage() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                       <div className="flex items-start gap-3">
-                        <Mail className="h-5 w-5 text-blue-600 mt-0.5" />
+                        <Mail className="h-5 w-5 text-teal-600 mt-0.5" />
                         <div>
                           <h4 className="font-medium text-gray-900">Email Notifications</h4>
                           <p className="text-sm text-gray-500">

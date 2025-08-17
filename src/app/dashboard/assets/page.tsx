@@ -161,8 +161,8 @@ export default function AssetsPage() {
       sortable: true,
       render: (asset) => (
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-50 rounded-lg">
-            {asset.asset_type === 'vehicle' ? <Car className="w-4 h-4 text-blue-600" /> : 
+          <div className="p-2 bg-teal-50 rounded-lg">
+            {asset.asset_type === 'vehicle' ? <Car className="w-4 h-4 text-teal-600" /> : 
              asset.asset_type === 'machinery' ? <Wrench className="w-4 h-4 text-green-600" /> :
              <Package className="w-4 h-4 text-purple-600" />}
           </div>
