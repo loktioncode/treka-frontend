@@ -96,7 +96,7 @@ export default function UsersPage() {
         console.log('🔍 Loaded users data:', response);
         
         // Check user ID fields
-        response.forEach((userItem, index) => {
+        response.forEach((userItem: User, index: number) => {
           console.log(`User ${index}:`, {
             id: userItem.id,
             _id: userItem._id,
@@ -106,7 +106,7 @@ export default function UsersPage() {
         });
         
         // Normalize user data to ensure we have valid ID fields
-        const normalizedUsers = response.map(userItem => ({
+        const normalizedUsers = response.map((userItem: User) => ({
           ...userItem,
           id: userItem.id || userItem._id || `temp-${Date.now()}-${Math.random()}`,
           _id: userItem._id || userItem.id
@@ -298,6 +298,10 @@ export default function UsersPage() {
         // Create regular user for client
         await clientAPI.createClientUser(user.client_id, formData as CreateUserRequest);
         toast.success('User created successfully');
+      } else if (user?.role === 'admin' && !user.client_id) {
+        // Admin user doesn't have a client assigned
+        toast.error('Admin user must be assigned to a client to create users. Please contact a super admin to assign you to a client.');
+        return;
       } else if (user?.role === 'super_admin') {
         // This case shouldn't happen, but handle it
         toast.error('Please specify if creating an admin or select a client');
@@ -312,6 +316,11 @@ export default function UsersPage() {
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as { response?: { data?: { detail?: string } } };
         message = axiosError.response?.data?.detail || message;
+        
+        // Provide better guidance for specific errors
+        if (message.includes('Admin user must be assigned to a client')) {
+          message = 'Admin user must be assigned to a client to create users. Please contact a super admin to assign you to a client.';
+        }
       }
       toast.error(message);
     } finally {
@@ -897,6 +906,33 @@ export default function UsersPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
+        {/* Help message for admin users without client assignment */}
+        {user?.role === 'admin' && !user.client_id && (
+          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-amber-800">
+                  Admin Account Setup Required
+                </h3>
+                <div className="mt-2 text-sm text-amber-700">
+                  <p>
+                    Your admin account is not yet assigned to a client organization. 
+                    You need to be assigned to a client before you can create users.
+                  </p>
+                  <p className="mt-1">
+                    Please contact a super administrator to assign you to a client organization.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <DataTable
           data={users}
           columns={columns}
@@ -936,6 +972,33 @@ export default function UsersPage() {
         size="lg"
       >
         <Form onSubmit={handleSubmit} errors={formErrors} isSubmitting={isSubmitting}>
+          {/* Help message for admin users without client assignment */}
+          {user?.role === 'admin' && !user.client_id && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-red-800">
+                    Cannot Create Users
+                  </h3>
+                  <div className="mt-2 text-sm text-red-700">
+                    <p>
+                      Your admin account is not assigned to a client organization. 
+                      You need to be assigned to a client before you can create users.
+                    </p>
+                    <p className="mt-1">
+                      Please contact a super administrator to assign you to a client organization.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <FormSection title="User Type">
             {user?.role === 'super_admin' && (
               <FormField name="user_type">
@@ -1050,8 +1113,12 @@ export default function UsersPage() {
             >
               Cancel
             </Button>
-            <Button type="submit" loading={isSubmitting}>
-              Create User
+            <Button 
+              type="submit" 
+              loading={isSubmitting}
+              disabled={user?.role === 'admin' && !user.client_id}
+            >
+              Create {isCreatingAdmin ? 'Admin' : 'User'}
             </Button>
           </FormActions>
         </Form>

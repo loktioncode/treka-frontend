@@ -245,6 +245,12 @@ export const userAPI = {
   getAllUsers: async (params: UserFilters = {}) => {
     const response = await api.get('/auth/list-all-users', { params });
     return response.data;
+  },
+
+  // Assign user to client (super admin only)
+  assignUserToClient: async (userId: string, clientId: string) => {
+    const response = await api.post(`/auth/users/${userId}/assign-client`, { client_id: clientId });
+    return response.data;
   }
 };
 
