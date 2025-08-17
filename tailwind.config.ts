@@ -61,6 +61,9 @@ const config: Config = {
         "role-super-admin": "hsl(var(--role-super-admin))",
         "role-admin": "hsl(var(--role-admin))",
         "role-user": "hsl(var(--role-user))",
+        teal: {
+          800: "#115e59",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

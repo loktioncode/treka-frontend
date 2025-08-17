@@ -98,12 +98,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    // Initialize from localStorage if available
+    // Initialize from localStorage if available, default to collapsed
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('sidebarCollapsed');
-      return saved ? JSON.parse(saved) : false;
+      return saved ? JSON.parse(saved) : true;
     }
-    return false;
+    return true;
   });
   
   // Enable automatic route prefetching
@@ -197,7 +197,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Desktop sidebar */}
       <div className={`hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-all duration-300 ${
         sidebarCollapsed ? 'lg:w-16' : 'lg:w-64'
-      }`}>
+      }`} style={{ overflow: 'visible', zIndex: 50 }}>
         <SidebarContent 
           navigation={filteredNavigation} 
           pathname={pathname}
@@ -214,13 +214,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       }`}>
         {/* Top navigation */}
         <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-          <button
-            type="button"
-            className="-m-2.5 p-2.5 text-gray-700 lg:hidden cursor-pointer"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <Menu className="h-6 w-6" />
-          </button>
+          <Tooltip content="Open menu" position="bottom">
+            <button
+              type="button"
+              className="-m-2.5 p-2.5 text-gray-700 lg:hidden cursor-pointer"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+          </Tooltip>
 
           <div className="h-6 w-px bg-gray-200 lg:hidden" />
 
@@ -230,13 +232,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               {/* Notifications - hidden for super admins */}
               {user?.role !== 'super_admin' && (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => router.push('/dashboard/notifications')}
-                    className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500 cursor-pointer"
-                  >
-                    <Bell className="h-6 w-6" />
-                  </button>
+                  <Tooltip content="Notifications" position="bottom">
+                    <button
+                      type="button"
+                      onClick={() => router.push('/dashboard/notifications')}
+                      className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500 cursor-pointer"
+                    >
+                      <Bell className="h-6 w-6" />
+                    </button>
+                  </Tooltip>
 
                   {/* Separator */}
                   <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" />
@@ -245,21 +249,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
               {/* Profile dropdown */}
               <div className="relative">
-                <button
-                  type="button"
-                  className="flex items-center gap-x-2 rounded-full bg-gray-50 p-1.5 text-sm leading-6 text-gray-900 hover:bg-gray-100 cursor-pointer"
-                  onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                >
-                  <div className="h-8 w-8 rounded-full bg-gradient-to-r from-teal-600 to-teal-700 flex items-center justify-center">
-                    <User className="h-4 w-4 text-white" />
-                  </div>
-                  <span className="hidden lg:flex lg:items-center">
-                    <span className="ml-2 text-sm font-semibold leading-6 text-gray-900">
-                      {user.first_name} {user.last_name}
+                <Tooltip content="Profile menu" position="bottom">
+                  <button
+                    type="button"
+                    className="flex items-center gap-x-2 rounded-full bg-gray-50 p-1.5 text-sm leading-6 text-gray-900 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                  >
+                    <div className="h-8 w-8 rounded-full bg-gradient-to-r from-teal-600 to-teal-700 flex items-center justify-center">
+                      <User className="h-4 w-4 text-white" />
+                    </div>
+                    <span className="hidden lg:flex lg:items-center">
+                      <span className="ml-2 text-sm font-semibold leading-6 text-gray-900">
+                        {user.first_name} {user.last_name}
+                      </span>
+                      <ChevronDown className="ml-2 h-5 w-5 text-gray-400" />
                     </span>
-                    <ChevronDown className="ml-2 h-5 w-5 text-gray-400" />
-                  </span>
-                </button>
+                  </button>
+                </Tooltip>
 
                 <AnimatePresence>
                   {profileDropdownOpen && (
@@ -320,38 +326,54 @@ interface SidebarContentProps {
 
 function SidebarContent({ navigation, pathname, user, onClose, isMobile, collapsed = false, onToggleCollapse }: SidebarContentProps) {
   return (
-    <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4 shadow-xl">
-              <div className="flex h-16 shrink-0 items-center justify-between">
+    <div className={cn(
+      "flex grow flex-col gap-y-5 overflow-y-auto bg-white pb-4 shadow-xl",
+      collapsed ? "px-2" : "px-6"
+    )} style={{ overflow: 'visible' }}>
+      {/* Ensure no horizontal overflow when collapsed */}
+      <div className={cn(
+        "min-w-0 relative",
+        collapsed ? "w-12" : "w-full"
+      )} style={{ overflow: 'visible' }}>
+        <div className="flex h-16 shrink-0 items-center justify-between">
           <div className="flex items-center gap-x-3">
-            {collapsed ? (
-              <Tooltip content="TREKA Dashboard" position="right">
-                <SmartLink href="/dashboard" className="flex items-center gap-x-3 hover:opacity-80 transition-opacity">
-                  <div className="h-8 w-8 rounded bg-gradient-to-r from-teal-600 to-teal-700 flex items-center justify-center">
-                    <Shield className="h-5 w-5 text-white" />
-                  </div>
-                </SmartLink>
+          {collapsed ? (
+            <SmartLink href="/dashboard" className="flex items-center justify-center hover:opacity-80 transition-opacity w-8 h-8">
+              <div className="h-8 w-8 rounded bg-gradient-to-r from-teal-600 to-teal-700 flex items-center justify-center">
+                <Shield className="h-5 w-5 text-white" />
+              </div>
+            </SmartLink>
+          ) : (
+            <SmartLink href="/dashboard" className="flex items-center gap-x-3 hover:opacity-80 transition-opacity">
+              <div className="h-8 w-8 rounded bg-gradient-to-r from-teal-700 flex items-center justify-center">
+                <Shield className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-xl font-bold text-gray-900">TREKA</span>
+            </SmartLink>
+          )}
+        </div>
+        <div className="flex items-center gap-2" style={{ overflow: 'visible' }}>
+          {!isMobile && onToggleCollapse && (
+            collapsed ? (
+              <Tooltip content="Expand sidebar" position="right">
+                <button
+                  type="button"
+                  className="rounded-md hover:bg-gray-100 cursor-pointer transition-colors p-1.5 w-8 h-8"
+                  onClick={onToggleCollapse}
+                >
+                  <ChevronDown className="h-4 w-4 text-gray-400 transition-transform duration-200 rotate-180" />
+                </button>
               </Tooltip>
             ) : (
-              <SmartLink href="/dashboard" className="flex items-center gap-x-3 hover:opacity-80 transition-opacity">
-                <div className="h-8 w-8 rounded bg-gradient-to-r from-teal-700 flex items-center justify-center">
-                  <Shield className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-xl font-bold text-gray-900">TREKA</span>
-              </SmartLink>
-            )}
-          </div>
-        <div className="flex items-center gap-2">
-          {!isMobile && onToggleCollapse && (
-            <button
-              type="button"
-              className="p-1 rounded-md hover:bg-gray-100 cursor-pointer transition-colors"
-              onClick={onToggleCollapse}
-              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
-                collapsed ? 'rotate-180' : ''
-              }`} />
-            </button>
+              <button
+                type="button"
+                className="rounded-md hover:bg-gray-100 cursor-pointer transition-colors p-1"
+                onClick={onToggleCollapse}
+                title="Collapse sidebar"
+              >
+                <ChevronDown className="h-4 w-4 text-gray-400 transition-transform duration-200" />
+              </button>
+            )
           )}
           {isMobile && (
             <button
@@ -365,10 +387,13 @@ function SidebarContent({ navigation, pathname, user, onClose, isMobile, collaps
         </div>
       </div>
 
-      <nav className="flex flex-1 flex-col">
+      <nav className="flex flex-1 flex-col" style={{ overflow: 'visible' }}>
         <ul role="list" className="flex flex-1 flex-col gap-y-7">
           <li>
-            <ul role="list" className="-mx-2 space-y-1">
+            <ul role="list" className={cn(
+              "space-y-1",
+              collapsed ? "" : "-mx-2"
+            )} style={{ overflow: 'visible' }}>
               {navigation.map((item) => {
                 // Special handling for dashboard route to avoid conflicts with sub-routes
                 const isActive = item.href === '/dashboard' 
@@ -383,8 +408,8 @@ function SidebarContent({ navigation, pathname, user, onClose, isMobile, collaps
                       isActive
                         ? 'bg-teal-50 text-teal-700'
                         : 'text-gray-700 hover:text-teal-700 hover:bg-teal-50',
-                      'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors cursor-pointer',
-                      collapsed && 'justify-center'
+                      'group flex gap-x-3 rounded-md text-sm leading-6 font-semibold transition-colors cursor-pointer',
+                      collapsed ? 'justify-center p-1.5 w-10 h-10' : 'p-2'
                     )}
                     variant="default"
                   >
@@ -399,7 +424,7 @@ function SidebarContent({ navigation, pathname, user, onClose, isMobile, collaps
                 );
 
                 return (
-                  <li key={item.name}>
+                  <li key={item.name} style={{ overflow: 'visible' }}>
                     {collapsed ? (
                       <Tooltip content={item.name} position="right">
                         {navigationItem}
@@ -414,15 +439,20 @@ function SidebarContent({ navigation, pathname, user, onClose, isMobile, collaps
           </li>
 
           {/* User info */}
-          <li className="mt-auto">
-            <div className={cn(
-              "flex items-center px-2 py-3 text-sm font-semibold leading-6 text-gray-900",
-              collapsed ? "justify-center" : "gap-x-4"
-            )}>
-              <div className="h-8 w-8 rounded-full bg-gradient-to-r from-teal-600 to-teal-700 flex items-center justify-center">
-                <User className="h-4 w-4 text-white" />
-              </div>
-              {!collapsed && (
+          <li className="mt-auto" style={{ overflow: 'visible' }}>
+            {collapsed ? (
+              <Tooltip content={`${user.first_name} ${user.last_name} (${user.role.replace('_', ' ')})`} position="right">
+                <div className="flex items-center justify-center py-3 px-1">
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-r from-teal-600 to-teal-700 flex items-center justify-center">
+                    <User className="h-4 w-4 text-white" />
+                  </div>
+                </div>
+              </Tooltip>
+            ) : (
+              <div className="flex items-center py-3 px-2 gap-x-4">
+                <div className="h-8 w-8 rounded-full bg-gradient-to-r from-teal-600 to-teal-700 flex items-center justify-center">
+                  <User className="h-4 w-4 text-white" />
+                </div>
                 <div className="flex-1">
                   <div className="text-sm font-medium text-gray-900">
                     {user.first_name} {user.last_name}
@@ -431,11 +461,12 @@ function SidebarContent({ navigation, pathname, user, onClose, isMobile, collaps
                     {user.role.replace('_', ' ')}
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </li>
         </ul>
       </nav>
+      </div> {/* Close the wrapper div */}
     </div>
   );
 }
