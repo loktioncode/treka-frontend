@@ -74,6 +74,66 @@ export interface CreateClientRequest {
 export type AssetType = 'vehicle' | 'machinery' | 'equipment' | 'infrastructure';
 export type AssetStatus = 'active' | 'maintenance' | 'retired' | 'damaged';
 
+export enum PrimaryMaterial {
+  STEEL = 'steel',
+  ALUMINUM = 'aluminum',
+  CONCRETE = 'concrete',
+  WOOD = 'wood',
+  PLASTIC = 'plastic',
+  COMPOSITE = 'composite',
+  GLASS = 'glass',
+  CERAMIC = 'ceramic',
+  BRICK = 'brick',
+  STONE = 'stone',
+  COPPER = 'copper',
+  BRASS = 'brass',
+  TITANIUM = 'titanium',
+  CARBON_FIBER = 'carbon_fiber',
+  FIBERGLASS = 'fiberglass',
+  RUBBER = 'rubber',
+  LEATHER = 'leather',
+  FABRIC = 'fabric',
+  OTHER = 'other'
+}
+
+export const PrimaryMaterialLabels: Record<PrimaryMaterial, string> = {
+  [PrimaryMaterial.STEEL]: 'Steel',
+  [PrimaryMaterial.ALUMINUM]: 'Aluminum',
+  [PrimaryMaterial.CONCRETE]: 'Concrete',
+  [PrimaryMaterial.WOOD]: 'Wood',
+  [PrimaryMaterial.PLASTIC]: 'Plastic',
+  [PrimaryMaterial.COMPOSITE]: 'Composite',
+  [PrimaryMaterial.GLASS]: 'Glass',
+  [PrimaryMaterial.CERAMIC]: 'Ceramic',
+  [PrimaryMaterial.BRICK]: 'Brick',
+  [PrimaryMaterial.STONE]: 'Stone',
+  [PrimaryMaterial.COPPER]: 'Copper',
+  [PrimaryMaterial.BRASS]: 'Brass',
+  [PrimaryMaterial.TITANIUM]: 'Titanium',
+  [PrimaryMaterial.CARBON_FIBER]: 'Carbon Fiber',
+  [PrimaryMaterial.FIBERGLASS]: 'Fiberglass',
+  [PrimaryMaterial.RUBBER]: 'Rubber',
+  [PrimaryMaterial.LEATHER]: 'Leather',
+  [PrimaryMaterial.FABRIC]: 'Fabric',
+  [PrimaryMaterial.OTHER]: 'Other'
+};
+
+export enum Condition {
+  EXCELLENT = 'excellent',
+  GOOD = 'good',
+  FAIR = 'fair',
+  POOR = 'poor',
+  CRITICAL = 'critical'
+}
+
+export const ConditionLabels: Record<Condition, string> = {
+  [Condition.EXCELLENT]: 'Excellent',
+  [Condition.GOOD]: 'Good',
+  [Condition.FAIR]: 'Fair',
+  [Condition.POOR]: 'Poor',
+  [Condition.CRITICAL]: 'Critical'
+};
+
 export interface VehicleDetails {
   make: string;
   model: string;
@@ -98,7 +158,7 @@ export interface MachineryDetails {
 export interface InfrastructureDetails {
   type?: string;
   age?: number;
-  material?: string;
+  material?: PrimaryMaterial;
   condition?: string;
 }
 

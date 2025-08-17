@@ -321,62 +321,16 @@ export const assetAPI = {
   },
 
   createAsset: async (assetData: CreateAssetRequest, images?: File[]) => {
-    const formData = new FormData();
-    
-    // Add asset data
-    Object.keys(assetData).forEach(key => {
-      const value = (assetData as unknown as Record<string, unknown>)[key];
-      if (value !== undefined && value !== null) {
-        if (typeof value === 'object') {
-          formData.append(key, JSON.stringify(value));
-        } else {
-          formData.append(key, value.toString());
-        }
-      }
-    });
-
-    // Add images
-    if (images && images.length > 0) {
-      images.forEach((image) => {
-        formData.append('images', image);
-      });
-    }
-
-    const response = await api.post('/assets', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    // For now, just send the asset data as JSON
+    // TODO: Handle images separately if needed
+    const response = await api.post('/assets', assetData);
     return response.data;
   },
 
   updateAsset: async (assetId: string, assetData: Partial<CreateAssetRequest>, images?: File[]) => {
-    const formData = new FormData();
-    
-    // Add asset data
-    Object.keys(assetData).forEach(key => {
-      const value = (assetData as unknown as Record<string, unknown>)[key];
-      if (value !== undefined && value !== null) {
-        if (typeof value === 'object') {
-          formData.append(key, JSON.stringify(value));
-        } else {
-          formData.append(key, value.toString());
-        }
-      }
-    });
-
-    // Add images
-    if (images && images.length > 0) {
-      images.forEach((image) => {
-        formData.append('images', image);
-      });
-    }
-
-    const response = await api.put(`/assets/${assetId}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    // For now, just send the asset data as JSON
+    // TODO: Handle images separately if needed
+    const response = await api.put(`/assets/${assetId}`, assetData);
     return response.data;
   },
 

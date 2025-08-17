@@ -31,9 +31,13 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
 import { ensureId } from '@/lib/id-utils';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { PrimaryMaterial, PrimaryMaterialLabels } from '@/types/api';
 
 export default function AssetsPage() {
   const { user } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -159,10 +163,35 @@ export default function AssetsPage() {
   // Load data
   useEffect(() => {
     loadAssets();
-    if (user?.role === 'super_admin' || user?.role === 'admin') {
-      loadClients();
+    loadClients();
+  }, [loadAssets, loadClients]);
+
+  // Handle edit mode from URL
+  useEffect(() => {
+    const editAssetId = searchParams.get('edit');
+    if (editAssetId && assets.length > 0) {
+      const assetToEdit = assets.find(asset => asset.id === editAssetId);
+      if (assetToEdit) {
+        setSelectedAsset(assetToEdit);
+        setFormData({
+          name: assetToEdit.name,
+          description: assetToEdit.description,
+          asset_type: assetToEdit.asset_type,
+          status: assetToEdit.status,
+          purchase_date: assetToEdit.purchase_date,
+          purchase_cost: assetToEdit.purchase_cost,
+          current_value: assetToEdit.current_value,
+          location: assetToEdit.location,
+          vehicle_details: assetToEdit.vehicle_details,
+          machinery_details: assetToEdit.machinery_details,
+          infrastructure_details: assetToEdit.infrastructure_details
+        });
+        setShowCreateModal(true);
+        // Clear the edit parameter from URL
+        router.replace('/dashboard/assets');
+      }
     }
-  }, [user, loadAssets, loadClients]);
+  }, [searchParams, assets, router]);
 
   // Stats
   const stats = [
@@ -289,8 +318,7 @@ export default function AssetsPage() {
       label: 'View',
       icon: Eye,
       onClick: (asset) => {
-        setSelectedAsset(asset);
-        // TODO: Implement view modal
+        router.push(`/dashboard/assets/${asset.id}`);
       },
       variant: 'secondary'
     },
@@ -310,7 +338,8 @@ export default function AssetsPage() {
           current_value: asset.current_value,
           location: asset.location,
           vehicle_details: asset.vehicle_details,
-          machinery_details: asset.machinery_details
+          machinery_details: asset.machinery_details,
+          infrastructure_details: asset.infrastructure_details
         });
         setShowCreateModal(true);
       },
@@ -1015,17 +1044,38 @@ export default function AssetsPage() {
 
                 <FormField name="infrastructure_material">
                   <FormLabel htmlFor="infrastructure_material">Primary Material</FormLabel>
-                  <Input
+                  <Select
                     id="infrastructure_material"
                     value={formData.infrastructure_details?.material || ''}
                     onChange={(e) => setFormData({
                       ...formData,
                       infrastructure_details: {
                         ...formData.infrastructure_details,
-                        material: e.target.value
+                        material: e.target.value as PrimaryMaterial
                       }
                     })}
-                    placeholder="e.g., Concrete, Steel, Wood"
+                    options={[
+                      { value: '', label: 'Select material' },
+                      { value: PrimaryMaterial.STEEL, label: PrimaryMaterialLabels[PrimaryMaterial.STEEL] },
+                      { value: PrimaryMaterial.ALUMINUM, label: PrimaryMaterialLabels[PrimaryMaterial.ALUMINUM] },
+                      { value: PrimaryMaterial.CONCRETE, label: PrimaryMaterialLabels[PrimaryMaterial.CONCRETE] },
+                      { value: PrimaryMaterial.WOOD, label: PrimaryMaterialLabels[PrimaryMaterial.WOOD] },
+                      { value: PrimaryMaterial.PLASTIC, label: PrimaryMaterialLabels[PrimaryMaterial.PLASTIC] },
+                      { value: PrimaryMaterial.COMPOSITE, label: PrimaryMaterialLabels[PrimaryMaterial.COMPOSITE] },
+                      { value: PrimaryMaterial.GLASS, label: PrimaryMaterialLabels[PrimaryMaterial.GLASS] },
+                      { value: PrimaryMaterial.CERAMIC, label: PrimaryMaterialLabels[PrimaryMaterial.CERAMIC] },
+                      { value: PrimaryMaterial.BRICK, label: PrimaryMaterialLabels[PrimaryMaterial.BRICK] },
+                      { value: PrimaryMaterial.STONE, label: PrimaryMaterialLabels[PrimaryMaterial.STONE] },
+                      { value: PrimaryMaterial.COPPER, label: PrimaryMaterialLabels[PrimaryMaterial.COPPER] },
+                      { value: PrimaryMaterial.BRASS, label: PrimaryMaterialLabels[PrimaryMaterial.BRASS] },
+                      { value: PrimaryMaterial.TITANIUM, label: PrimaryMaterialLabels[PrimaryMaterial.TITANIUM] },
+                      { value: PrimaryMaterial.CARBON_FIBER, label: PrimaryMaterialLabels[PrimaryMaterial.CARBON_FIBER] },
+                      { value: PrimaryMaterial.FIBERGLASS, label: PrimaryMaterialLabels[PrimaryMaterial.FIBERGLASS] },
+                      { value: PrimaryMaterial.RUBBER, label: PrimaryMaterialLabels[PrimaryMaterial.RUBBER] },
+                      { value: PrimaryMaterial.LEATHER, label: PrimaryMaterialLabels[PrimaryMaterial.LEATHER] },
+                      { value: PrimaryMaterial.FABRIC, label: PrimaryMaterialLabels[PrimaryMaterial.FABRIC] },
+                      { value: PrimaryMaterial.OTHER, label: PrimaryMaterialLabels[PrimaryMaterial.OTHER] }
+                    ]}
                   />
                 </FormField>
 
