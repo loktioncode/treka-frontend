@@ -159,7 +159,7 @@ export interface InfrastructureDetails {
   type?: string;
   age?: number;
   material?: PrimaryMaterial;
-  condition?: string;
+  condition?: Condition;
 }
 
 export interface AssetImage {

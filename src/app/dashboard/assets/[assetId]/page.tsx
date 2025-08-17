@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { assetAPI, componentAPI, type Asset, type Component, type CreateComponentRequest } from '@/services/api';
-import { PrimaryMaterialLabels } from '@/types/api';
+import { PrimaryMaterialLabels, ConditionLabels } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
@@ -168,6 +168,10 @@ export default function AssetViewPage() {
 
   const getMaterialLabel = (material: string) => {
     return PrimaryMaterialLabels[material as keyof typeof PrimaryMaterialLabels] || material;
+  };
+
+  const getConditionLabel = (condition: string) => {
+    return ConditionLabels[condition as keyof typeof ConditionLabels] || condition;
   };
 
   if (loading) {
@@ -354,7 +358,12 @@ export default function AssetViewPage() {
                 </div>
                 <div>
                   <p className="text-gray-600">Condition</p>
-                  <p className="font-medium capitalize">{asset.infrastructure_details.condition}</p>
+                  <p className="font-medium capitalize">
+                    {asset.infrastructure_details.condition 
+                      ? getConditionLabel(asset.infrastructure_details.condition)
+                      : 'Not specified'
+                    }
+                  </p>
                 </div>
               </div>
             </div>

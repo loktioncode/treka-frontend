@@ -32,7 +32,7 @@ import toast from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
 import { ensureId } from '@/lib/id-utils';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { PrimaryMaterial, PrimaryMaterialLabels } from '@/types/api';
+import { PrimaryMaterial, PrimaryMaterialLabels, Condition, ConditionLabels } from '@/types/api';
 
 export default function AssetsPage() {
   const { user } = useAuth();
@@ -1088,16 +1088,16 @@ export default function AssetsPage() {
                       ...formData,
                       infrastructure_details: {
                         ...formData.infrastructure_details,
-                        condition: e.target.value
+                        condition: e.target.value as Condition
                       }
                     })}
                     options={[
                       { value: '', label: 'Select condition' },
-                      { value: 'excellent', label: 'Excellent' },
-                      { value: 'good', label: 'Good' },
-                      { value: 'fair', label: 'Fair' },
-                      { value: 'poor', label: 'Poor' },
-                      { value: 'critical', label: 'Critical' }
+                      { value: Condition.EXCELLENT, label: ConditionLabels[Condition.EXCELLENT] },
+                      { value: Condition.GOOD, label: ConditionLabels[Condition.GOOD] },
+                      { value: Condition.FAIR, label: ConditionLabels[Condition.FAIR] },
+                      { value: Condition.POOR, label: ConditionLabels[Condition.POOR] },
+                      { value: Condition.CRITICAL, label: ConditionLabels[Condition.CRITICAL] }
                     ]}
                   />
                 </FormField>
