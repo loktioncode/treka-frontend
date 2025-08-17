@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-
+import { Button } from '@/components/ui/button';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
 export default function ResetPassword() {
@@ -163,13 +163,14 @@ export default function ResetPassword() {
             </div>
 
             <div>
-              <button
+              <Button
                 type="submit"
+                loading={status === 'loading'}
                 disabled={status === 'loading'}
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full h-11 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
               >
                 {status === 'loading' ? 'Resetting...' : 'Reset Password'}
-              </button>
+              </Button>
             </div>
 
             <div className="text-center text-sm">

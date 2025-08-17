@@ -176,6 +176,7 @@ export function FormActions({ children, align = 'right', className }: FormAction
 
 // Select field
 interface SelectOption {
+  key?: string;
   value: string;
   label: string;
   disabled?: boolean;
@@ -201,7 +202,7 @@ export function Select({ options = [], placeholder, className, ...props }: Selec
         </option>
       )}
       {options?.map((option) => (
-        <option key={option.value} value={option.value} disabled={option.disabled}>
+        <option key={option.key || option.value} value={option.value} disabled={option.disabled}>
           {option.label}
         </option>
       )) || []}

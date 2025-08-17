@@ -183,7 +183,11 @@ export const authAPI = {
   },
 
   verifyResetCode: async (email: string, code: string) => {
-    const response = await api.post('/auth/verify-reset-code', { email, code });
+    console.log('API: verifyResetCode called with:', { email, code });
+    const requestBody = { email, verification_code: code };
+    console.log('API: Request body:', requestBody);
+    const response = await api.post('/auth/verify-reset-code', requestBody);
+    console.log('API: Response received:', response.data);
     return response.data;
   },
 
@@ -224,6 +228,11 @@ export const userAPI = {
 
   updateUser: async (userId: string, userData: Partial<User>) => {
     const response = await api.put(`/auth/users/${userId}`, userData);
+    return response.data;
+  },
+
+  updateUserRole: async (userId: string, role: string, clientId?: string) => {
+    const response = await api.put(`/auth/users/${userId}`, { role, client_id: clientId });
     return response.data;
   },
 

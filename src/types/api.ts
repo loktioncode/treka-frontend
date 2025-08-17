@@ -33,6 +33,11 @@ export interface CreateAdminRequest extends CreateUserRequest {
   client_id: string;
 }
 
+export interface UpdateUserRoleRequest {
+  role: 'super_admin' | 'admin' | 'user';
+  client_id?: string;
+}
+
 // Client types
 export interface Client {
   id: string;

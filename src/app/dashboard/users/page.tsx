@@ -54,6 +54,14 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<User>>({});
+  const [showRoleChangeModal, setShowRoleChangeModal] = useState(false);
+  const [roleChangeData, setRoleChangeData] = useState<{ role: string; client_id?: string }>({ role: '' });
+  const [showRoleChangeConfirmation, setShowRoleChangeConfirmation] = useState(false);
+  
+  // Debug role change data changes
+  useEffect(() => {
+    console.log('🔍 roleChangeData changed:', roleChangeData);
+  }, [roleChangeData]);
 
   // Form state
   const [formData, setFormData] = useState<Partial<CreateUserRequest & CreateAdminRequest>>({
@@ -85,11 +93,40 @@ export default function UsersPage() {
       if (user?.role === 'super_admin') {
         // Super admin sees all users
         const response = await userAPI.getAllUsers();
-        setUsers(response);
+        console.log('🔍 Loaded users data:', response);
+        
+        // Check user ID fields
+        response.forEach((userItem, index) => {
+          console.log(`User ${index}:`, {
+            id: userItem.id,
+            _id: userItem._id,
+            email: userItem.email,
+            role: userItem.role
+          });
+        });
+        
+        // Normalize user data to ensure we have valid ID fields
+        const normalizedUsers = response.map(userItem => ({
+          ...userItem,
+          id: userItem.id || userItem._id || `temp-${Date.now()}-${Math.random()}`,
+          _id: userItem._id || userItem.id
+        }));
+        
+        console.log('🔍 Normalized users data:', normalizedUsers);
+        setUsers(normalizedUsers);
       } else if (user?.role === 'admin' && user.client_id) {
         // Admin sees only their client's users
         const response = await clientAPI.getClientUsers(user.client_id);
-        setUsers(response);
+        console.log('🔍 Loaded client users data:', response);
+        
+        // Normalize user data for admin view too
+        const normalizedUsers = response.map(userItem => ({
+          ...userItem,
+          id: userItem.id || userItem._id || `temp-${Date.now()}-${Math.random()}`,
+          _id: userItem._id || userItem.id
+        }));
+        
+        setUsers(normalizedUsers);
       }
     } catch (error) {
       toast.error('Failed to load users');
@@ -110,9 +147,87 @@ export default function UsersPage() {
   const loadClients = async () => {
     try {
       const response = await clientAPI.getClients();
+      console.log('🔍 Raw clients API response:', response);
+      
+      // Check client structure
+      if (response.length > 0) {
+        const sampleClient = response[0];
+        console.log('🔍 Sample client structure:', {
+          keys: Object.keys(sampleClient),
+          id: sampleClient.id,
+          _id: sampleClient._id,
+          name: sampleClient.name
+        });
+      }
+      
       setClients(response);
     } catch (error) {
       console.error('Error loading clients:', error);
+    }
+  };
+
+  // Utility function to get valid user ID
+  const getValidUserId = (userItem: User): string => {
+    const userId = userItem._id || userItem.id;
+    if (!userId) {
+      console.error('❌ No valid user ID found in user data:', userItem);
+      throw new Error('User ID not found');
+    }
+    return userId;
+  };
+
+  // Test function to verify backend API endpoints
+  const testBackendEndpoints = async () => {
+    if (user?.role !== 'super_admin') return;
+    
+    console.log('🧪 Testing backend API endpoints...');
+    
+    try {
+      // Test user list endpoint
+      console.log('Testing user list endpoint...');
+      const usersResponse = await userAPI.getAllUsers();
+      console.log('✅ Users endpoint working:', usersResponse.length, 'users found');
+      
+      // Test clients endpoint
+      console.log('Testing clients endpoint...');
+      const clientsResponse = await clientAPI.getClients();
+      console.log('✅ Clients endpoint working:', clientsResponse.length, 'clients found');
+      
+      // Test role update endpoint (dry run - just check if it's accessible)
+      if (usersResponse.length > 0) {
+        const testUser = usersResponse[0];
+        console.log('Testing role update endpoint accessibility...');
+        console.log('Test user:', { 
+          id: testUser.id, 
+          _id: testUser._id,
+          role: testUser.role,
+          email: testUser.email,
+          fullData: testUser
+        });
+        
+        // Check which ID field is available
+        if (testUser._id) {
+          console.log('✅ Using _id field for backend operations');
+        } else if (testUser.id) {
+          console.log('✅ Using id field for backend operations');
+        } else {
+          console.log('❌ No ID field found - this will cause issues!');
+        }
+        
+        // Test the utility function
+        try {
+          const validId = getValidUserId(testUser);
+          console.log('✅ Utility function works, valid ID:', validId);
+        } catch (error) {
+          console.error('❌ Utility function failed:', error);
+        }
+        
+        // Log the raw API response to see the actual structure
+        console.log('🔍 Raw user data structure:', JSON.stringify(testUser, null, 2));
+      }
+      
+    } catch (error) {
+      console.error('❌ Backend API test failed:', error);
     }
   };
 
@@ -170,8 +285,14 @@ export default function UsersPage() {
     setIsSubmitting(true);
     try {
       if (user?.role === 'super_admin' && isCreatingAdmin) {
-        // Create admin user
-        await userAPI.createAdmin(formData as CreateAdminRequest);
+        // Create admin user - ensure role is set to 'admin'
+        const adminData = {
+          ...formData,
+          role: 'admin'
+        } as CreateAdminRequest;
+        
+        console.log('Creating admin user with data:', adminData);
+        await userAPI.createAdmin(adminData);
         toast.success('Admin user created successfully');
       } else if (user?.role === 'admin' && user.client_id) {
         // Create regular user for client
@@ -254,16 +375,244 @@ export default function UsersPage() {
   const handleUpdateUser = async () => {
     if (!selectedUser) return;
     
+    // Validate the form data before submission
+    const errors: Record<string, string> = {};
+    
+    if (!editFormData.email?.trim()) {
+      errors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editFormData.email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+    
+    if (!editFormData.first_name?.trim()) {
+      errors.first_name = 'First name is required';
+    }
+    
+    if (!editFormData.last_name?.trim()) {
+      errors.last_name = 'Last name is required';
+    }
+    
+    // Check if email is being changed and if it's different from current
+    if (editFormData.email && editFormData.email !== selectedUser.email) {
+      // Email is being changed - check if it's unique (this might be a backend validation)
+      console.log('Email is being changed from', selectedUser.email, 'to', editFormData.email);
+    }
+    
+    if (Object.keys(errors).length > 0) {
+      // Show validation errors
+      Object.values(errors).forEach(error => toast.error(error));
+      return;
+    }
+    
     setIsSubmitting(true);
     try {
-      await userAPI.updateUser(selectedUser.id, editFormData);
+      // Log the data being sent for debugging
+      console.log('Updating user with data:', editFormData);
+      console.log('User ID being updated:', selectedUser.id);
+      console.log('Current user data:', selectedUser);
+      
+      // Only send fields that have actually changed
+      const changedFields: Partial<User> = {};
+      if (editFormData.email !== selectedUser.email) changedFields.email = editFormData.email;
+      if (editFormData.first_name !== selectedUser.first_name) changedFields.first_name = editFormData.first_name;
+      if (editFormData.last_name !== selectedUser.last_name) changedFields.last_name = editFormData.last_name;
+      if (JSON.stringify(editFormData.notification_preferences) !== JSON.stringify(selectedUser.notification_preferences)) {
+        changedFields.notification_preferences = editFormData.notification_preferences;
+      }
+      
+      console.log('Only sending changed fields:', changedFields);
+      
+      // If no fields have changed, show a message and return
+      if (Object.keys(changedFields).length === 0) {
+        toast.info('No changes detected');
+        return;
+      }
+      
+      // Use the utility function to get a valid user ID
+      let userId: string;
+      try {
+        userId = getValidUserId(selectedUser);
+        console.log('Using user ID for user update:', userId);
+      } catch (error) {
+        console.error('❌ Failed to get valid user ID for user update:', error);
+        toast.error('Invalid user data - cannot update user');
+        return;
+      }
+      
+      const result = await userAPI.updateUser(userId, changedFields);
+      console.log('API response:', result);
       toast.success('User updated successfully');
       setShowEditModal(false);
       setSelectedUser(null);
       await loadUsers();
-    } catch (error) {
-      toast.error('Failed to update user');
+    } catch (error: unknown) {
+      let message = 'Failed to update user';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { detail?: string } } };
+        message = axiosError.response?.data?.detail || message;
+        console.error('API Error Details:', axiosError.response?.data);
+        
+        // Handle specific error cases
+        if (axiosError.response?.status === 400) {
+          message = 'Invalid data provided. Please check your input.';
+        } else if (axiosError.response?.status === 409) {
+          message = 'Email address already exists. Please use a different email.';
+        } else if (axiosError.response?.status === 403) {
+          message = 'You do not have permission to update this user.';
+        } else if (axiosError.response?.status === 404) {
+          message = 'User not found.';
+        }
+      } else if (error && typeof error === 'object' && 'message' in error) {
+        // Handle network or other errors
+        message = (error as Error).message;
+        if (message.includes('Network Error') || message.includes('timeout')) {
+          message = 'Network error. Please check your connection and try again.';
+        }
+      }
+      toast.error(message);
       console.error('Error updating user:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRoleChange = async () => {
+    if (!selectedUser || !roleChangeData.role) return;
+    
+    // Prevent users from changing their own role
+    if (selectedUser.id === user?.id) {
+      toast.error('You cannot change your own role');
+      return;
+    }
+    
+    // Prevent downgrading super admin if there's only one
+    if (selectedUser.role === 'super_admin' && roleChangeData.role !== 'super_admin') {
+      const superAdmins = users.filter(u => u.role === 'super_admin');
+      if (superAdmins.length === 1) {
+        toast.error('Cannot remove the last super admin');
+        return;
+      }
+    }
+    
+    // Prevent role escalation attacks
+    if (user?.role === 'admin' && roleChangeData.role === 'super_admin') {
+      toast.error('Admins cannot promote users to super admin');
+      return;
+    }
+    
+    // Prevent changing super admin roles if not super admin
+    if (user?.role !== 'super_admin' && selectedUser.role === 'super_admin') {
+      toast.error('Only super admins can modify super admin roles');
+      return;
+    }
+    
+    // Prevent admins from changing other admin roles within the same client
+    // This prevents privilege escalation attacks where one admin could remove another's privileges
+    if (user?.role === 'admin' && selectedUser.role === 'admin' && user.client_id === selectedUser.client_id) {
+      toast.error('Admins cannot modify other admin roles within the same client');
+      return;
+    }
+    
+    // Show confirmation for role changes
+    setShowRoleChangeConfirmation(true);
+  };
+
+  const confirmRoleChange = async () => {
+    if (!selectedUser || !roleChangeData.role) return;
+    
+    // Additional validation before API call
+    if (roleChangeData.role === selectedUser.role) {
+      toast.error('No role change detected');
+      return;
+    }
+    
+    // Validate client assignment for admin roles
+    if (roleChangeData.role === 'admin' && user?.role === 'super_admin' && !roleChangeData.client_id) {
+      toast.error('Client assignment is required for admin users');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+      // Log the role change data for debugging
+      console.log('Role change request:', {
+        userId: selectedUser.id,
+        _id: selectedUser._id,
+        currentRole: selectedUser.role,
+        newRole: roleChangeData.role,
+        clientId: roleChangeData.client_id,
+        user: selectedUser
+      });
+      
+      // Validate client_id if it's being sent
+      if (roleChangeData.client_id) {
+        // Check if client_id is actually a valid client ID (not a name)
+        const client = clients.find(c => (c._id || c.id) === roleChangeData.client_id);
+        if (!client) {
+          console.error('❌ Invalid client_id:', roleChangeData.client_id);
+          console.log('Available clients:', clients);
+          toast.error('Invalid client selection. Please try again.');
+          return;
+        }
+        console.log('✅ Valid client found:', client);
+      }
+      
+      // Use the utility function to get a valid user ID
+      let userId: string;
+      try {
+        userId = getValidUserId(selectedUser);
+        console.log('Using user ID for role update:', userId);
+      } catch (error) {
+        console.error('❌ Failed to get valid user ID:', error);
+        toast.error('Invalid user data - cannot update role');
+        return;
+      }
+      
+      // Final validation before API call
+      console.log('🚀 Sending role update to API:', {
+        userId,
+        role: roleChangeData.role,
+        client_id: roleChangeData.client_id,
+        fullPayload: { role: roleChangeData.role, client_id: roleChangeData.client_id }
+      });
+      
+      const result = await userAPI.updateUserRole(userId, roleChangeData.role, roleChangeData.client_id);
+      console.log('Role update API response:', result);
+      
+      toast.success('User role updated successfully');
+      setShowRoleChangeModal(false);
+      setShowRoleChangeConfirmation(false);
+      setSelectedUser(null);
+      setRoleChangeData({ role: '' });
+      await loadUsers();
+    } catch (error: unknown) {
+      let message = 'Failed to update user role';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { detail?: string } } };
+        message = axiosError.response?.data?.detail || message;
+        console.error('Role Update API Error Details:', axiosError.response?.data);
+        
+        // Handle specific error cases for role updates
+        if (axiosError.response?.status === 400) {
+          message = 'Invalid role data provided. Please check your selection.';
+        } else if (axiosError.response?.status === 409) {
+          message = 'Role change conflict. This role change is not allowed.';
+        } else if (axiosError.response?.status === 403) {
+          message = 'You do not have permission to change this user\'s role.';
+        } else if (axiosError.response?.status === 404) {
+          message = 'User not found.';
+        } else if (axiosError.response?.status === 422) {
+          message = 'Role change validation failed. Please check the client assignment.';
+        }
+      } else if (error && typeof error === 'object' && 'message' in error) {
+        // Handle network or other errors
+        message = (error as Error).message;
+        if (message.includes('Network Error') || message.includes('timeout')) {
+          message = 'Network error. Please check your connection and try again.';
+        }
+      }
+      toast.error(message);
+      console.error('Error updating user role:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -294,10 +643,18 @@ export default function UsersPage() {
     {
       key: 'role',
       title: 'Role',
-      render: (user) => (
+      render: (userRow) => (
         <div className="flex items-center gap-2">
           <Shield className="h-4 w-4 text-gray-400" />
-          <RoleBadge role={user.role} size="sm" />
+          <RoleBadge role={userRow.role} size="sm" />
+          {/* Show edit indicator if role can be changed */}
+          {((user?.role === 'super_admin') || 
+            (user?.role === 'admin' && user.client_id === userRow.client_id && userRow.role !== 'super_admin' && userRow.role !== 'admin')) && (
+            <div className="text-xs text-teal-600 bg-teal-50 px-2 py-1 rounded-full border border-teal-200">
+              <Shield className="h-3 w-3 inline mr-1" />
+              Editable
+            </div>
+          )}
         </div>
       )
     },
@@ -311,17 +668,7 @@ export default function UsersPage() {
         />
       )
     },
-    {
-      key: 'notification_preferences',
-      title: 'Notifications',
-      render: (user) => (
-        <div className="text-sm text-gray-600">
-          {user.notification_preferences?.email && '📧 '}
-          {user.notification_preferences?.whatsapp && '📱 '}
-          {!user.notification_preferences?.email && !user.notification_preferences?.whatsapp && '-'}
-        </div>
-      )
-    },
+
     {
       key: 'created_at',
       title: 'Created',
@@ -343,7 +690,7 @@ export default function UsersPage() {
         if (user.role === 'super_admin') {
           return <span className="text-gray-400">-</span>;
         }
-        const client = clients.find(c => c.id === user.client_id);
+        const client = clients.find(c => (c._id || c.id) === user.client_id);
         return (
           <span className="text-sm text-gray-600">
             {client?.name || 'Unknown'}
@@ -367,6 +714,24 @@ export default function UsersPage() {
       icon: Edit,
       onClick: handleEditUser,
       variant: 'secondary'
+    },
+    {
+      key: 'change_role',
+      label: 'Change Role',
+      icon: Shield,
+      onClick: (u) => {
+        setSelectedUser(u);
+        setRoleChangeData({ role: u.role });
+        setShowRoleChangeModal(true);
+      },
+      variant: 'secondary',
+      show: (u) => {
+        // Super admin can change any user's role
+        if (user?.role === 'super_admin') return true;
+        // Admin can only change roles of users under their client, but not other admins
+        if (user?.role === 'admin' && user.client_id === u.client_id && u.role !== 'super_admin' && u.role !== 'admin') return true;
+        return false;
+      }
     },
     {
       key: 'activate',
@@ -401,15 +766,20 @@ export default function UsersPage() {
 
   const userTypeOptions = user?.role === 'super_admin' 
     ? [
-        { value: 'user', label: 'Regular User' },
-        { value: 'admin', label: 'Admin User' }
+        { key: 'user', value: 'user', label: 'Regular User' },
+        { key: 'admin', value: 'admin', label: 'Admin User' }
       ]
     : [];
 
   const clientOptions = clients.map(client => ({
-    value: client.id,
+    key: client._id || client.id,
+    value: client._id || client.id,
     label: client.name
   }));
+  
+  // Debug client options
+  console.log('🔍 Client options created:', clientOptions);
+  console.log('🔍 Raw clients data:', clients);
 
   return (
     <div className="space-y-6">
@@ -426,6 +796,17 @@ export default function UsersPage() {
             {user?.role === 'admin' && ' for your organization'}
           </p>
         </div>
+        
+        {/* Backend Test Button for Super Admins */}
+        {user?.role === 'super_admin' && (
+          <Button
+            variant="outline"
+            onClick={testBackendEndpoints}
+            className="text-sm"
+          >
+            🧪 Test Backend
+          </Button>
+        )}
       </motion.div>
 
       {/* Stats */}
@@ -787,6 +1168,23 @@ export default function UsersPage() {
                     </>
                   )}
                 </Button>
+                
+                {/* Role Change Button - only show if user has permission */}
+                {((user?.role === 'super_admin') || 
+                  (user?.role === 'admin' && user.client_id === selectedUser.client_id && selectedUser.role !== 'super_admin' && selectedUser.role !== 'admin')) && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowViewModal(false);
+                      setRoleChangeData({ role: selectedUser.role });
+                      setShowRoleChangeModal(true);
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <Shield className="h-4 w-4" />
+                    Change Role
+                  </Button>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button
@@ -901,11 +1299,191 @@ export default function UsersPage() {
             >
               Cancel
             </Button>
+            
+            {/* Role Change Button - only show if user has permission */}
+            {((user?.role === 'super_admin') || 
+              (user?.role === 'admin' && user.client_id === selectedUser?.client_id && selectedUser?.role !== 'super_admin' && selectedUser?.role !== 'admin')) && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setRoleChangeData({ role: selectedUser?.role || '' });
+                  setShowRoleChangeModal(true);
+                }}
+                disabled={isSubmitting}
+              >
+                <Shield className="h-4 w-4 mr-2" />
+                Change Role
+              </Button>
+            )}
+            
             <Button type="submit" loading={isSubmitting}>
               Update User
             </Button>
           </FormActions>
         </Form>
+      </Modal>
+
+      {/* Role Change Modal */}
+      <Modal
+        isOpen={showRoleChangeModal}
+        onClose={() => {
+          setShowRoleChangeModal(false);
+          setSelectedUser(null);
+          setRoleChangeData({ role: '' });
+        }}
+        title="Change User Role"
+        size="md"
+      >
+        <div className="space-y-6">
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">
+                Current User
+              </label>
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <div className="font-medium text-gray-900">
+                  {selectedUser?.first_name} {selectedUser?.last_name}
+                </div>
+                <div className="text-sm text-gray-500">{selectedUser?.email}</div>
+                <div className="text-sm text-gray-500">
+                  Current Role: <span className="font-medium">{selectedUser?.role}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                New Role
+              </label>
+              <Select
+                options={[
+                  { key: 'user', value: 'user', label: 'Regular User' },
+                  { key: 'admin', value: 'admin', label: 'Admin User' },
+                  ...(user?.role === 'super_admin' ? [{ key: 'super_admin', value: 'super_admin', label: 'Super Admin' }] : [])
+                ]}
+                value={roleChangeData.role}
+                onChange={(e) => setRoleChangeData({ ...roleChangeData, role: e.target.value })}
+                disabled={isSubmitting}
+              />
+            </div>
+
+            {roleChangeData.role === 'admin' && user?.role === 'super_admin' && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Client
+                </label>
+                <Select
+                  options={clientOptions}
+                  value={roleChangeData.client_id || ''}
+                  onChange={(e) => {
+                    console.log('Client selection changed:', {
+                      selectedValue: e.target.value,
+                      availableOptions: clientOptions,
+                      currentRoleChangeData: roleChangeData
+                    });
+                    const newData = { ...roleChangeData, client_id: e.target.value };
+                    console.log('Setting new role change data:', newData);
+                    setRoleChangeData(newData);
+                  }}
+                  placeholder="Select a client"
+                  disabled={isSubmitting}
+                />
+              </div>
+            )}
+
+            {roleChangeData.role === 'admin' && user?.role === 'admin' && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="text-sm text-blue-700">
+                  <strong>Note:</strong> This user will be assigned to your client organization.
+                </div>
+              </div>
+            )}
+
+            {roleChangeData.role === selectedUser?.role && (
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                <div className="text-sm text-gray-600">
+                  <strong>Note:</strong> The selected role is the same as the current role.
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowRoleChangeModal(false);
+                setSelectedUser(null);
+                setRoleChangeData({ role: '' });
+              }}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="button"
+              onClick={handleRoleChange}
+              loading={isSubmitting}
+              disabled={
+                !roleChangeData.role || 
+                (roleChangeData.role === 'admin' && user?.role === 'super_admin' && !roleChangeData.client_id) ||
+                roleChangeData.role === selectedUser?.role
+              }
+            >
+              Update Role
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Role Change Confirmation Modal */}
+      <Modal
+        isOpen={showRoleChangeConfirmation}
+        onClose={() => {
+          setShowRoleChangeConfirmation(false);
+        }}
+        title="Confirm Role Change"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="text-sm text-yellow-800">
+              <strong>Warning:</strong> Changing a user's role will affect their permissions and access to the system.
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <p className="text-gray-600">
+              Are you sure you want to change <strong>{selectedUser?.first_name} {selectedUser?.last_name}</strong>'s role?
+            </p>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-gray-500">From:</span>
+              <RoleBadge role={selectedUser?.role || 'user'} size="sm" />
+              <span className="text-gray-500">To:</span>
+              <RoleBadge role={roleChangeData.role as any || 'user'} size="sm" />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowRoleChangeConfirmation(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              onClick={confirmRoleChange}
+              loading={isSubmitting}
+            >
+              Confirm Role Change
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
