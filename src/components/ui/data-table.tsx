@@ -191,7 +191,7 @@ export function DataTable<T extends { id: string }>({
           
           return (
             <Button
-                              key={`${item.id || `item-${Math.random()}`}-action-${action.key}`}
+              key={`${item.id || `item-${Math.random()}`}-action-${action.key}`}
               variant={variant || 'ghost'}
               size="sm"
               onClick={(e) => {
@@ -200,7 +200,7 @@ export function DataTable<T extends { id: string }>({
 
                 action.onClick(item);
               }}
-              className="h-8 w-8 p-0"
+              className="h-8 w-8 p-0 hover:bg-primary hover:text-primary-foreground transition-colors"
               title={label}
             >
               {Icon ? <Icon className="h-4 w-4" /> : label.slice(0, 1)}

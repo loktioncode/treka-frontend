@@ -22,7 +22,7 @@ import {
   Shield,
   RefreshCw
 } from 'lucide-react';
-
+import { SmartLink } from '@/components/SmartLink';
 
 
 interface DashboardStats {
@@ -360,97 +360,114 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        {/* Quick Actions - Only show for non-super-admin users */}
-        {user?.role !== 'super_admin' && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.7 }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
-                  Quick Actions
-                </CardTitle>
-                <CardDescription>
-                  Common tasks and shortcuts
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <motion.button 
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="w-full p-4 text-left rounded-xl border border-teal-200 bg-gradient-to-r from-teal-50 to-teal-100 hover:from-teal-100 hover:to-teal-200 transition-all duration-200 group"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 bg-teal-500 rounded-lg group-hover:bg-teal-600 transition-colors">
-                      <Package className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-teal-900">Add New Asset</p>
-                      <p className="text-sm text-teal-700">Register a new asset in the system</p>
-                    </div>
-                    <Zap className="h-4 w-4 text-teal-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+        {/* Quick Actions - Show for all users with role-appropriate actions */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.7 }}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Quick Actions
+              </CardTitle>
+              <CardDescription>
+                Common tasks and shortcuts
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Asset Management - Available for all users */}
+              <SmartLink 
+                href="/dashboard/assets"
+                className="w-full p-4 text-left rounded-xl border border-teal-200 bg-gradient-to-r from-teal-50 to-teal-100 hover:from-teal-100 hover:to-teal-200 transition-all duration-200 group block"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-teal-500 rounded-lg group-hover:bg-teal-600 transition-colors">
+                    <Package className="h-5 w-5 text-white" />
                   </div>
-                </motion.button>
-                
-                <motion.button 
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="w-full p-4 text-left rounded-xl border border-green-200 bg-gradient-to-r from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 transition-all duration-200 group"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 bg-green-500 rounded-lg group-hover:bg-green-600 transition-colors">
-                      <Wrench className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-green-900">Schedule Maintenance</p>
-                      <p className="text-sm text-green-700">Plan maintenance activities</p>
-                    </div>
-                    <Zap className="h-4 w-4 text-green-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div>
+                    <p className="font-semibold text-teal-900">Manage Assets</p>
+                    <p className="text-sm text-teal-700">View and manage system assets</p>
                   </div>
-                </motion.button>
+                  <Zap className="h-4 w-4 text-teal-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </SmartLink>
 
-                {user?.role !== 'user' && (
-                  <motion.button 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="w-full p-4 text-left rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 transition-all duration-200 group"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 bg-purple-500 rounded-lg group-hover:bg-purple-600 transition-colors">
-                        <Users className="h-5 w-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-purple-900">Manage Users</p>
-                        <p className="text-sm text-purple-700">Add or edit user accounts</p>
-                      </div>
-                      <Zap className="h-4 w-4 text-purple-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </motion.button>
-                )}
+              {/* Component Management - Available for all users */}
+              <SmartLink 
+                href="/dashboard/components"
+                className="w-full p-4 text-left rounded-xl border border-green-200 bg-gradient-to-r from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 transition-all duration-200 group block"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-green-500 rounded-lg group-hover:bg-green-600 transition-colors">
+                    <Wrench className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-green-900">Manage Components</p>
+                    <p className="text-sm text-green-700">View and manage system components</p>
+                  </div>
+                  <Zap className="h-4 w-4 text-green-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </SmartLink>
 
-                <motion.button 
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="w-full p-4 text-left rounded-xl border border-teal-200 bg-gradient-to-r from-teal-50 to-teal-100 hover:from-teal-100 hover:to-teal-200 transition-all duration-200 group"
+              {/* User Management - Available for admin and super_admin */}
+              {user?.role !== 'user' && (
+                <SmartLink 
+                  href="/dashboard/users"
+                  className="w-full p-4 text-left rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 transition-all duration-200 group block"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="p-2 bg-teal-600 rounded-lg group-hover:bg-teal-700 transition-colors">
-                      <BarChart3 className="h-5 w-5 text-white" />
+                    <div className="p-2 bg-purple-500 rounded-lg group-hover:bg-purple-600 transition-colors">
+                      <Users className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="font-semibold text-teal-900">View Reports</p>
-                      <p className="text-sm text-teal-700">Generate analytics reports</p>
+                      <p className="font-semibold text-purple-900">Manage Users</p>
+                      <p className="text-sm text-purple-700">Add or edit user accounts</p>
                     </div>
-                    <Zap className="h-4 w-4 text-teal-600 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Zap className="h-4 w-4 text-purple-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                </motion.button>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
+                </SmartLink>
+              )}
+
+              {/* Client Management - Only for super_admin */}
+              {user?.role === 'super_admin' && (
+                <SmartLink 
+                  href="/dashboard/clients"
+                  className="w-full p-4 text-left rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 transition-all duration-200 group block"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 bg-blue-500 rounded-lg group-hover:bg-blue-600 transition-colors">
+                      <Building2 className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-blue-900">Manage Clients</p>
+                      <p className="text-sm text-blue-700">Manage client organizations</p>
+                    </div>
+                    <Zap className="h-4 w-4 text-blue-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </SmartLink>
+              )}
+
+              {/* Notifications - Available for all users */}
+              <SmartLink 
+                href="/dashboard/notifications"
+                className="w-full p-4 text-left rounded-xl border border-orange-200 bg-gradient-to-r from-orange-50 to-orange-100 hover:from-orange-100 hover:to-orange-200 transition-all duration-200 group block"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-orange-500 rounded-lg group-hover:bg-orange-600 transition-colors">
+                    <AlertTriangle className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-orange-900">View Notifications</p>
+                    <p className="text-sm text-orange-700">Check system alerts and updates</p>
+                  </div>
+                  <Zap className="h-4 w-4 text-orange-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </SmartLink>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
     </div>
   );
