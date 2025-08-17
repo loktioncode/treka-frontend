@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { QuickStats } from '@/components/ui/stats-card';
 import { StatusBadge } from '@/components/ui/badge';
-import { FormField, FormLabel, FormSection, FormGrid, FormActions, Select, Textarea } from '@/components/ui/form';
+import { Form, FormField, FormLabel, FormSection, FormGrid, FormActions, Select, Textarea } from '@/components/ui/form';
 import { 
   Wrench, 
   Edit, 
@@ -528,7 +528,7 @@ export default function ComponentsPage() {
         title={selectedComponent ? 'Edit Component' : 'Create New Component'}
         size="lg"
       >
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <Form onSubmit={handleSubmit}>
           <FormSection title="Basic Information">
             <FormGrid cols={2}>
               <FormField name="name">
@@ -652,7 +652,7 @@ export default function ComponentsPage() {
               {selectedComponent ? 'Update Component' : 'Create Component'}
             </Button>
           </FormActions>
-        </form>
+        </Form>
       </Modal>
 
       {/* Delete Confirmation Modal */}

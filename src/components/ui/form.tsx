@@ -39,6 +39,8 @@ export function useFormContext() {
 }
 
 // Form root
+// ✅ Use this component when you need FormField, FormSection, FormGrid, or FormActions
+// This component provides the FormProvider context that FormField components require
 interface FormProps extends React.FormHTMLAttributes<HTMLFormElement> {
   children: React.ReactNode;
   errors?: Record<string, string>;
@@ -57,6 +59,8 @@ export function Form({ children, errors, touched, isSubmitting, className, ...pr
 }
 
 // Form field
+// ⚠️ IMPORTANT: FormField MUST be used within a Form component (which provides FormProvider)
+// Using FormField with regular HTML <form> tags will cause "useFormContext must be used within a FormProvider" error
 interface FormFieldProps {
   children: React.ReactNode;
   name: string;

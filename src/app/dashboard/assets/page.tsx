@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { QuickStats } from '@/components/ui/stats-card';
 import { StatusBadge } from '@/components/ui/badge';
-import { FormField, FormLabel, FormSection, FormGrid, FormActions, Select, Textarea } from '@/components/ui/form';
+import { Form, FormField, FormLabel, FormSection, FormGrid, FormActions, Select, Textarea } from '@/components/ui/form';
 import { 
   Package, 
   Edit, 
@@ -61,6 +61,41 @@ export default function AssetsPage() {
     machinery_details: undefined
   });
   // const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Helper function to update vehicle details
+  const updateVehicleDetails = (field: keyof VehicleDetails, value: string | number) => {
+    setFormData(prev => ({
+      ...prev,
+      vehicle_details: {
+        make: prev.vehicle_details?.make || '',
+        model: prev.vehicle_details?.model || '',
+        year: prev.vehicle_details?.year || 0,
+        vin: prev.vehicle_details?.vin || '',
+        license_plate: prev.vehicle_details?.license_plate || '',
+        engine_type: prev.vehicle_details?.engine_type || '',
+        fuel_type: prev.vehicle_details?.fuel_type || '',
+        mileage: prev.vehicle_details?.mileage || undefined,
+        [field]: value
+      }
+    }));
+  };
+
+  // Helper function to update machinery details
+  const updateMachineryDetails = (field: keyof MachineryDetails, value: string | number) => {
+    setFormData(prev => ({
+      ...prev,
+      machinery_details: {
+        make: prev.machinery_details?.make || '',
+        model: prev.machinery_details?.model || '',
+        year: prev.machinery_details?.year || 0,
+        serial_number: prev.machinery_details?.serial_number || '',
+        operating_hours: prev.machinery_details?.operating_hours || undefined,
+        capacity: prev.machinery_details?.capacity || '',
+        power_rating: prev.machinery_details?.power_rating || '',
+        [field]: value
+      }
+    }));
+  };
 
   // Load assets based on filters
   const loadAssets = useCallback(async () => {
@@ -478,7 +513,7 @@ export default function AssetsPage() {
         title={selectedAsset ? 'Edit Asset' : 'Create New Asset'}
         size="lg"
       >
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <Form onSubmit={handleSubmit}>
           <FormSection title="Basic Information">
             <FormGrid cols={2}>
               <FormField name="name">
@@ -549,6 +584,474 @@ export default function AssetsPage() {
             </FormField>
           </FormSection>
 
+          {/* Dynamic Asset Type Specific Fields */}
+          {formData.asset_type === 'vehicle' && (
+            <FormSection title="Vehicle Details">
+              <FormGrid cols={2}>
+                <FormField name="vehicle_make">
+                  <FormLabel htmlFor="vehicle_make" required>Make</FormLabel>
+                  <Input
+                    id="vehicle_make"
+                    value={formData.vehicle_details?.make || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      vehicle_details: {
+                        make: e.target.value,
+                        model: formData.vehicle_details?.model || '',
+                        year: formData.vehicle_details?.year || undefined,
+                        vin: formData.vehicle_details?.vin || '',
+                        license_plate: formData.vehicle_details?.license_plate || '',
+                        engine_type: formData.vehicle_details?.engine_type || '',
+                        fuel_type: formData.vehicle_details?.fuel_type || '',
+                        mileage: formData.vehicle_details?.mileage || undefined
+                      }
+                    })}
+                    placeholder="e.g., Toyota, Ford, BMW"
+                    required
+                  />
+                </FormField>
+
+                <FormField name="vehicle_model">
+                  <FormLabel htmlFor="vehicle_model" required>Model</FormLabel>
+                  <Input
+                    id="vehicle_model"
+                    value={formData.vehicle_details?.model || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      vehicle_details: {
+                        make: formData.vehicle_details?.make || '',
+                        model: e.target.value,
+                        year: formData.vehicle_details?.year || undefined,
+                        vin: formData.vehicle_details?.vin || '',
+                        license_plate: formData.vehicle_details?.license_plate || '',
+                        engine_type: formData.vehicle_details?.engine_type || '',
+                        fuel_type: formData.vehicle_details?.fuel_type || '',
+                        mileage: formData.vehicle_details?.mileage || undefined
+                      }
+                    })}
+                    placeholder="e.g., Camry, F-150, X5"
+                    required
+                  />
+                </FormField>
+
+                <FormField name="vehicle_year">
+                  <FormLabel htmlFor="vehicle_year" required>Year</FormLabel>
+                  <Input
+                    type="number"
+                    id="vehicle_year"
+                    value={formData.vehicle_details?.year || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      vehicle_details: {
+                        make: formData.vehicle_details?.make || '',
+                        model: formData.vehicle_details?.model || '',
+                        year: parseInt(e.target.value) || 0,
+                        vin: formData.vehicle_details?.vin || '',
+                        license_plate: formData.vehicle_details?.license_plate || '',
+                        engine_type: formData.vehicle_details?.engine_type || '',
+                        fuel_type: formData.vehicle_details?.fuel_type || '',
+                        mileage: formData.vehicle_details?.mileage || undefined
+                      }
+                    })}
+                    placeholder="e.g., 2020"
+                    min="1900"
+                    max={new Date().getFullYear() + 1}
+                    required
+                  />
+                </FormField>
+
+                <FormField name="vehicle_vin">
+                  <FormLabel htmlFor="vehicle_vin" required>VIN</FormLabel>
+                  <Input
+                    id="vehicle_vin"
+                    value={formData.vehicle_details?.vin || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      vehicle_details: {
+                        ...formData.vehicle_details,
+                        vin: e.target.value
+                      }
+                    })}
+                    placeholder="17-character VIN"
+                    maxLength={17}
+                    required
+                  />
+                </FormField>
+
+                <FormField name="vehicle_license_plate">
+                  <FormLabel htmlFor="vehicle_license_plate">License Plate</FormLabel>
+                  <Input
+                    id="vehicle_license_plate"
+                    value={formData.vehicle_details?.license_plate || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      vehicle_details: {
+                        ...formData.vehicle_details,
+                        license_plate: e.target.value
+                      }
+                    })}
+                    placeholder="e.g., ABC-123"
+                  />
+                </FormField>
+
+                <FormField name="vehicle_engine_type">
+                  <FormLabel htmlFor="vehicle_engine_type">Engine Type</FormLabel>
+                  <Input
+                    id="vehicle_engine_type"
+                    value={formData.vehicle_details?.engine_type || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      vehicle_details: {
+                        ...formData.vehicle_details,
+                        engine_type: e.target.value
+                      }
+                    })}
+                    placeholder="e.g., V6, V8, Electric"
+                  />
+                </FormField>
+
+                <FormField name="vehicle_fuel_type">
+                  <FormLabel htmlFor="vehicle_fuel_type">Fuel Type</FormLabel>
+                  <Select
+                    id="vehicle_fuel_type"
+                    value={formData.vehicle_details?.fuel_type || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      vehicle_details: {
+                        ...formData.vehicle_details,
+                        fuel_type: e.target.value
+                      }
+                    })}
+                    options={[
+                      { value: '', label: 'Select fuel type' },
+                      { value: 'gasoline', label: 'Gasoline' },
+                      { value: 'diesel', label: 'Diesel' },
+                      { value: 'electric', label: 'Electric' },
+                      { value: 'hybrid', label: 'Hybrid' },
+                      { value: 'hydrogen', label: 'Hydrogen' }
+                    ]}
+                  />
+                </FormField>
+
+                <FormField name="vehicle_mileage">
+                  <FormLabel htmlFor="vehicle_mileage">Mileage</FormLabel>
+                  <Input
+                    type="number"
+                    id="vehicle_mileage"
+                    value={formData.vehicle_details?.mileage || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      vehicle_details: {
+                        ...formData.vehicle_details,
+                        mileage: parseInt(e.target.value) || undefined
+                      }
+                    })}
+                    placeholder="e.g., 50000"
+                    min="0"
+                  />
+                </FormField>
+              </FormGrid>
+            </FormSection>
+          )}
+
+          {formData.asset_type === 'machinery' && (
+            <FormSection title="Machinery Details">
+              <FormGrid cols={2}>
+                <FormField name="machinery_make">
+                  <FormLabel htmlFor="machinery_make" required>Make</FormLabel>
+                  <Input
+                    id="machinery_make"
+                    value={formData.machinery_details?.make || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      machinery_details: {
+                        ...formData.machinery_details,
+                        make: e.target.value
+                      }
+                    })}
+                    placeholder="e.g., Caterpillar, Komatsu"
+                    required
+                  />
+                </FormField>
+
+                <FormField name="machinery_model">
+                  <FormLabel htmlFor="machinery_model" required>Model</FormLabel>
+                  <Input
+                    id="machinery_model"
+                    value={formData.machinery_details?.model || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      machinery_details: {
+                        ...formData.machinery_details,
+                        model: e.target.value
+                      }
+                    })}
+                    placeholder="e.g., D6T, PC200"
+                    required
+                  />
+                </FormField>
+
+                <FormField name="machinery_year">
+                  <FormLabel htmlFor="machinery_year" required>Year</FormLabel>
+                  <Input
+                    type="number"
+                    id="machinery_year"
+                    value={formData.machinery_details?.year || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      machinery_details: {
+                        ...formData.machinery_details,
+                        year: parseInt(e.target.value) || undefined
+                      }
+                    })}
+                    placeholder="e.g., 2018"
+                    min="1900"
+                    max={new Date().getFullYear() + 1}
+                    required
+                  />
+                </FormField>
+
+                <FormField name="machinery_serial_number">
+                  <FormLabel htmlFor="machinery_serial_number" required>Serial Number</FormLabel>
+                  <Input
+                    id="machinery_serial_number"
+                    value={formData.machinery_details?.serial_number || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      machinery_details: {
+                        ...formData.machinery_details,
+                        serial_number: e.target.value
+                      }
+                    })}
+                    placeholder="e.g., CAT123456"
+                    required
+                  />
+                </FormField>
+
+                <FormField name="machinery_operating_hours">
+                  <FormLabel htmlFor="machinery_operating_hours">Operating Hours</FormLabel>
+                  <Input
+                    type="number"
+                    id="machinery_operating_hours"
+                    value={formData.machinery_details?.operating_hours || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      machinery_details: {
+                        ...formData.machinery_details,
+                        operating_hours: parseInt(e.target.value) || undefined
+                      }
+                    })}
+                    placeholder="e.g., 2500"
+                    min="0"
+                  />
+                </FormField>
+
+                <FormField name="machinery_capacity">
+                  <FormLabel htmlFor="machinery_capacity">Capacity</FormLabel>
+                  <Input
+                    id="machinery_capacity"
+                    value={formData.machinery_details?.capacity || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      machinery_details: {
+                        ...formData.machinery_details,
+                        capacity: e.target.value
+                      }
+                    })}
+                    placeholder="e.g., 20 tons, 200 HP"
+                  />
+                </FormField>
+
+                <FormField name="machinery_power_rating">
+                  <FormLabel htmlFor="machinery_power_rating">Power Rating</FormLabel>
+                  <Input
+                    id="machinery_power_rating"
+                    value={formData.machinery_details?.power_rating || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      machinery_details: {
+                        ...formData.machinery_details,
+                        power_rating: e.target.value
+                      }
+                    })}
+                    placeholder="e.g., 200 HP, 150 kW"
+                  />
+                </FormField>
+              </FormGrid>
+            </FormSection>
+          )}
+
+          {formData.asset_type === 'equipment' && (
+            <FormSection title="Equipment Details">
+              <FormGrid cols={2}>
+                <FormField name="equipment_serial_number">
+                  <FormLabel htmlFor="equipment_serial_number">Serial Number</FormLabel>
+                  <Input
+                    id="equipment_serial_number"
+                    value={formData.equipment_details?.serial_number || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      equipment_details: {
+                        ...formData.equipment_details,
+                        serial_number: e.target.value
+                      }
+                    })}
+                    placeholder="e.g., EQ123456"
+                  />
+                </FormField>
+
+                <FormField name="equipment_category">
+                  <FormLabel htmlFor="equipment_category">Category</FormLabel>
+                  <Select
+                    id="equipment_category"
+                    value={formData.equipment_details?.category || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      equipment_details: {
+                        ...formData.equipment_details,
+                        category: e.target.value
+                      }
+                    })}
+                    options={[
+                      { value: '', label: 'Select category' },
+                      { value: 'tools', label: 'Tools' },
+                      { value: 'electronics', label: 'Electronics' },
+                      { value: 'safety', label: 'Safety Equipment' },
+                      { value: 'testing', label: 'Testing Equipment' },
+                      { value: 'other', label: 'Other' }
+                    ]}
+                  />
+                </FormField>
+
+                <FormField name="equipment_condition">
+                  <FormLabel htmlFor="equipment_condition">Condition</FormLabel>
+                  <Select
+                    id="equipment_condition"
+                    value={formData.equipment_details?.condition || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      equipment_details: {
+                        ...formData.equipment_details,
+                        condition: e.target.value
+                      }
+                    })}
+                    options={[
+                      { value: '', label: 'Select condition' },
+                      { value: 'excellent', label: 'Excellent' },
+                      { value: 'good', label: 'Good' },
+                      { value: 'fair', label: 'Fair' },
+                      { value: 'poor', label: 'Poor' }
+                    ]}
+                  />
+                </FormField>
+
+                <FormField name="equipment_warranty_expiry">
+                  <FormLabel htmlFor="equipment_warranty_expiry">Warranty Expiry</FormLabel>
+                  <Input
+                    type="date"
+                    id="equipment_warranty_expiry"
+                    value={formData.equipment_details?.warranty_expiry || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      equipment_details: {
+                        ...formData.equipment_details,
+                        warranty_expiry: e.target.value
+                      }
+                    })}
+                  />
+                </FormField>
+              </FormGrid>
+            </FormSection>
+          )}
+
+          {formData.asset_type === 'infrastructure' && (
+            <FormSection title="Infrastructure Details">
+              <FormGrid cols={2}>
+                <FormField name="infrastructure_type">
+                  <FormLabel htmlFor="infrastructure_type">Type</FormLabel>
+                  <Select
+                    id="infrastructure_type"
+                    value={formData.infrastructure_details?.type || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      infrastructure_details: {
+                        ...formData.infrastructure_details,
+                        type: e.target.value
+                      }
+                    })}
+                    options={[
+                      { value: '', label: 'Select type' },
+                      { value: 'building', label: 'Building' },
+                      { value: 'bridge', label: 'Bridge' },
+                      { value: 'road', label: 'Road' },
+                      { value: 'pipeline', label: 'Pipeline' },
+                      { value: 'electrical', label: 'Electrical System' },
+                      { value: 'plumbing', label: 'Plumbing System' },
+                      { value: 'other', label: 'Other' }
+                    ]}
+                  />
+                </FormField>
+
+                <FormField name="infrastructure_age">
+                  <FormLabel htmlFor="infrastructure_age">Age (Years)</FormLabel>
+                  <Input
+                    type="number"
+                    id="infrastructure_age"
+                    value={formData.infrastructure_details?.age || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      infrastructure_details: {
+                        ...formData.infrastructure_details,
+                        age: parseInt(e.target.value) || undefined
+                      }
+                    })}
+                    placeholder="e.g., 15"
+                    min="0"
+                  />
+                </FormField>
+
+                <FormField name="infrastructure_material">
+                  <FormLabel htmlFor="infrastructure_material">Primary Material</FormLabel>
+                  <Input
+                    id="infrastructure_material"
+                    value={formData.infrastructure_details?.material || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      infrastructure_details: {
+                        ...formData.infrastructure_details,
+                        material: e.target.value
+                      }
+                    })}
+                    placeholder="e.g., Concrete, Steel, Wood"
+                  />
+                </FormField>
+
+                <FormField name="infrastructure_condition">
+                  <FormLabel htmlFor="infrastructure_condition">Condition</FormLabel>
+                  <Select
+                    id="infrastructure_condition"
+                    value={formData.infrastructure_details?.condition || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      infrastructure_details: {
+                        ...formData.infrastructure_details,
+                        condition: e.target.value
+                      }
+                    })}
+                    options={[
+                      { value: '', label: 'Select condition' },
+                      { value: 'excellent', label: 'Excellent' },
+                      { value: 'good', label: 'Good' },
+                      { value: 'fair', label: 'Fair' },
+                      { value: 'poor', label: 'Poor' },
+                      { value: 'critical', label: 'Critical' }
+                    ]}
+                  />
+                </FormField>
+              </FormGrid>
+            </FormSection>
+          )}
+
           <FormSection title="Financial Information">
             <FormGrid cols={3}>
               <FormField name="purchase_date">
@@ -558,7 +1061,6 @@ export default function AssetsPage() {
                   id="purchase_date"
                   value={formData.purchase_date}
                   onChange={(e) => setFormData({ ...formData, purchase_date: e.target.value })}
-
                 />
               </FormField>
 
@@ -570,7 +1072,6 @@ export default function AssetsPage() {
                   id="purchase_cost"
                   value={formData.purchase_cost}
                   onChange={(e) => setFormData({ ...formData, purchase_cost: parseFloat(e.target.value) || undefined })}
-
                 />
               </FormField>
 
@@ -582,7 +1083,6 @@ export default function AssetsPage() {
                   id="current_value"
                   value={formData.current_value}
                   onChange={(e) => setFormData({ ...formData, current_value: parseFloat(e.target.value) || undefined })}
-
                 />
               </FormField>
             </FormGrid>
@@ -604,7 +1104,7 @@ export default function AssetsPage() {
               {selectedAsset ? 'Update Asset' : 'Create Asset'}
             </Button>
           </FormActions>
-        </form>
+        </Form>
       </Modal>
 
       {/* Delete Confirmation Modal */}
