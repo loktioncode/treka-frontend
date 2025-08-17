@@ -195,17 +195,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             {/* Right side */}
             <div className="flex items-center gap-x-4 lg:gap-x-6 ml-auto">
-              {/* Notifications */}
-              <button
-                type="button"
-                onClick={() => router.push('/dashboard/notifications')}
-                className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500 cursor-pointer"
-              >
-                <Bell className="h-6 w-6" />
-              </button>
+              {/* Notifications - hidden for super admins */}
+              {user?.role !== 'super_admin' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => router.push('/dashboard/notifications')}
+                    className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500 cursor-pointer"
+                  >
+                    <Bell className="h-6 w-6" />
+                  </button>
 
-              {/* Separator */}
-              <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" />
+                  {/* Separator */}
+                  <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" />
+                </>
+              )}
 
               {/* Profile dropdown */}
               <div className="relative">
