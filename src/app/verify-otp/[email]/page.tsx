@@ -170,7 +170,7 @@ export default function VerifyOTP() {
                   type="submit"
                   loading={isLoading}
                   disabled={isLoading || code.length !== 6}
-                  className="w-full h-11 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800"
+                  className="w-full h-11 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
                   {isLoading ? 'Verifying...' : 'Verify Code'}
                 </Button>
@@ -185,7 +185,7 @@ export default function VerifyOTP() {
                     onClick={handleResendCode}
                     loading={isResending}
                     disabled={isResending}
-                    className="text-teal-600 hover:text-teal-700"
+                    className="text-teal-600 hover:text-teal-700 hover:bg-teal-50"
                   >
                     {isResending ? 'Sending...' : 'Resend Code'}
                   </Button>
@@ -270,7 +270,7 @@ export default function VerifyOTP() {
                   type="submit"
                   loading={isLoading}
                   disabled={isLoading || password.length < 8}
-                  className="w-full h-11 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                  className="w-full h-11 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
                   {isLoading ? 'Resetting Password...' : 'Reset Password'}
                 </Button>

@@ -355,15 +355,13 @@ function SidebarContent({ navigation, pathname, user, onClose, isMobile, collaps
         <div className="flex items-center gap-2" style={{ overflow: 'visible' }}>
           {!isMobile && onToggleCollapse && (
             collapsed ? (
-              <Tooltip content="Expand sidebar" position="right">
-                <button
-                  type="button"
-                  className="rounded-md hover:bg-gray-100 cursor-pointer transition-colors p-1.5 w-8 h-8"
-                  onClick={onToggleCollapse}
-                >
-                  <ChevronDown className="h-4 w-4 text-gray-400 transition-transform duration-200 rotate-180" />
-                </button>
-              </Tooltip>
+              <button
+                type="button"
+                className="rounded-md hover:bg-gray-100 cursor-pointer transition-colors p-1.5 w-8 h-8"
+                onClick={onToggleCollapse}
+              >
+                <ChevronDown className="h-4 w-4 text-gray-400 transition-transform duration-200 rotate-180" />
+              </button>
             ) : (
               <button
                 type="button"

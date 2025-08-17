@@ -118,7 +118,7 @@ export default function ForgotPassword() {
                   type="submit"
                   loading={isLoading}
                   disabled={isLoading || !email}
-                  className="w-full h-11 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+                  className="w-full h-11 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
                   {isLoading ? 'Sending...' : 'Send Verification Code'}
                 </Button>
@@ -139,7 +139,7 @@ export default function ForgotPassword() {
                 
                 <Button
                   onClick={() => router.push(`/verify-otp/${encodeURIComponent(email)}`)}
-                  className="w-full h-11 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                  className="w-full h-11 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
                   Continue to Verification
                 </Button>
