@@ -12,7 +12,6 @@ import {
   Package,
   Settings,
   Bell,
-  Search,
   Menu,
   X,
   LogOut,
@@ -22,7 +21,6 @@ import {
   Home,
   ChevronDown
 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { SkeletonProfile } from '@/components/ui/skeleton';
 
@@ -70,16 +68,16 @@ const navigation: NavigationItem[] = [
     roles: ['admin', 'user']
   },
   {
-    name: 'Analytics',
-    href: '/dashboard/analytics',
-    icon: BarChart3,
-    roles: ['admin']
-  },
-  {
     name: 'Notifications',
     href: '/dashboard/notifications',
     icon: Bell,
     roles: ['admin', 'user']
+  },
+  {
+    name: 'Analytics',
+    href: '/dashboard/analytics',
+    icon: BarChart3,
+    roles: ['admin']
   },
   {
     name: 'Settings',
@@ -195,20 +193,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="h-6 w-px bg-gray-200 lg:hidden" />
 
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-            {/* Search */}
-            <div className="relative flex flex-1 items-center">
-              <Search className="pointer-events-none absolute inset-y-0 left-0 ml-3 h-5 w-5 text-gray-400" />
-              <Input
-                placeholder="Search..."
-                className="pl-10 border-0 bg-gray-50 focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
             {/* Right side */}
-            <div className="flex items-center gap-x-4 lg:gap-x-6">
+            <div className="flex items-center gap-x-4 lg:gap-x-6 ml-auto">
               {/* Notifications */}
               <button
                 type="button"
+                onClick={() => router.push('/dashboard/notifications')}
                 className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500 cursor-pointer"
               >
                 <Bell className="h-6 w-6" />
