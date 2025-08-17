@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { 
   clientAPI, 
   userAPI,
+  authAPI,
   type Client, 
   type User, 
   type CreateUserRequest, 
@@ -982,7 +983,7 @@ export default function ClientDetailPage() {
                         // Refresh the selected user data
                         const updatedUsers = await clientAPI.getClientUsers(clientId);
                         const transformedUsers = ensureId(updatedUsers);
-                        const updatedUser = transformedUsers.find(u => u.id === selectedUser.id);
+                        const updatedUser = transformedUsers.find((u: User) => u.id === selectedUser.id);
                         if (updatedUser) {
                           setSelectedUser(updatedUser);
                         }
