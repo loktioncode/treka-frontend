@@ -95,6 +95,13 @@ export interface MachineryDetails {
   power_rating?: string;
 }
 
+export interface InfrastructureDetails {
+  type?: string;
+  age?: number;
+  material?: string;
+  condition?: string;
+}
+
 export interface AssetImage {
   url: string;
   description?: string;
@@ -115,6 +122,7 @@ export interface Asset {
   created_by: string;
   vehicle_details?: VehicleDetails;
   machinery_details?: MachineryDetails;
+  infrastructure_details?: InfrastructureDetails;
   images: AssetImage[];
   created_at: string;
   updated_at: string;
@@ -131,6 +139,7 @@ export interface CreateAssetRequest {
   location?: string;
   vehicle_details?: VehicleDetails;
   machinery_details?: MachineryDetails;
+  infrastructure_details?: InfrastructureDetails;
 }
 
 // Component types

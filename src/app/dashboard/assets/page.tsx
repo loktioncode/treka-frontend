@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { assetAPI, clientAPI, type Asset, type Client, type CreateAssetRequest, type AssetFilters } from '@/services/api';
+import { type VehicleDetails, type MachineryDetails, type InfrastructureDetails } from '@/types/api';
 import { DataTable, type Column, type DataTableAction } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,7 +59,8 @@ export default function AssetsPage() {
     current_value: undefined,
     location: '',
     vehicle_details: undefined,
-    machinery_details: undefined
+    machinery_details: undefined,
+    infrastructure_details: undefined
   });
   // const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -74,7 +76,7 @@ export default function AssetsPage() {
         license_plate: prev.vehicle_details?.license_plate || '',
         engine_type: prev.vehicle_details?.engine_type || '',
         fuel_type: prev.vehicle_details?.fuel_type || '',
-        mileage: prev.vehicle_details?.mileage || undefined,
+        mileage: prev.vehicle_details?.mileage || 0,
         [field]: value
       }
     }));
@@ -89,7 +91,7 @@ export default function AssetsPage() {
         model: prev.machinery_details?.model || '',
         year: prev.machinery_details?.year || 0,
         serial_number: prev.machinery_details?.serial_number || '',
-        operating_hours: prev.machinery_details?.operating_hours || undefined,
+        operating_hours: prev.machinery_details?.operating_hours || 0,
         capacity: prev.machinery_details?.capacity || '',
         power_rating: prev.machinery_details?.power_rating || '',
         [field]: value
@@ -352,7 +354,8 @@ export default function AssetsPage() {
         current_value: undefined,
         location: '',
         vehicle_details: undefined,
-        machinery_details: undefined
+        machinery_details: undefined,
+        infrastructure_details: undefined
       });
       loadAssets();
     } catch (error: unknown) {
