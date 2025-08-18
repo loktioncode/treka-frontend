@@ -36,7 +36,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatDateForInput } from '@/lib/utils';
 import { ensureId } from '@/lib/id-utils';
 
 export default function ComponentsPage() {
@@ -316,6 +316,19 @@ export default function ComponentsPage() {
       label: 'Edit',
       icon: Edit,
       onClick: (component) => {
+        console.log('Editing component:', component);
+        console.log('Original dates:', {
+          last_maintenance_date: component.last_maintenance_date,
+          next_maintenance_date: component.next_maintenance_date
+        });
+        
+        const formattedDates = {
+          last_maintenance_date: formatDateForInput(component.last_maintenance_date),
+          next_maintenance_date: formatDateForInput(component.next_maintenance_date)
+        };
+        
+        console.log('Formatted dates:', formattedDates);
+        
         setSelectedComponent(component);
         setFormData({
           name: component.name,
@@ -324,8 +337,8 @@ export default function ComponentsPage() {
           status: component.status,
           asset_id: component.asset_id,
           specifications: component.specifications,
-          last_maintenance_date: component.last_maintenance_date,
-          next_maintenance_date: component.next_maintenance_date,
+          last_maintenance_date: formattedDates.last_maintenance_date,
+          next_maintenance_date: formattedDates.next_maintenance_date,
           maintenance_interval_days: component.maintenance_interval_days
         });
         setShowCreateModal(true);
@@ -605,10 +618,12 @@ export default function ComponentsPage() {
                 <Input
                   type="date"
                   id="last_maintenance_date"
-                  value={formData.last_maintenance_date}
+                  value={formData.last_maintenance_date || ''}
                   onChange={(e) => setFormData({ ...formData, last_maintenance_date: e.target.value })}
-
                 />
+                <div className="text-xs text-gray-500 mt-1">
+                  Debug: {formData.last_maintenance_date || 'No date set'}
+                </div>
               </FormField>
 
               <FormField name="maintenance_interval_days">

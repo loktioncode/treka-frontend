@@ -32,6 +32,17 @@ export function truncateText(text: string, maxLength: number) {
   return text.slice(0, maxLength) + '...'
 }
 
+export function formatDateForInput(date: string | Date | null | undefined): string {
+  if (!date) return '';
+  try {
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) return '';
+    return dateObj.toISOString().split('T')[0];
+  } catch {
+    return '';
+  }
+}
+
 export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   delay: number
