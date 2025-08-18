@@ -426,6 +426,44 @@ export const analyticsAPI = {
   getSystemHealth: async () => {
     const response = await api.get('/analytics/system-health');
     return response.data;
+  },
+
+  getAIInsights: async (query: string, filters?: Record<string, unknown>) => {
+    const response = await api.post('/analytics/ai-insights', { query, filters });
+    return response.data;
+  }
+};
+
+// Chat API endpoints
+export const chatAPI = {
+  createSession: async (sessionData: { session_name: string; initial_message?: string; filters_applied?: Record<string, unknown> }) => {
+    const response = await api.post('/chat/sessions', sessionData);
+    return response.data;
+  },
+
+  getSessions: async () => {
+    const response = await api.get('/chat/sessions');
+    return response.data;
+  },
+
+  getSession: async (sessionId: string) => {
+    const response = await api.get(`/chat/sessions/${sessionId}`);
+    return response.data;
+  },
+
+  addMessage: async (sessionId: string, messageData: { content: string; role: 'user' | 'assistant'; metadata?: Record<string, unknown> }) => {
+    const response = await api.post(`/chat/sessions/${sessionId}/messages`, messageData);
+    return response.data;
+  },
+
+  updateSession: async (sessionId: string, updateData: { session_name?: string; is_active?: boolean; filters_applied?: Record<string, unknown> }) => {
+    const response = await api.put(`/chat/sessions/${sessionId}`, updateData);
+    return response.data;
+  },
+
+  deleteSession: async (sessionId: string) => {
+    const response = await api.delete(`/chat/sessions/${sessionId}`);
+    return response.data;
   }
 };
 
