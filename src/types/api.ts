@@ -155,6 +155,11 @@ export interface MachineryDetails {
   power_rating?: string;
 }
 
+export interface EquipmentDetails {
+  model?: string;
+  serial_number?: string;
+}
+
 export interface InfrastructureDetails {
   type?: string;
   age?: number;
@@ -182,6 +187,7 @@ export interface Asset {
   created_by: string;
   vehicle_details?: VehicleDetails;
   machinery_details?: MachineryDetails;
+  equipment_details?: EquipmentDetails;
   infrastructure_details?: InfrastructureDetails;
   images: AssetImage[];
   created_at: string;
@@ -199,6 +205,7 @@ export interface CreateAssetRequest {
   location?: string;
   vehicle_details?: VehicleDetails;
   machinery_details?: MachineryDetails;
+  equipment_details?: EquipmentDetails;
   infrastructure_details?: InfrastructureDetails;
 }
 

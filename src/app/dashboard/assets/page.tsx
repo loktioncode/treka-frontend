@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { assetAPI, clientAPI, type Asset, type Client, type CreateAssetRequest, type AssetFilters } from '@/services/api';
-import { type VehicleDetails, type MachineryDetails } from '@/types/api';
+import { type VehicleDetails, type MachineryDetails, type EquipmentDetails } from '@/types/api';
 
 import { DataTable, type Column, type DataTableAction } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
@@ -82,6 +82,10 @@ export default function AssetsPage() {
       capacity: '',
       power_rating: ''
     },
+    equipment_details: {
+      model: '',
+      serial_number: ''
+    },
     infrastructure_details: {
       type: '',
       age: 0,
@@ -111,6 +115,11 @@ export default function AssetsPage() {
     operating_hours: updates.operating_hours || formData.machinery_details?.operating_hours || 0,
     capacity: updates.capacity || formData.machinery_details?.capacity || '',
     power_rating: updates.power_rating || formData.machinery_details?.power_rating || ''
+  });
+
+  const createCompleteEquipmentDetails = (updates: Partial<EquipmentDetails>): EquipmentDetails => ({
+    model: updates.model || formData.equipment_details?.model || '',
+    serial_number: updates.serial_number || formData.equipment_details?.serial_number || ''
   });
 
   // Helper functions removed as they were unused
@@ -351,6 +360,7 @@ export default function AssetsPage() {
           location: asset.location,
           vehicle_details: asset.vehicle_details,
           machinery_details: asset.machinery_details,
+          equipment_details: asset.equipment_details,
           infrastructure_details: asset.infrastructure_details
         });
         setShowCreateModal(true);
@@ -396,6 +406,7 @@ export default function AssetsPage() {
         location: '',
         vehicle_details: undefined,
         machinery_details: undefined,
+        equipment_details: undefined,
         infrastructure_details: undefined
       });
       loadAssets();
@@ -862,7 +873,37 @@ export default function AssetsPage() {
             </FormSection>
           )}
 
-          {/* Equipment section removed as equipment_details is not defined in CreateAssetRequest */}
+          {formData.asset_type === 'equipment' && (
+            <FormSection title="Equipment Details">
+              <FormGrid cols={2}>
+                <FormField name="equipment_model">
+                  <FormLabel htmlFor="equipment_model">Model</FormLabel>
+                  <Input
+                    id="equipment_model"
+                    value={formData.equipment_details?.model || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      equipment_details: createCompleteEquipmentDetails({ model: e.target.value })
+                    })}
+                    placeholder="e.g., Model XYZ-2000"
+                  />
+                </FormField>
+
+                <FormField name="equipment_serial_number">
+                  <FormLabel htmlFor="equipment_serial_number">Serial Number</FormLabel>
+                  <Input
+                    id="equipment_serial_number"
+                    value={formData.equipment_details?.serial_number || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      equipment_details: createCompleteEquipmentDetails({ serial_number: e.target.value })
+                    })}
+                    placeholder="e.g., EQ123456"
+                  />
+                </FormField>
+              </FormGrid>
+            </FormSection>
+          )}
 
           {formData.asset_type === 'infrastructure' && (
             <FormSection title="Infrastructure Details">
