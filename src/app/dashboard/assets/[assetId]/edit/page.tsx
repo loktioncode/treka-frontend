@@ -2,16 +2,12 @@
 
 import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
-import { assetAPI, type Asset } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
-import toast from 'react-hot-toast';
 
 export default function AssetEditPage() {
   const { assetId } = useParams();
   const router = useRouter();
-  const { user } = useAuth();
 
   useEffect(() => {
     if (assetId) {

@@ -186,7 +186,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     <SidebarContent 
           navigation={filteredNavigation} 
           pathname={pathname}
-          user={user}
           onClose={() => setSidebarOpen(false)}
           isMobile={true}
           onLogout={handleLogout}
@@ -202,7 +201,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <SidebarContent 
           navigation={filteredNavigation} 
           pathname={pathname}
-          user={user}
           isMobile={false}
           collapsed={sidebarCollapsed}
           onToggleCollapse={handleSidebarToggle}
@@ -319,7 +317,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 interface SidebarContentProps {
   navigation: NavigationItem[];
   pathname: string;
-  user: { role: string; first_name: string; last_name: string; id: string };
   onClose?: () => void;
   isMobile: boolean;
   collapsed?: boolean;
@@ -327,7 +324,7 @@ interface SidebarContentProps {
   onLogout: () => void;
 }
 
-function SidebarContent({ navigation, pathname, user, onClose, isMobile, collapsed = false, onToggleCollapse, onLogout }: SidebarContentProps) {
+function SidebarContent({ navigation, pathname, onClose, isMobile, collapsed = false, onToggleCollapse, onLogout }: SidebarContentProps) {
   return (
     <div className={cn(
       "flex grow flex-col gap-y-5 overflow-y-auto bg-white pb-4 shadow-xl",

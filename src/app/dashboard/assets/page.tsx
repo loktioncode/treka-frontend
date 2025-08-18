@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { assetAPI, clientAPI, type Asset, type Client, type CreateAssetRequest, type AssetFilters } from '@/services/api';
-import { type VehicleDetails, type MachineryDetails, type InfrastructureDetails } from '@/types/api';
+import { type VehicleDetails, type MachineryDetails } from '@/types/api';
+
 import { DataTable, type Column, type DataTableAction } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,71 +60,60 @@ export default function AssetsPage() {
     asset_type: 'equipment',
     status: 'active',
     purchase_date: '',
-    purchase_cost: '',
-    current_value: '',
+    purchase_cost: undefined,
+    current_value: undefined,
     location: '',
     vehicle_details: {
       make: '',
       model: '',
-      year: '',
+      year: 0,
       vin: '',
       license_plate: '',
       engine_type: '',
       fuel_type: '',
-      mileage: ''
+      mileage: 0
     },
     machinery_details: {
       make: '',
       model: '',
-      year: '',
+      year: 0,
       serial_number: '',
-      operating_hours: '',
+      operating_hours: 0,
       capacity: '',
       power_rating: ''
     },
     infrastructure_details: {
       type: '',
-      age: '',
-      material: '',
-      condition: ''
+      age: 0,
+      material: undefined,
+      condition: undefined
     }
   });
   // const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // Helper function to update vehicle details
-  const updateVehicleDetails = (field: keyof VehicleDetails, value: string | number) => {
-    setFormData(prev => ({
-      ...prev,
-      vehicle_details: {
-        make: prev.vehicle_details?.make || '',
-        model: prev.vehicle_details?.model || '',
-        year: prev.vehicle_details?.year || 0,
-        vin: prev.vehicle_details?.vin || '',
-        license_plate: prev.vehicle_details?.license_plate || '',
-        engine_type: prev.vehicle_details?.engine_type || '',
-        fuel_type: prev.vehicle_details?.fuel_type || '',
-        mileage: prev.vehicle_details?.mileage || 0,
-        [field]: value
-      } as VehicleDetails
-    }));
-  };
+  // Helper functions to create complete detail objects
+  const createCompleteVehicleDetails = (updates: Partial<VehicleDetails>): VehicleDetails => ({
+    make: updates.make || formData.vehicle_details?.make || '',
+    model: updates.model || formData.vehicle_details?.model || '',
+    year: updates.year || formData.vehicle_details?.year || 0,
+    vin: updates.vin || formData.vehicle_details?.vin || '',
+    license_plate: updates.license_plate || formData.vehicle_details?.license_plate || '',
+    engine_type: updates.engine_type || formData.vehicle_details?.engine_type || '',
+    fuel_type: updates.fuel_type || formData.vehicle_details?.fuel_type || '',
+    mileage: updates.mileage || formData.vehicle_details?.mileage || 0
+  });
 
-  // Helper function to update machinery details
-  const updateMachineryDetails = (field: keyof MachineryDetails, value: string | number) => {
-    setFormData(prev => ({
-      ...prev,
-      machinery_details: {
-        make: prev.machinery_details?.make || '',
-        model: prev.machinery_details?.model || '',
-        year: prev.machinery_details?.year || 0,
-        serial_number: prev.machinery_details?.serial_number || '',
-        operating_hours: prev.machinery_details?.operating_hours || 0,
-        capacity: prev.machinery_details?.capacity || '',
-        power_rating: prev.machinery_details?.power_rating || '',
-        [field]: value
-      } as MachineryDetails
-    }));
-  };
+  const createCompleteMachineryDetails = (updates: Partial<MachineryDetails>): MachineryDetails => ({
+    make: updates.make || formData.machinery_details?.make || '',
+    model: updates.model || formData.machinery_details?.model || '',
+    year: updates.year || formData.machinery_details?.year || 0,
+    serial_number: updates.serial_number || formData.machinery_details?.serial_number || '',
+    operating_hours: updates.operating_hours || formData.machinery_details?.operating_hours || 0,
+    capacity: updates.capacity || formData.machinery_details?.capacity || '',
+    power_rating: updates.power_rating || formData.machinery_details?.power_rating || ''
+  });
+
+  // Helper functions removed as they were unused
 
   // Load assets based on filters
   const loadAssets = useCallback(async () => {
@@ -649,16 +639,7 @@ export default function AssetsPage() {
                     value={formData.vehicle_details?.make || ''}
                     onChange={(e) => setFormData({
                       ...formData,
-                      vehicle_details: {
-                        make: e.target.value,
-                        model: formData.vehicle_details?.model || '',
-                        year: formData.vehicle_details?.year || undefined,
-                        vin: formData.vehicle_details?.vin || '',
-                        license_plate: formData.vehicle_details?.license_plate || '',
-                        engine_type: formData.vehicle_details?.engine_type || '',
-                        fuel_type: formData.vehicle_details?.fuel_type || '',
-                        mileage: formData.vehicle_details?.mileage || undefined
-                      }
+                      vehicle_details: createCompleteVehicleDetails({ make: e.target.value })
                     })}
                     placeholder="e.g., Toyota, Ford, BMW"
                     required
@@ -672,16 +653,7 @@ export default function AssetsPage() {
                     value={formData.vehicle_details?.model || ''}
                     onChange={(e) => setFormData({
                       ...formData,
-                      vehicle_details: {
-                        make: formData.vehicle_details?.make || '',
-                        model: e.target.value,
-                        year: formData.vehicle_details?.year || undefined,
-                        vin: formData.vehicle_details?.vin || '',
-                        license_plate: formData.vehicle_details?.license_plate || '',
-                        engine_type: formData.vehicle_details?.engine_type || '',
-                        fuel_type: formData.vehicle_details?.fuel_type || '',
-                        mileage: formData.vehicle_details?.mileage || undefined
-                      }
+                      vehicle_details: createCompleteVehicleDetails({ model: e.target.value })
                     })}
                     placeholder="e.g., Camry, F-150, X5"
                     required
@@ -696,16 +668,7 @@ export default function AssetsPage() {
                     value={formData.vehicle_details?.year || ''}
                     onChange={(e) => setFormData({
                       ...formData,
-                      vehicle_details: {
-                        make: formData.vehicle_details?.make || '',
-                        model: formData.vehicle_details?.model || '',
-                        year: parseInt(e.target.value) || 0,
-                        vin: formData.vehicle_details?.vin || '',
-                        license_plate: formData.vehicle_details?.license_plate || '',
-                        engine_type: formData.vehicle_details?.engine_type || '',
-                        fuel_type: formData.vehicle_details?.fuel_type || '',
-                        mileage: formData.vehicle_details?.mileage || undefined
-                      }
+                      vehicle_details: createCompleteVehicleDetails({ year: parseInt(e.target.value) || 0 })
                     })}
                     placeholder="e.g., 2020"
                     min="1900"
@@ -721,10 +684,7 @@ export default function AssetsPage() {
                     value={formData.vehicle_details?.vin || ''}
                     onChange={(e) => setFormData({
                       ...formData,
-                      vehicle_details: {
-                        ...formData.vehicle_details,
-                        vin: e.target.value
-                      }
+                      vehicle_details: createCompleteVehicleDetails({ vin: e.target.value })
                     })}
                     placeholder="17-character VIN"
                     maxLength={17}
@@ -739,10 +699,7 @@ export default function AssetsPage() {
                     value={formData.vehicle_details?.license_plate || ''}
                     onChange={(e) => setFormData({
                       ...formData,
-                      vehicle_details: {
-                        ...formData.vehicle_details,
-                        license_plate: e.target.value
-                      }
+                      vehicle_details: createCompleteVehicleDetails({ license_plate: e.target.value })
                     })}
                     placeholder="e.g., ABC-123"
                   />
@@ -755,10 +712,7 @@ export default function AssetsPage() {
                     value={formData.vehicle_details?.engine_type || ''}
                     onChange={(e) => setFormData({
                       ...formData,
-                      vehicle_details: {
-                        ...formData.vehicle_details,
-                        engine_type: e.target.value
-                      }
+                      vehicle_details: createCompleteVehicleDetails({ engine_type: e.target.value })
                     })}
                     placeholder="e.g., V6, V8, Electric"
                   />
@@ -771,10 +725,7 @@ export default function AssetsPage() {
                     value={formData.vehicle_details?.fuel_type || ''}
                     onChange={(e) => setFormData({
                       ...formData,
-                      vehicle_details: {
-                        ...formData.vehicle_details,
-                        fuel_type: e.target.value
-                      }
+                      vehicle_details: createCompleteVehicleDetails({ fuel_type: e.target.value })
                     })}
                     options={[
                       { value: '', label: 'Select fuel type' },
@@ -795,10 +746,7 @@ export default function AssetsPage() {
                     value={formData.vehicle_details?.mileage || ''}
                     onChange={(e) => setFormData({
                       ...formData,
-                      vehicle_details: {
-                        ...formData.vehicle_details,
-                        mileage: parseInt(e.target.value) || undefined
-                      }
+                      vehicle_details: createCompleteVehicleDetails({ mileage: parseInt(e.target.value) || 0 })
                     })}
                     placeholder="e.g., 50000"
                     min="0"
@@ -818,10 +766,7 @@ export default function AssetsPage() {
                     value={formData.machinery_details?.make || ''}
                     onChange={(e) => setFormData({
                       ...formData,
-                      machinery_details: {
-                        ...formData.machinery_details,
-                        make: e.target.value
-                      }
+                      machinery_details: createCompleteMachineryDetails({ make: e.target.value })
                     })}
                     placeholder="e.g., Caterpillar, Komatsu"
                     required
@@ -835,10 +780,7 @@ export default function AssetsPage() {
                     value={formData.machinery_details?.model || ''}
                     onChange={(e) => setFormData({
                       ...formData,
-                      machinery_details: {
-                        ...formData.machinery_details,
-                        model: e.target.value
-                      }
+                      machinery_details: createCompleteMachineryDetails({ model: e.target.value })
                     })}
                     placeholder="e.g., D6T, PC200"
                     required
@@ -853,10 +795,7 @@ export default function AssetsPage() {
                     value={formData.machinery_details?.year || ''}
                     onChange={(e) => setFormData({
                       ...formData,
-                      machinery_details: {
-                        ...formData.machinery_details,
-                        year: parseInt(e.target.value) || undefined
-                      }
+                      machinery_details: createCompleteMachineryDetails({ year: parseInt(e.target.value) || 0 })
                     })}
                     placeholder="e.g., 2018"
                     min="1900"
@@ -872,10 +811,7 @@ export default function AssetsPage() {
                     value={formData.machinery_details?.serial_number || ''}
                     onChange={(e) => setFormData({
                       ...formData,
-                      machinery_details: {
-                        ...formData.machinery_details,
-                        serial_number: e.target.value
-                      }
+                      machinery_details: createCompleteMachineryDetails({ serial_number: e.target.value })
                     })}
                     placeholder="e.g., CAT123456"
                     required
@@ -890,10 +826,7 @@ export default function AssetsPage() {
                     value={formData.machinery_details?.operating_hours || ''}
                     onChange={(e) => setFormData({
                       ...formData,
-                      machinery_details: {
-                        ...formData.machinery_details,
-                        operating_hours: parseInt(e.target.value) || undefined
-                      }
+                      machinery_details: createCompleteMachineryDetails({ operating_hours: parseInt(e.target.value) || 0 })
                     })}
                     placeholder="e.g., 2500"
                     min="0"
@@ -907,10 +840,7 @@ export default function AssetsPage() {
                     value={formData.machinery_details?.capacity || ''}
                     onChange={(e) => setFormData({
                       ...formData,
-                      machinery_details: {
-                        ...formData.machinery_details,
-                        capacity: e.target.value
-                      }
+                      machinery_details: createCompleteMachineryDetails({ capacity: e.target.value })
                     })}
                     placeholder="e.g., 20 tons, 200 HP"
                   />
@@ -923,10 +853,7 @@ export default function AssetsPage() {
                     value={formData.machinery_details?.power_rating || ''}
                     onChange={(e) => setFormData({
                       ...formData,
-                      machinery_details: {
-                        ...formData.machinery_details,
-                        power_rating: e.target.value
-                      }
+                      machinery_details: createCompleteMachineryDetails({ power_rating: e.target.value })
                     })}
                     placeholder="e.g., 200 HP, 150 kW"
                   />
@@ -935,88 +862,7 @@ export default function AssetsPage() {
             </FormSection>
           )}
 
-          {formData.asset_type === 'equipment' && (
-            <FormSection title="Equipment Details">
-              <FormGrid cols={2}>
-                <FormField name="equipment_serial_number">
-                  <FormLabel htmlFor="equipment_serial_number">Serial Number</FormLabel>
-                  <Input
-                    id="equipment_serial_number"
-                    value={formData.equipment_details?.serial_number || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      equipment_details: {
-                        ...formData.equipment_details,
-                        serial_number: e.target.value
-                      }
-                    })}
-                    placeholder="e.g., EQ123456"
-                  />
-                </FormField>
-
-                <FormField name="equipment_category">
-                  <FormLabel htmlFor="equipment_category">Category</FormLabel>
-                  <Select
-                    id="equipment_category"
-                    value={formData.equipment_details?.category || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      equipment_details: {
-                        ...formData.equipment_details,
-                        category: e.target.value
-                      }
-                    })}
-                    options={[
-                      { value: '', label: 'Select category' },
-                      { value: 'tools', label: 'Tools' },
-                      { value: 'electronics', label: 'Electronics' },
-                      { value: 'safety', label: 'Safety Equipment' },
-                      { value: 'testing', label: 'Testing Equipment' },
-                      { value: 'other', label: 'Other' }
-                    ]}
-                  />
-                </FormField>
-
-                <FormField name="equipment_condition">
-                  <FormLabel htmlFor="equipment_condition">Condition</FormLabel>
-                  <Select
-                    id="equipment_condition"
-                    value={formData.equipment_details?.condition || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      equipment_details: {
-                        ...formData.equipment_details,
-                        condition: e.target.value
-                      }
-                    })}
-                    options={[
-                      { value: '', label: 'Select condition' },
-                      { value: 'excellent', label: 'Excellent' },
-                      { value: 'good', label: 'Good' },
-                      { value: 'fair', label: 'Fair' },
-                      { value: 'poor', label: 'Poor' }
-                    ]}
-                  />
-                </FormField>
-
-                <FormField name="equipment_warranty_expiry">
-                  <FormLabel htmlFor="equipment_warranty_expiry">Warranty Expiry</FormLabel>
-                  <Input
-                    type="date"
-                    id="equipment_warranty_expiry"
-                    value={formData.equipment_details?.warranty_expiry || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      equipment_details: {
-                        ...formData.equipment_details,
-                        warranty_expiry: e.target.value
-                      }
-                    })}
-                  />
-                </FormField>
-              </FormGrid>
-            </FormSection>
-          )}
+          {/* Equipment section removed as equipment_details is not defined in CreateAssetRequest */}
 
           {formData.asset_type === 'infrastructure' && (
             <FormSection title="Infrastructure Details">

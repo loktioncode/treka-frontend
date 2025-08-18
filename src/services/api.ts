@@ -320,14 +320,14 @@ export const assetAPI = {
     return response.data;
   },
 
-  createAsset: async (assetData: CreateAssetRequest, images?: File[]) => {
+  createAsset: async (assetData: CreateAssetRequest) => {
     // For now, just send the asset data as JSON
     // TODO: Handle images separately if needed
     const response = await api.post('/assets', assetData);
     return response.data;
   },
 
-  updateAsset: async (assetId: string, assetData: Partial<CreateAssetRequest>, images?: File[]) => {
+  updateAsset: async (assetId: string, assetData: Partial<CreateAssetRequest>) => {
     // For now, just send the asset data as JSON
     // TODO: Handle images separately if needed
     const response = await api.put(`/assets/${assetId}`, assetData);

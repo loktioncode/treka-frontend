@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
+
 import { assetAPI, componentAPI, type Asset, type Component, type CreateComponentRequest } from '@/services/api';
 import { PrimaryMaterialLabels, ConditionLabels, type ComponentStatus } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
-import { Form, FormField, FormLabel, FormSection, FormGrid, FormActions, Select, Textarea } from '@/components/ui/form';
+import { Form, FormField, FormLabel, FormGrid, FormActions, Select, Textarea } from '@/components/ui/form';
 import { 
   ArrowLeft, 
   Edit, 
@@ -33,7 +33,6 @@ import { formatDate } from '@/lib/utils';
 export default function AssetViewPage() {
   const { assetId } = useParams();
   const router = useRouter();
-  const { user } = useAuth();
   const [asset, setAsset] = useState<Asset | null>(null);
   const [components, setComponents] = useState<Component[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,14 +109,7 @@ export default function AssetViewPage() {
   };
 
   // Load asset and components
-  useEffect(() => {
-    if (assetId) {
-      loadAsset();
-      loadComponents();
-    }
-  }, [assetId]);
-
-  const loadAsset = async () => {
+  const loadAsset = useCallback(async () => {
     try {
       const response = await assetAPI.getAsset(assetId as string);
       setAsset(response);
@@ -125,9 +117,9 @@ export default function AssetViewPage() {
       toast.error('Failed to load asset');
       console.error('Error loading asset:', error);
     }
-  };
+  }, [assetId]);
 
-  const loadComponents = async () => {
+  const loadComponents = useCallback(async () => {
     try {
       const response = await componentAPI.getComponents({ asset_id: assetId as string });
       setComponents(response);
@@ -137,7 +129,14 @@ export default function AssetViewPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [assetId]);
+
+  useEffect(() => {
+    if (assetId) {
+      loadAsset();
+      loadComponents();
+    }
+  }, [assetId, loadAsset, loadComponents]);
 
   const handleComponentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,7 +177,7 @@ export default function AssetViewPage() {
         maintenance_interval_days: 30
       });
       loadComponents();
-    } catch (error) {
+    } catch {
       toast.error('Failed to save component');
     } finally {
       setIsSubmitting(false);
