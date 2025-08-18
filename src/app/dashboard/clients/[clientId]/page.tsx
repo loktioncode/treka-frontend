@@ -208,12 +208,12 @@ export default function ClientDetailPage() {
         toast.success('Admin user created successfully');
       } else {
         // Create regular user for client - the API endpoint should handle client assignment
-        const userData = {
+        const userData: CreateUserRequest = {
           email: userFormData.email!,
           password: userFormData.password!,
           first_name: userFormData.first_name!,
           last_name: userFormData.last_name!,
-          role: "user",  // Explicitly set role for regular users
+          role: "user" as const,  // Explicitly set role for regular users
           notification_preferences: userFormData.notification_preferences!
         };
         await clientAPI.createClientUser(clientId, userData);

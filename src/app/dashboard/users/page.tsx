@@ -70,6 +70,9 @@ export default function UsersPage() {
     first_name: '',
     last_name: '',
     client_id: '',
+    hourly_rate: undefined,
+    industry: undefined,
+    specializations: [],
     notification_preferences: {
       email: true,
       whatsapp: false
@@ -243,6 +246,9 @@ export default function UsersPage() {
       first_name: '',
       last_name: '',
       client_id: user?.role === 'admin' ? user.client_id : '',
+      hourly_rate: undefined,
+      industry: undefined,
+      specializations: [],
       notification_preferences: {
         email: true,
         whatsapp: false
@@ -390,6 +396,9 @@ export default function UsersPage() {
       first_name: user.first_name,
       last_name: user.last_name,
       email: user.email,
+      hourly_rate: user.hourly_rate,
+      industry: user.industry,
+      specializations: user.specializations || [],
       notification_preferences: user.notification_preferences
     });
     setShowEditModal(true);
@@ -439,6 +448,11 @@ export default function UsersPage() {
       if (editFormData.email !== selectedUser.email) changedFields.email = editFormData.email;
       if (editFormData.first_name !== selectedUser.first_name) changedFields.first_name = editFormData.first_name;
       if (editFormData.last_name !== selectedUser.last_name) changedFields.last_name = editFormData.last_name;
+      if (editFormData.hourly_rate !== selectedUser.hourly_rate) changedFields.hourly_rate = editFormData.hourly_rate;
+      if (editFormData.industry !== selectedUser.industry) changedFields.industry = editFormData.industry;
+      if (JSON.stringify(editFormData.specializations) !== JSON.stringify(selectedUser.specializations)) {
+        changedFields.specializations = editFormData.specializations;
+      }
       if (JSON.stringify(editFormData.notification_preferences) !== JSON.stringify(selectedUser.notification_preferences)) {
         changedFields.notification_preferences = editFormData.notification_preferences;
       }
@@ -678,6 +692,54 @@ export default function UsersPage() {
       )
     },
     {
+      key: 'hourly_rate',
+      title: 'Hourly Rate',
+      render: (user) => (
+        <div className="text-sm">
+          {user.hourly_rate ? (
+            <span className="text-green-600 font-medium">${user.hourly_rate}/hr</span>
+          ) : (
+            <span className="text-gray-400">Not set</span>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'industry',
+      title: 'Industry',
+      render: (user) => (
+        <div className="text-sm">
+          {user.industry ? (
+            <span className="text-blue-600 font-medium">{user.industry}</span>
+          ) : (
+            <span className="text-gray-400">Not set</span>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'specializations',
+      title: 'Specializations',
+      render: (user) => (
+        <div className="text-sm">
+          {user.specializations && user.specializations.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {user.specializations.slice(0, 2).map((spec, index) => (
+                <span key={index} className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
+                  {spec}
+                </span>
+              ))}
+              {user.specializations.length > 2 && (
+                <span className="text-xs text-gray-500">+{user.specializations.length - 2} more</span>
+              )}
+            </div>
+          ) : (
+            <span className="text-gray-400">None</span>
+          )}
+        </div>
+      )
+    },
+    {
       key: 'is_active',
       title: 'Status',
       render: (user) => (
@@ -702,7 +764,7 @@ export default function UsersPage() {
 
   // Add client column for super admin view
   if (user?.role === 'super_admin') {
-    columns.splice(2, 0, {
+    columns.splice(5, 0, {
       key: 'client_id',
       title: 'Client',
       render: (user) => {
@@ -1054,6 +1116,117 @@ export default function UsersPage() {
               </FormField>
             </FormGrid>
 
+            <FormField name="hourly_rate">
+              <FormLabel>Hourly Rate (Optional)</FormLabel>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.hourly_rate || ''}
+                onChange={(e) => setFormData({ 
+                  ...formData, 
+                  hourly_rate: e.target.value ? parseFloat(e.target.value) : undefined 
+                })}
+                placeholder="Enter hourly rate for technician work"
+                disabled={isSubmitting}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Set hourly rate for maintenance work cost calculations
+              </p>
+            </FormField>
+
+            <FormField name="industry">
+              <FormLabel>Industry (Optional)</FormLabel>
+              <Select
+                value={formData.industry || ''}
+                onChange={(e) => setFormData({ 
+                  ...formData, 
+                  industry: e.target.value || undefined,
+                  specializations: [] // Reset specializations when industry changes
+                })}
+                options={[
+                  { value: '', label: 'Select industry' },
+                  { value: 'Manufacturing', label: 'Manufacturing' },
+                  { value: 'Construction', label: 'Construction' },
+                  { value: 'Healthcare', label: 'Healthcare' },
+                  { value: 'Transportation', label: 'Transportation' },
+                  { value: 'Energy', label: 'Energy' },
+                  { value: 'Technology', label: 'Technology' },
+                  { value: 'Agriculture', label: 'Agriculture' },
+                  { value: 'Mining', label: 'Mining' },
+                  { value: 'Chemical', label: 'Chemical' },
+                  { value: 'Food & Beverage', label: 'Food & Beverage' },
+                  { value: 'Pharmaceuticals', label: 'Pharmaceuticals' },
+                  { value: 'Automotive', label: 'Automotive' },
+                  { value: 'Aerospace', label: 'Aerospace' },
+                  { value: 'Maritime', label: 'Maritime' },
+                  { value: 'Telecommunications', label: 'Telecommunications' },
+                  { value: 'Utilities', label: 'Utilities' },
+                  { value: 'Waste Management', label: 'Waste Management' },
+                  { value: 'Textiles', label: 'Textiles' },
+                  { value: 'Paper & Pulp', label: 'Paper & Pulp' },
+                  { value: 'Other', label: 'Other' }
+                ]}
+                disabled={isSubmitting}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Select primary industry for future auto-assignment
+              </p>
+            </FormField>
+
+            {formData.industry && (
+              <FormField name="specializations">
+                <FormLabel>Specializations (Optional)</FormLabel>
+                <div className="space-y-2">
+                  {formData.industry === 'Manufacturing' && (
+                    <div className="grid grid-cols-2 gap-2">
+                      {['CNC', 'Welding', 'Electronics', 'Mechanical', 'Quality Control'].map((spec) => (
+                        <Checkbox
+                          key={spec}
+                          label={spec}
+                          checked={formData.specializations?.includes(spec) || false}
+                          onChange={(e) => {
+                            const current = formData.specializations || [];
+                            if (e.target.checked) {
+                              setFormData({ ...formData, specializations: [...current, spec] });
+                            } else {
+                              setFormData({ ...formData, specializations: current.filter(s => s !== spec) });
+                            }
+                          }}
+                          disabled={isSubmitting}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {formData.industry === 'Construction' && (
+                    <div className="grid grid-cols-2 gap-2">
+                      {['Electrical', 'Plumbing', 'HVAC', 'Structural', 'Safety'].map((spec) => (
+                        <Checkbox
+                          key={spec}
+                          label={spec}
+                          checked={formData.specializations?.includes(spec) || false}
+                          onChange={(e) => {
+                            const current = formData.specializations || [];
+                            if (e.target.checked) {
+                              setFormData({ ...formData, specializations: [...current, spec] });
+                            } else {
+                              setFormData({ ...formData, specializations: current.filter(s => s !== spec) });
+                            }
+                          }}
+                          disabled={isSubmitting}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {formData.industry && formData.industry !== 'Manufacturing' && formData.industry !== 'Construction' && (
+                    <p className="text-sm text-gray-500">
+                      Specialization options for {formData.industry} will be available in future updates.
+                    </p>
+                  )}
+                </div>
+              </FormField>
+            )}
+
             <FormField name="email">
               <FormLabel required>Email Address</FormLabel>
               <Input
@@ -1193,6 +1366,30 @@ export default function UsersPage() {
                     <label className="text-sm font-medium text-gray-500">Role</label>
                     <RoleBadge role={selectedUser.role} />
                   </div>
+                  {selectedUser.hourly_rate && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Hourly Rate</label>
+                      <p className="text-gray-900">${selectedUser.hourly_rate}/hour</p>
+                    </div>
+                  )}
+                  {selectedUser.industry && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Industry</label>
+                      <p className="text-gray-900">{selectedUser.industry}</p>
+                    </div>
+                  )}
+                  {selectedUser.specializations && selectedUser.specializations.length > 0 && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Specializations</label>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {selectedUser.specializations.map((spec, index) => (
+                          <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
+                            {spec}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1334,6 +1531,117 @@ export default function UsersPage() {
                 />
               </FormField>
             </FormGrid>
+
+            <FormField name="hourly_rate">
+              <FormLabel>Hourly Rate (Optional)</FormLabel>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={editFormData.hourly_rate || ''}
+                onChange={(e) => setEditFormData({ 
+                  ...editFormData, 
+                  hourly_rate: e.target.value ? parseFloat(e.target.value) : undefined 
+                })}
+                placeholder="Enter hourly rate for technician work"
+                disabled={isSubmitting}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Set hourly rate for maintenance work cost calculations
+              </p>
+            </FormField>
+
+            <FormField name="industry">
+              <FormLabel>Industry (Optional)</FormLabel>
+              <Select
+                value={editFormData.industry || ''}
+                onChange={(e) => setEditFormData({ 
+                  ...editFormData, 
+                  industry: e.target.value || undefined,
+                  specializations: [] // Reset specializations when industry changes
+                })}
+                options={[
+                  { value: '', label: 'Select industry' },
+                  { value: 'Manufacturing', label: 'Manufacturing' },
+                  { value: 'Construction', label: 'Construction' },
+                  { value: 'Healthcare', label: 'Healthcare' },
+                  { value: 'Transportation', label: 'Transportation' },
+                  { value: 'Energy', label: 'Energy' },
+                  { value: 'Technology', label: 'Technology' },
+                  { value: 'Agriculture', label: 'Agriculture' },
+                  { value: 'Mining', label: 'Mining' },
+                  { value: 'Chemical', label: 'Chemical' },
+                  { value: 'Food & Beverage', label: 'Food & Beverage' },
+                  { value: 'Pharmaceuticals', label: 'Pharmaceuticals' },
+                  { value: 'Automotive', label: 'Automotive' },
+                  { value: 'Aerospace', label: 'Aerospace' },
+                  { value: 'Maritime', label: 'Maritime' },
+                  { value: 'Telecommunications', label: 'Telecommunications' },
+                  { value: 'Utilities', label: 'Utilities' },
+                  { value: 'Waste Management', label: 'Waste Management' },
+                  { value: 'Textiles', label: 'Textiles' },
+                  { value: 'Paper & Pulp', label: 'Paper & Pulp' },
+                  { value: 'Other', label: 'Other' }
+                ]}
+                disabled={isSubmitting}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Select primary industry for future auto-assignment
+              </p>
+            </FormField>
+
+            {editFormData.industry && (
+              <FormField name="specializations">
+                <FormLabel>Specializations (Optional)</FormLabel>
+                <div className="space-y-2">
+                  {editFormData.industry === 'Manufacturing' && (
+                    <div className="grid grid-cols-2 gap-2">
+                      {['CNC', 'Welding', 'Electronics', 'Mechanical', 'Quality Control'].map((spec) => (
+                        <Checkbox
+                          key={spec}
+                          label={spec}
+                          checked={editFormData.specializations?.includes(spec) || false}
+                          onChange={(e) => {
+                            const current = editFormData.specializations || [];
+                            if (e.target.checked) {
+                              setEditFormData({ ...editFormData, specializations: [...current, spec] });
+                            } else {
+                              setEditFormData({ ...editFormData, specializations: current.filter(s => s !== spec) });
+                            }
+                          }}
+                          disabled={isSubmitting}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {editFormData.industry === 'Construction' && (
+                    <div className="grid grid-cols-2 gap-2">
+                      {['Electrical', 'Plumbing', 'HVAC', 'Structural', 'Safety'].map((spec) => (
+                        <Checkbox
+                          key={spec}
+                          label={spec}
+                          checked={editFormData.specializations?.includes(spec) || false}
+                          onChange={(e) => {
+                            const current = editFormData.specializations || [];
+                            if (e.target.checked) {
+                              setEditFormData({ ...editFormData, specializations: [...current, spec] });
+                            } else {
+                              setEditFormData({ ...editFormData, specializations: current.filter(s => s !== spec) });
+                            }
+                          }}
+                          disabled={isSubmitting}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {editFormData.industry && editFormData.industry !== 'Manufacturing' && editFormData.industry !== 'Construction' && (
+                    <p className="text-sm text-gray-500">
+                      Specialization options for {editFormData.industry} will be available in future updates.
+                    </p>
+                  )}
+                </div>
+              </FormField>
+            )}
 
             <FormField name="email">
               <FormLabel required>Email Address</FormLabel>

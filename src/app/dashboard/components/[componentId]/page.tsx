@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
-import type { Component, Asset, MaintenanceLog } from '@/types/api';
+import type { Component, Asset, MaintenanceLog, CreateMaintenanceLogRequest } from '@/types/api';
 
 interface ComponentDetails {
   component: Component | null;
@@ -69,29 +69,67 @@ export default function ComponentDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
 
+  // Maintenance form state
+  const [desc, setDesc] = useState('');
+  const [hours, setHours] = useState<string>('');
+  const [notes, setNotes] = useState('');
+  const [when, setWhen] = useState<string>(() => {
+    const d = new Date();
+    d.setSeconds(0, 0);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  });
+  const [submitting, setSubmitting] = useState(false);
+
+  const submitMaintenance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!componentId) return;
+    if (!desc.trim()) {
+      toast.error('Description is required');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const payload: CreateMaintenanceLogRequest = {
+        description: desc.trim(),
+        maintenance_date: new Date(when).toISOString(),
+        notes: notes?.trim() ? notes.trim() : undefined,
+        hours_spent: hours ? parseFloat(hours) : undefined
+      };
+      await componentAPI.createMaintenanceLog(componentId as string, payload);
+      toast.success('Maintenance logged');
+      // reset
+      setDesc('');
+      setHours('');
+      setNotes('');
+      setWhen(() => {
+        const d = new Date();
+        d.setSeconds(0, 0);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      });
+      // reload details
+      await loadComponentDetails();
+    } catch {
+      toast.error('Failed to log maintenance');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // Load component details
   const loadComponentDetails = useCallback(async () => {
     if (!componentId) return;
-    
     try {
       setLoading(true);
-      
-      // Load component
       const component = await componentAPI.getComponent(componentId as string);
-      
-      // Load asset if component has asset_id
       let asset = null;
       if (component.asset_id) {
         try {
           asset = await assetAPI.getAsset(component.asset_id);
-        } catch (error) {
-          console.warn('Could not load asset:', error);
-        }
+        } catch {}
       }
-      
-      // Load maintenance logs
       const maintenanceLogs = await componentAPI.getMaintenanceLogs(componentId as string);
-      
       // Extract unique users from maintenance logs
       const userMap = new Map();
       maintenanceLogs.forEach((log: MaintenanceLog) => {
@@ -99,74 +137,23 @@ export default function ComponentDetailsPage() {
           if (!userMap.has(log.performed_by)) {
             userMap.set(log.performed_by, {
               id: log.performed_by,
-              name: log.performed_by, // In real app, you'd fetch user details
-              role: 'Technician', // Default role
-              lastWorkDate: log.performed_date,
+              name: log.performed_by,
+              role: 'technician',
+              lastWorkDate: log.maintenance_date,
               workCount: 1
             });
           } else {
             const existing = userMap.get(log.performed_by);
-            existing.workCount++;
-            if (new Date(log.performed_date) > new Date(existing.lastWorkDate)) {
-              existing.lastWorkDate = log.performed_date;
+            existing.workCount += 1;
+            if (new Date(log.maintenance_date) > new Date(existing.lastWorkDate)) {
+              existing.lastWorkDate = log.maintenance_date;
             }
           }
         }
       });
-      
-      // Simulate downtime events (in real app, this would come from a downtime API)
-      const downtimeEvents = [
-        {
-          id: '1',
-          startDate: '2024-01-15T08:00:00Z',
-          endDate: '2024-01-15T16:00:00Z',
-          duration: 8 * 60, // 8 hours in minutes
-          reason: 'Scheduled maintenance - Component replacement',
-          maintenanceRelated: true,
-          cost: 2500
-        },
-        {
-          id: '2',
-          startDate: '2024-01-20T14:00:00Z',
-          endDate: '2024-01-20T18:00:00Z',
-          duration: 4 * 60, // 4 hours in minutes
-          reason: 'Emergency repair - Bearing failure',
-          maintenanceRelated: true,
-          cost: 1800
-        }
-      ];
-      
-      // Simulate images (in real app, this would come from an images API)
-      const images = [
-        {
-          id: '1',
-          url: '/api/images/placeholder1.jpg',
-          caption: 'Component before maintenance',
-          uploadedBy: 'John Doe',
-          uploadedAt: '2024-01-15T10:00:00Z',
-          maintenanceLogId: '1'
-        },
-        {
-          id: '2',
-          url: '/api/images/placeholder2.jpg',
-          caption: 'Component after maintenance',
-          uploadedBy: 'John Doe',
-          uploadedAt: '2024-01-15T16:00:00Z',
-          maintenanceLogId: '1'
-        }
-      ];
-      
-      setDetails({
-        component,
-        asset,
-        maintenanceLogs,
-        users: Array.from(userMap.values()),
-        downtimeEvents,
-        images
-      });
-      
-    } catch (error) {
-      console.error('Error loading component details:', error);
+
+      setDetails({ component, asset, maintenanceLogs, users: Array.from(userMap.values()), downtimeEvents: [], images: [] });
+    } catch {
       toast.error('Failed to load component details');
     } finally {
       setLoading(false);
@@ -335,12 +322,37 @@ export default function ComponentDetailsPage() {
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="images">Images</TabsTrigger>
-          <TabsTrigger value="downtime">Downtime</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-5 bg-gray-100 p-1 rounded-lg">
+          <TabsTrigger 
+            value="overview" 
+            className="data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200"
+          >
+            Overview
+          </TabsTrigger>
+          <TabsTrigger 
+            value="maintenance" 
+            className="data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200"
+          >
+            Maintenance
+          </TabsTrigger>
+          <TabsTrigger 
+            value="users" 
+            className="data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200"
+          >
+            Users
+          </TabsTrigger>
+          <TabsTrigger 
+            value="images" 
+            className="data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200"
+          >
+            Images
+          </TabsTrigger>
+          <TabsTrigger 
+            value="downtime" 
+            className="data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200"
+          >
+            Downtime
+          </TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -443,10 +455,80 @@ export default function ComponentDetailsPage() {
 
         {/* Maintenance Tab */}
         <TabsContent value="maintenance" className="space-y-6">
+          {/* Create Maintenance Log Form */}
+          <Card className="border-teal-200">
+            <CardHeader className="bg-gradient-to-r from-teal-50 to-white border-b">
+              <CardTitle className="flex items-center gap-2 text-teal-800">
+                <Wrench className="w-5 h-5 text-teal-600" />
+                Log New Maintenance
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={submitMaintenance} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <input
+                      type="text"
+                      value={desc}
+                      onChange={(e) => setDesc(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      placeholder="Describe the maintenance performed"
+                      disabled={submitting}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Date & Time</label>
+                    <input
+                      type="datetime-local"
+                      value={when}
+                      onChange={(e) => setWhen(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      disabled={submitting}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Hours Spent</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      value={hours}
+                      onChange={(e) => setHours(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      placeholder="0.0"
+                      disabled={submitting}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">System will calculate cost from technician hourly rate</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
+                    <textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      rows={3}
+                      placeholder="Additional notes about the maintenance"
+                      disabled={submitting}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <Button type="submit" className="bg-teal-600 hover:bg-teal-700" disabled={submitting}>
+                    {submitting ? 'Logging...' : 'Log Maintenance'}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Maintenance History */}
           <Card>
-            <CardHeader>
+            <CardHeader className="bg-gradient-to-r from-gray-50 to-white border-b">
               <CardTitle className="flex items-center gap-2">
-                <Wrench className="w-5 h-5" />
+                <Wrench className="w-5 h-5 text-teal-600" />
                 Maintenance History
               </CardTitle>
             </CardHeader>
@@ -457,25 +539,34 @@ export default function ComponentDetailsPage() {
                   <p className="text-gray-600">No maintenance logs found</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {details.maintenanceLogs.map((log) => (
-                    <div key={log.id} className="border rounded-lg p-4">
+                    <div key={log.id} className="border rounded-lg p-4 bg-white/60 hover:bg-teal-50/40 transition-colors border-teal-100">
                       <div className="flex items-start justify-between">
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
-                            <h4 className="font-medium">{log.maintenance_type}</h4>
-                            <Badge variant="outline" size="sm">
-                              {log.performed_by}
-                            </Badge>
+                            <Badge variant="outline" size="sm" className="bg-teal-100 text-teal-800 border-teal-200">Maintenance</Badge>
+                            <Badge variant="outline" size="sm" className="bg-gray-100 text-gray-800 border-gray-200">{log.performed_by}</Badge>
                           </div>
-                          <p className="text-sm text-gray-600">{log.description}</p>
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                          <p className="text-sm text-gray-700">{log.description}</p>
+                          <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600">
                             <span className="flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
-                              {formatDate(log.performed_date)}
+                              {formatDate(log.maintenance_date)}
                             </span>
-                            {log.cost && (
-                              <span>Cost: ${log.cost}</span>
+                            {log.hours_spent && (
+                              <span className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200">
+                                <Clock className="w-3 h-3" />
+                                {log.hours_spent}h
+                              </span>
+                            )}
+                            {typeof log.cost === 'number' && (
+                              <span className="flex items-center gap-1 bg-amber-50 text-amber-800 px-2 py-0.5 rounded-full border border-amber-200">
+                                <span className="font-medium">${log.cost.toFixed(2)}</span>
+                                {log.hours_spent && log.hours_spent > 0 && (
+                                  <span className="text-amber-700/70">({(log.cost / log.hours_spent).toFixed(2)}/hr)</span>
+                                )}
+                              </span>
                             )}
                           </div>
                         </div>
@@ -656,3 +747,4 @@ export default function ComponentDetailsPage() {
     </div>
   );
 }
+

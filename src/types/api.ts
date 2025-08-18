@@ -10,10 +10,14 @@ export interface User {
   notification_preferences: {
     email: boolean;
     whatsapp: boolean;
+    phone_number?: string;
   };
   created_at: string;
   updated_at: string;
-  is_first_login?: boolean;
+  // Technician fields
+  hourly_rate?: number;
+  industry?: string;
+  specializations?: string[];
 }
 
 export interface CreateUserRequest {
@@ -21,15 +25,21 @@ export interface CreateUserRequest {
   password: string;
   first_name: string;
   last_name: string;
-  role?: string; // Optional, defaults to "user"
-  notification_preferences: {
-    email: boolean;
-    whatsapp: boolean;
+  role?: 'user' | 'admin';  // Allow both user and admin roles
+  notification_preferences?: {
+    email?: boolean;
+    whatsapp?: boolean;
+    phone_number?: string;
   };
+  // Technician fields (optional)
+  hourly_rate?: number;
+  industry?: string;
+  specializations?: string[];
 }
 
 export interface CreateAdminRequest extends CreateUserRequest {
   client_id: string;
+  role?: 'admin';  // Override to prefer admin role
 }
 
 export interface UpdateUserRoleRequest {
@@ -244,21 +254,21 @@ export interface CreateComponentRequest {
 export interface MaintenanceLog {
   id: string;
   component_id: string;
-  maintenance_type: string;
   description: string;
   performed_by: string;
-  performed_date: string;
+  maintenance_date: string;
   cost?: number;
   notes?: string;
   created_at: string;
+  hours_spent?: number;
 }
 
 export interface CreateMaintenanceLogRequest {
-  maintenance_type: string;
   description: string;
-  performed_date: string;
+  maintenance_date: string;
   cost?: number;
   notes?: string;
+  hours_spent?: number;
 }
 
 // Notification types
