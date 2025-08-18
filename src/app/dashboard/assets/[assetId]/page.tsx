@@ -41,7 +41,16 @@ export default function AssetViewPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Form state for component creation/editing
-  const [componentFormData, setComponentFormData] = useState<Partial<CreateComponentRequest>>({
+  const [componentFormData, setComponentFormData] = useState<{
+    name: string;
+    description: string;
+    component_type: string;
+    status: ComponentStatus;
+    specifications: Record<string, unknown>;
+    last_maintenance_date: string;
+    next_maintenance_date: string;
+    maintenance_interval_days: number;
+  }>({
     name: '',
     description: '',
     component_type: '',
@@ -148,10 +157,14 @@ export default function AssetViewPage() {
         ...componentFormData,
         asset_id: assetId as string,
         // Convert date strings to ISO datetime format or undefined if empty
-        last_maintenance_date: componentFormData.last_maintenance_date && componentFormData.last_maintenance_date.trim() !== ''
+        last_maintenance_date: componentFormData.last_maintenance_date && 
+          typeof componentFormData.last_maintenance_date === 'string' && 
+          componentFormData.last_maintenance_date.trim() !== ''
           ? new Date(componentFormData.last_maintenance_date).toISOString()
           : undefined,
-        next_maintenance_date: componentFormData.next_maintenance_date && componentFormData.next_maintenance_date.trim() !== ''
+        next_maintenance_date: componentFormData.next_maintenance_date && 
+          typeof componentFormData.next_maintenance_date === 'string' && 
+          componentFormData.next_maintenance_date.trim() !== ''
           ? new Date(componentFormData.next_maintenance_date).toISOString()
           : undefined
       };
@@ -201,13 +214,13 @@ export default function AssetViewPage() {
 
     setComponentFormData({
       name: component.name,
-      description: component.description,
+      description: component.description || '',
       component_type: component.component_type,
       status: component.status,
       specifications: component.specifications || {},
       last_maintenance_date: formatDateForInput(component.last_maintenance_date),
       next_maintenance_date: formatDateForInput(component.next_maintenance_date),
-      maintenance_interval_days: component.maintenance_interval_days
+      maintenance_interval_days: component.maintenance_interval_days || 30
     });
     setShowComponentModal(true);
   };

@@ -194,7 +194,7 @@ export default function NotificationsPage() {
     return { escalated: false };
   };
 
-  const getEscalationBadge = (escalationStatus: any) => {
+  const getEscalationBadge = (escalationStatus: { escalated: boolean; from_urgency?: string; to_urgency?: string; reason?: string } | null) => {
     if (!escalationStatus || !escalationStatus.escalated) return null;
     
     return (

@@ -10,8 +10,9 @@ import {
   type Asset,
   type Client, 
   type CreateComponentRequest, 
-  type ComponentFilters 
+  type ComponentFilters
 } from '@/services/api';
+import { ComponentStatus } from '@/types/api';
 import { DataTable, type Column, type DataTableAction } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,7 +58,17 @@ export default function ComponentsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('');
 
   // Form state
-  const [formData, setFormData] = useState<Partial<CreateComponentRequest>>({
+  const [formData, setFormData] = useState<{
+    name: string;
+    description: string;
+    component_type: string;
+    status: ComponentStatus;
+    asset_id: string;
+    specifications: Record<string, unknown>;
+    last_maintenance_date: string;
+    next_maintenance_date: string;
+    maintenance_interval_days: number;
+  }>({
     name: '',
     description: '',
     component_type: '',
@@ -332,14 +343,14 @@ export default function ComponentsPage() {
         setSelectedComponent(component);
         setFormData({
           name: component.name,
-          description: component.description,
+          description: component.description || '',
           component_type: component.component_type,
           status: component.status,
           asset_id: component.asset_id,
-          specifications: component.specifications,
+          specifications: component.specifications || {},
           last_maintenance_date: formattedDates.last_maintenance_date,
           next_maintenance_date: formattedDates.next_maintenance_date,
-          maintenance_interval_days: component.maintenance_interval_days
+          maintenance_interval_days: component.maintenance_interval_days || 30
         });
         setShowCreateModal(true);
       },
@@ -367,10 +378,14 @@ export default function ComponentsPage() {
       const processedData = {
         ...formData,
         // Convert date strings to ISO datetime format or undefined if empty
-        last_maintenance_date: formData.last_maintenance_date && formData.last_maintenance_date.trim() !== ''
+        last_maintenance_date: formData.last_maintenance_date && 
+          typeof formData.last_maintenance_date === 'string' && 
+          formData.last_maintenance_date.trim() !== ''
           ? new Date(formData.last_maintenance_date).toISOString()
           : undefined,
-        next_maintenance_date: formData.next_maintenance_date && formData.next_maintenance_date.trim() !== ''
+        next_maintenance_date: formData.next_maintenance_date && 
+          typeof formData.next_maintenance_date === 'string' && 
+          formData.next_maintenance_date.trim() !== ''
           ? new Date(formData.next_maintenance_date).toISOString()
           : undefined
       };
@@ -584,7 +599,7 @@ export default function ComponentsPage() {
                 <Select
                   id="status"
                   value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as 'operational' | 'warning' | 'critical' | 'maintenance' | 'inactive' })}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as ComponentStatus })}
                   options={[
                     { value: 'operational', label: 'Operational' },
                     { value: 'warning', label: 'Warning' },

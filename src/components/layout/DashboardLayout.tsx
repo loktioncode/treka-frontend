@@ -18,7 +18,8 @@ import {
   BarChart3,
   Wrench,
   Home,
-  ChevronDown
+  ChevronDown,
+  FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SkeletonProfile } from '@/components/ui/skeleton';
@@ -87,6 +88,12 @@ const navigation: NavigationItem[] = [
     href: '/dashboard/settings',
     icon: Settings,
     roles: ['admin']
+  },
+  {
+    name: 'Audit',
+    href: '/dashboard/audit',
+    icon: FileText,
+    roles: ['super_admin']
   }
 ];
 
