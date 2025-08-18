@@ -27,6 +27,8 @@ import { SmartLink } from '@/components/SmartLink';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { useRoutePrefetch } from '@/hooks/useRoutePrefetch';
 import { Tooltip } from '@/components/ui/tooltip';
+import { notificationAPI } from '@/services/api';
+import { Notification } from '@/types/api';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -72,12 +74,6 @@ const navigation: NavigationItem[] = [
     roles: ['admin', 'user']
   },
   {
-    name: 'Notifications',
-    href: '/dashboard/notifications',
-    icon: Bell,
-    roles: ['admin', 'user']
-  },
-  {
     name: 'Analytics',
     href: '/dashboard/analytics',
     icon: BarChart3,
@@ -113,6 +109,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return true;
   });
   
+  // Notification state
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [hasCriticalAlerts, setHasCriticalAlerts] = useState(false);
+  
   // Enable automatic route prefetching
   useRoutePrefetch();
 
@@ -138,6 +138,32 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       router.push('/login');
     }
   }, [user, isLoading, router]);
+
+  // Fetch notification count and check for critical alerts
+  useEffect(() => {
+    if (user) {
+      const fetchNotificationCount = async () => {
+        try {
+          const notifications = await notificationAPI.getNotifications();
+          const unreadCount = notifications.filter((n: Notification) => !n.read_status).length;
+          const criticalAlerts = notifications.some((n: Notification) => 
+            !n.read_status && (n.urgency === 'critical' || n.urgency === 'OVERDUE')
+          );
+          
+          setNotificationCount(unreadCount);
+          setHasCriticalAlerts(criticalAlerts);
+        } catch (error) {
+          console.error('Failed to fetch notification count:', error);
+        }
+      };
+      
+      fetchNotificationCount();
+      
+      // Refresh every 30 seconds
+      const interval = setInterval(fetchNotificationCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   const handleLogout = () => {
     logout();
@@ -236,23 +262,28 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             {/* Right side */}
             <div className="flex items-center gap-x-4 lg:gap-x-6 ml-auto">
-              {/* Notifications - hidden for super admins */}
-              {user?.role !== 'super_admin' && (
-                <>
-                  <Tooltip content="Notifications" position="bottom">
-                    <button
-                      type="button"
-                      onClick={() => router.push('/dashboard/notifications')}
-                      className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500 cursor-pointer"
-                    >
-                      <Bell className="h-6 w-6" />
-                    </button>
-                  </Tooltip>
+              {/* Notifications */}
+              <Tooltip content="Notifications" position="bottom">
+                <button
+                  type="button"
+                  onClick={() => router.push('/dashboard/notifications')}
+                  className="relative -m-2.5 p-2.5 text-gray-400 hover:text-gray-500 cursor-pointer"
+                >
+                  <Bell className="h-6 w-6" />
+                  {/* Notification count badge */}
+                  {notificationCount > 0 && (
+                    <span className={cn(
+                      "absolute -top-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center text-xs font-medium text-white",
+                      hasCriticalAlerts ? "bg-red-500" : "bg-teal-700"
+                    )}>
+                      {notificationCount > 99 ? '99+' : notificationCount}
+                    </span>
+                  )}
+                </button>
+              </Tooltip>
 
-                  {/* Separator */}
-                  <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" />
-                </>
-              )}
+              {/* Separator */}
+              <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" />
 
               {/* Profile dropdown */}
               <div className="relative">

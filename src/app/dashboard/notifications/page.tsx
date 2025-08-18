@@ -26,6 +26,8 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [markingAllRead, setMarkingAllRead] = useState(false);
+  // Date range filter: 'today' | '7' | '14' | '30'
+  const [dateRange, setDateRange] = useState<'today' | '7' | '14' | '30'>('14');
 
   // Redirect unauthorized users (run only once user is known)
   useEffect(() => {
@@ -194,9 +196,8 @@ export default function NotificationsPage() {
     return { escalated: false };
   };
 
-  const getEscalationBadge = (escalationStatus: { escalated: boolean; from_urgency?: string; to_urgency?: string; reason?: string } | null) => {
+  const getEscalationBadge = (escalationStatus: { escalated: boolean; from?: string; to?: string; reason?: string } | null) => {
     if (!escalationStatus || !escalationStatus.escalated) return null;
-    
     return (
       <Badge variant="destructive" size="sm" className="ml-2">
         ESCALATED
@@ -204,8 +205,30 @@ export default function NotificationsPage() {
     );
   };
 
-  const pendingCount = notifications.filter(n => !n.read_status).length;
-  const groupedNotifications = groupNotifications(notifications);
+  // Date range filtering helpers
+  const getCutoffDate = (range: 'today' | '7' | '14' | '30') => {
+    const now = new Date();
+    if (range === 'today') {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      return start;
+    }
+    const days = parseInt(range, 10);
+    const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+    return cutoff;
+  };
+
+  const filteredByDate = (items: Notification[], range: 'today' | '7' | '14' | '30') => {
+    const cutoff = getCutoffDate(range);
+    return items.filter(n => new Date(n.created_at) >= cutoff);
+  };
+
+  // Apply date filter first
+  const filteredNotifications = filteredByDate(notifications, dateRange)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  const pendingCount = filteredNotifications.filter(n => !n.read_status).length;
+  const groupedNotifications = groupNotifications(filteredNotifications);
 
   if (loading) {
     return (
@@ -244,6 +267,7 @@ export default function NotificationsPage() {
               Stay updated with important alerts and reminders
             </p>
           </div>
+
           {pendingCount > 0 && (
             <Button
               onClick={handleMarkAllAsRead}
@@ -263,23 +287,27 @@ export default function NotificationsPage() {
               )}
             </Button>
           )}
-          <Button
-            onClick={async () => {
-              try {
-                await notificationAPI.createTestNotification();
-                toast.success('Test notification created!');
-                loadNotifications(); // Reload notifications
-              } catch (error) {
-                console.error('Error creating test notification:', error);
-                toast.error('Failed to create test notification');
-              }
-            }}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <Bell className="h-4 w-4" />
-            Create Test
-          </Button>
+        </div>
+
+        {/* Date Range Filters */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-600">Showing:</span>
+          {([
+            { key: 'today', label: 'Today' },
+            { key: '7', label: 'Last 7 days' },
+            { key: '14', label: 'Last 14 days' },
+            { key: '30', label: 'Last 30 days' }
+          ] as const).map(opt => (
+            <Button
+              key={opt.key}
+              type="button"
+              variant={dateRange === opt.key ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setDateRange(opt.key)}
+            >
+              {opt.label}
+            </Button>
+          ))}
         </div>
       </motion.div>
 
@@ -293,19 +321,11 @@ export default function NotificationsPage() {
           >
             <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              No notifications yet
+              No notifications in the selected range
             </h3>
             <p className="text-gray-600">
-              You&apos;re all caught up! We&apos;ll notify you when there are new updates.
+              Try a wider date range.
             </p>
-            <div className="mt-4 text-sm text-gray-500">
-              <p>Notifications will appear here for:</p>
-              <ul className="mt-2 space-y-1">
-                <li>• Maintenance due dates</li>
-                <li>• Component alerts</li>
-                <li>• System updates</li>
-              </ul>
-            </div>
           </motion.div>
         ) : (
           groupedNotifications.map((group, groupIndex) => (
