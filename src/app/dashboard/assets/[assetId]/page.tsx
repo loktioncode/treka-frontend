@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
 import { assetAPI, componentAPI, type Asset, type Component, type CreateComponentRequest } from '@/services/api';
-import { PrimaryMaterialLabels, ConditionLabels, type ComponentStatus } from '@/types/api';
+import { type ComponentStatus } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
@@ -24,11 +24,21 @@ import {
   MapPin,
   Package,
   Car,
-  Building2
+  Building2,
+  Gauge,
+  Fuel,
+  Compass,
+  Activity,
+  Zap,
+  Thermometer,
+  BarChart3
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 export default function AssetViewPage() {
   const { assetId } = useParams();
@@ -39,7 +49,66 @@ export default function AssetViewPage() {
   const [showComponentModal, setShowComponentModal] = useState(false);
   const [selectedComponent, setSelectedComponent] = useState<Component | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
   
+  // Simulated sensor data for vehicles (will come from ESP32)
+  const [vehicleSensorData] = useState({
+    fuelLevel: 78, // percentage
+    mileage: 15420, // km
+    averageSpeed: 45, // km/h
+    idlingTime: 2.5, // hours today
+    engineTemp: 92, // celsius
+    engineVibrations: 0.15, // g-force
+    currentSpeed: 0, // km/h (stationary)
+    direction: 'N', // compass direction
+    lastUpdate: new Date().toISOString()
+  });
+
+  // Simulated sensor data for machinery (will come from various sensors)
+  const [machinerySensorData] = useState({
+    motorTemp: 68, // celsius
+    motorVibrations: 0.08, // g-force
+    beltTension: 85, // percentage of optimal
+    bearingHealth: 92, // percentage
+    actuatorPosition: 45, // degrees
+    pressure: 2.4, // bar
+    flowRate: 12.5, // L/min
+    powerConsumption: 3.2, // kW
+    lastUpdate: new Date().toISOString()
+  });
+
+  // Cost calculator state (vehicle)
+  const [costStart, setCostStart] = useState<string>('');
+  const [costEnd, setCostEnd] = useState<string>('');
+  const [distanceKm, setDistanceKm] = useState<string>('');
+  const [idlingHours, setIdlingHours] = useState<string>('');
+  const [fuelPrice, setFuelPrice] = useState<string>('1.85'); // price per liter
+  const [lPer100Km, setLPer100Km] = useState<string>('10'); // driving consumption
+  const [driverRate, setDriverRate] = useState<string>(''); // optional
+  const [driverHours, setDriverHours] = useState<string>(''); // optional
+  const [otherCosts, setOtherCosts] = useState<string>(''); // optional
+
+  const calcNumber = (v: string): number => {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const computedCosts = (() => {
+    const distance = calcNumber(distanceKm);
+    const price = calcNumber(fuelPrice);
+    const driveCons = calcNumber(lPer100Km);
+    const dRate = calcNumber(driverRate);
+    const dHours = calcNumber(driverHours);
+    const extra = calcNumber(otherCosts);
+
+    const litersDriving = (distance * driveCons) / 100; // L
+    const fuelCost = litersDriving * price;
+    const driverCost = dRate > 0 && dHours > 0 ? dRate * dHours : 0;
+    const total = fuelCost + driverCost + extra;
+
+    return { litersDriving, fuelCost, driverCost, extra, total };
+  })();
+
   // Form state for component creation/editing
   const [componentFormData, setComponentFormData] = useState<{
     name: string;
@@ -257,14 +326,6 @@ export default function AssetViewPage() {
     }
   };
 
-  const getMaterialLabel = (material: string) => {
-    return PrimaryMaterialLabels[material as keyof typeof PrimaryMaterialLabels] || material;
-  };
-
-  const getConditionLabel = (condition: string) => {
-    return ConditionLabels[condition as keyof typeof ConditionLabels] || condition;
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -364,202 +425,711 @@ export default function AssetViewPage() {
         </div>
       </motion.div>
 
-      {/* Asset Details */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-lg border p-6"
-      >
-        <h2 className="text-xl font-semibold mb-4">Asset Details</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <p className="text-sm text-gray-600">Purchase Date</p>
-            <p className="font-medium">{asset.purchase_date ? formatDate(asset.purchase_date) : 'Not specified'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Purchase Cost</p>
-            <p className="font-medium">${asset.purchase_cost?.toLocaleString() || 'Not specified'}</p>
-          </div>
-          {asset.vehicle_details && (
-            <div className="md:col-span-2">
-              <h3 className="font-semibold mb-2">Vehicle Details</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-600">Make</p>
-                  <p className="font-medium">{asset.vehicle_details.make}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Model</p>
-                  <p className="font-medium">{asset.vehicle_details.model}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Year</p>
-                  <p className="font-medium">{asset.vehicle_details.year}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">VIN</p>
-                  <p className="font-medium">{asset.vehicle_details.vin}</p>
-                </div>
-              </div>
-            </div>
-          )}
-          {asset.machinery_details && (
-            <div className="md:col-span-2">
-              <h3 className="font-semibold mb-2">Machinery Details</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-600">Make</p>
-                  <p className="font-medium">{asset.machinery_details.make}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Model</p>
-                  <p className="font-medium">{asset.machinery_details.model}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Year</p>
-                  <p className="font-medium">{asset.machinery_details.year}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Serial Number</p>
-                  <p className="font-medium">{asset.machinery_details.serial_number}</p>
-                </div>
-              </div>
-            </div>
-          )}
-          {asset.infrastructure_details && (
-            <div className="md:col-span-2">
-              <h3 className="font-semibold mb-2">Infrastructure Details</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-600">Type</p>
-                  <p className="font-medium">{asset.infrastructure_details.type}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Age</p>
-                  <p className="font-medium">{asset.infrastructure_details.age} years</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Material</p>
-                  <p className="font-medium">
-                    {asset.infrastructure_details.material 
-                      ? getMaterialLabel(asset.infrastructure_details.material)
-                      : 'Not specified'
-                    }
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Condition</p>
-                  <p className="font-medium capitalize">
-                    {asset.infrastructure_details.condition 
-                      ? getConditionLabel(asset.infrastructure_details.condition)
-                      : 'Not specified'
-                    }
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </motion.div>
-
-      {/* Components Section */}
+      {/* Asset Tabs */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="space-y-6"
       >
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold">Components</h2>
-          <Button onClick={() => setShowComponentModal(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Add Component
-          </Button>
-        </div>
-
-        {/* Components Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {components.map((component) => (
-            <motion.div
-              key={component.id}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-white rounded-lg border p-6 hover:shadow-lg transition-shadow"
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="flex w-full bg-gray-100 p-1 rounded-lg">
+            <TabsTrigger 
+              value="overview" 
+              className="flex-1 data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Settings className="w-5 h-5 text-blue-600" />
-                  <h3 className="font-semibold">{component.name}</h3>
+              Overview
+            </TabsTrigger>
+            <TabsTrigger 
+              value="sensors" 
+              className="flex-1 data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200"
+            >
+              Sensor Data
+            </TabsTrigger>
+            {asset.asset_type === 'vehicle' && (
+              <TabsTrigger 
+                value="costs" 
+                className="flex-1 data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200"
+              >
+                Cost Calculator
+              </TabsTrigger>
+            )}
+            <TabsTrigger 
+              value="components" 
+              className="flex-1 data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200"
+            >
+              Components
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Overview Tab Content */}
+          <TabsContent value="overview" className="space-y-6">
+            {/* Asset Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="bg-gradient-to-r from-blue-50 to-white border-blue-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <Package className="w-8 h-8 text-blue-600" />
+                    <div>
+                      <p className="text-sm text-blue-600 font-medium">Components</p>
+                      <p className="text-2xl font-bold text-blue-800">{components.length}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-gradient-to-r from-green-50 to-white border-green-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle className="w-8 h-8 text-green-600" />
+                    <div>
+                      <p className="text-sm text-green-600 font-medium">Operational</p>
+                      <p className="text-2xl font-bold text-green-800">
+                        {components.filter(c => c.status === 'operational').length}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-gradient-to-r from-amber-50 to-white border-amber-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="w-8 h-8 text-amber-600" />
+                    <div>
+                      <p className="text-sm text-amber-600 font-medium">Maintenance Due</p>
+                      <p className="text-2xl font-bold text-amber-800">
+                        {components.filter(c => c.status === 'maintenance').length}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-gradient-to-r from-red-50 to-white border-red-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <XCircle className="w-8 h-8 text-red-600" />
+                    <div>
+                      <p className="text-sm text-red-600 font-medium">Critical</p>
+                      <p className="text-2xl font-bold text-red-800">
+                        {components.filter(c => c.status === 'critical').length}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Asset Information */}
+            <div className="bg-white rounded-lg border p-6">
+              <h3 className="text-lg font-semibold mb-4">Asset Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Purchase Date, Purchase Cost */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Purchase Date</label>
+                  <p className="text-gray-900">{asset.purchase_date ? new Date(asset.purchase_date).toLocaleDateString() : 'Not specified'}</p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleEditComponent(component)}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Purchase Cost</label>
+                  <p className="text-gray-900">{asset.purchase_cost ? `$${asset.purchase_cost.toLocaleString()}` : 'Not specified'}</p>
+                </div>
+              </div>
+              
+              {/* Only show relevant asset type details */}
+              {asset.asset_type === 'vehicle' && asset.vehicle_details && (
+                <div className="md:col-span-2 mt-6">
+                  <h4 className="font-semibold mb-2">Vehicle Details</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Make</label>
+                      <p className="text-gray-900">{asset.vehicle_details.make || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Model</label>
+                      <p className="text-gray-900">{asset.vehicle_details.model || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
+                      <p className="text-gray-900">{asset.vehicle_details.year || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">License Plate</label>
+                      <p className="text-gray-900">{asset.vehicle_details.license_plate || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">VIN</label>
+                      <p className="text-gray-900">{asset.vehicle_details.vin || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Fuel Type</label>
+                      <p className="text-gray-900">{asset.vehicle_details.fuel_type || 'Not specified'}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {asset.asset_type === 'machinery' && asset.machinery_details && (
+                <div className="md:col-span-2 mt-6">
+                  <h4 className="font-semibold mb-2">Machinery Details</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Make</label>
+                      <p className="text-gray-900">{asset.machinery_details.make || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Model</label>
+                      <p className="text-gray-900">{asset.machinery_details.model || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
+                      <p className="text-gray-900">{asset.machinery_details.year || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Serial Number</label>
+                      <p className="text-gray-900">{asset.machinery_details.serial_number || 'Not specified'}</p>
+                    </div>
+                    {asset.machinery_details.operating_hours && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Operating Hours</label>
+                        <p className="text-gray-900">{asset.machinery_details.operating_hours}</p>
+                      </div>
+                    )}
+                    {asset.machinery_details.capacity && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Capacity</label>
+                        <p className="text-gray-900">{asset.machinery_details.capacity}</p>
+                      </div>
+                    )}
+                    {asset.machinery_details.power_rating && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Power Rating</label>
+                        <p className="text-gray-900">{asset.machinery_details.power_rating}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {asset.asset_type === 'infrastructure' && asset.infrastructure_details && (
+                <div className="md:col-span-2 mt-6">
+                  <h4 className="font-semibold mb-2">Infrastructure Details</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
+                      <p className="text-gray-900">{asset.infrastructure_details.type || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Age</label>
+                      <p className="text-gray-900">{asset.infrastructure_details.age ? `${asset.infrastructure_details.age} years` : 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Material</label>
+                      <p className="text-gray-900">{asset.infrastructure_details.material || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Condition</label>
+                      <p className="text-gray-900">{asset.infrastructure_details.condition || 'Not specified'}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Maintenance Summary */}
+            <div className="bg-white rounded-lg border p-6 mt-6">
+              <h3 className="text-lg font-semibold mb-4">Maintenance Summary</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-medium text-gray-700 mb-3">Upcoming Maintenance</h4>
+                  <div className="space-y-2">
+                    {components
+                      .filter(c => c.next_maintenance_date)
+                      .sort((a, b) => new Date(a.next_maintenance_date!).getTime() - new Date(b.next_maintenance_date!).getTime())
+                      .slice(0, 3)
+                      .map(component => (
+                        <div key={component.id} className="flex items-center justify-between p-2 bg-amber-50 rounded border border-amber-200">
+                          <div>
+                            <p className="font-medium text-sm">{component.name}</p>
+                            <p className="text-xs text-amber-600">
+                              Due: {new Date(component.next_maintenance_date!).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                            {component.status}
+                          </Badge>
+                        </div>
+                      ))}
+                    {components.filter(c => c.next_maintenance_date).length === 0 && (
+                      <p className="text-sm text-gray-500">No upcoming maintenance scheduled</p>
+                    )}
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium text-gray-700 mb-3">Recent Activity</h4>
+                  <div className="space-y-2">
+                    {components
+                      .filter(c => c.last_maintenance_date)
+                      .sort((a, b) => new Date(b.last_maintenance_date!).getTime() - new Date(a.last_maintenance_date!).getTime())
+                      .slice(0, 3)
+                      .map(component => (
+                        <div key={component.id} className="flex items-center justify-between p-2 bg-green-50 rounded border border-green-200">
+                          <div>
+                            <p className="font-medium text-sm">{component.name}</p>
+                            <p className="text-xs text-green-600">
+                              Last: {new Date(component.last_maintenance_date!).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <Badge variant="secondary" className="bg-green-100 text-green-800">
+                            {component.status}
+                          </Badge>
+                        </div>
+                      ))}
+                    {components.filter(c => c.last_maintenance_date).length === 0 && (
+                      <p className="text-sm text-gray-500">No recent maintenance activity</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Sensor Data Tab */}
+          <TabsContent value="sensors" className="space-y-6">
+            {asset.asset_type === 'vehicle' ? (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader className="bg-gradient-to-r from-blue-50 to-white border-b">
+                    <CardTitle className="flex items-center gap-2 text-blue-800">
+                      <Gauge className="w-5 h-5 text-blue-600" />
+                      Vehicle Sensor Data (ESP32)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                      <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <Fuel className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                        <div className="text-2xl font-bold text-blue-800">{vehicleSensorData.fuelLevel}%</div>
+                        <p className="text-sm text-blue-600">Fuel Level</p>
+                      </div>
+                      <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+                        <Gauge className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                        <div className="text-2xl font-bold text-green-800">{vehicleSensorData.mileage.toLocaleString()} km</div>
+                        <p className="text-sm text-green-600">Total Mileage</p>
+                      </div>
+                      <div className="text-center p-4 bg-purple-50 rounded-lg border border-purple-200">
+                        <Activity className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+                        <div className="text-2xl font-bold text-purple-800">{vehicleSensorData.averageSpeed} km/h</div>
+                        <p className="text-sm text-purple-600">Average Speed</p>
+                      </div>
+                      <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
+                        <Clock className="w-8 h-8 text-orange-600 mx-auto mb-2" />
+                        <div className="text-2xl font-bold text-orange-800">{vehicleSensorData.idlingTime}h</div>
+                        <p className="text-sm text-orange-600">Idling Time</p>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <h4 className="font-semibold text-gray-800">Engine Performance</h4>
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <span className="flex items-center gap-2 text-gray-700">
+                              <Thermometer className="w-4 h-4 text-red-500" />
+                              Engine Temperature
+                            </span>
+                            <span className="font-semibold">{vehicleSensorData.engineTemp}°C</span>
+                          </div>
+                          <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <span className="flex items-center gap-2 text-gray-700">
+                              <Activity className="w-4 h-4 text-yellow-500" />
+                              Engine Vibrations
+                            </span>
+                            <span className="font-semibold">{vehicleSensorData.engineVibrations}g</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <h4 className="font-semibold text-gray-800">Current Status</h4>
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <span className="flex items-center gap-2 text-gray-700">
+                              <Gauge className="w-4 h-4 text-blue-500" />
+                              Current Speed
+                            </span>
+                            <span className="font-semibold">{vehicleSensorData.currentSpeed} km/h</span>
+                          </div>
+                          <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <span className="flex items-center gap-2 text-gray-700">
+                              <Compass className="w-4 h-4 text-green-500" />
+                              Direction
+                            </span>
+                            <span className="font-semibold">{vehicleSensorData.direction}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 text-xs text-gray-500 text-center">
+                      Last updated: {formatDate(vehicleSensorData.lastUpdate)}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : asset.asset_type === 'machinery' ? (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader className="bg-gradient-to-r from-green-50 to-white border-b">
+                    <CardTitle className="flex items-center gap-2 text-green-800">
+                      <Zap className="w-5 h-5 text-green-600" />
+                      Machinery Sensor Data
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                      <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+                        <Thermometer className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                        <div className="text-2xl font-bold text-green-800">{machinerySensorData.motorTemp}°C</div>
+                        <p className="text-sm text-green-600">Motor Temperature</p>
+                      </div>
+                      <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <Activity className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                        <div className="text-2xl font-bold text-blue-800">{machinerySensorData.motorVibrations}g</div>
+                        <p className="text-sm text-blue-600">Motor Vibrations</p>
+                      </div>
+                      <div className="text-center p-4 bg-purple-50 rounded-lg border border-purple-200">
+                        <BarChart3 className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+                        <div className="text-2xl font-bold text-purple-800">{machinerySensorData.beltTension}%</div>
+                        <p className="text-sm text-purple-600">Belt Tension</p>
+                      </div>
+                      <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
+                        <CheckCircle className="w-8 h-8 text-orange-600 mx-auto mb-2" />
+                        <div className="text-2xl font-bold text-orange-800">{machinerySensorData.bearingHealth}%</div>
+                        <p className="text-sm text-orange-600">Bearing Health</p>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <h4 className="font-semibold text-gray-800">System Parameters</h4>
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <span className="flex items-center gap-2 text-gray-700">
+                              <Settings className="w-4 h-4 text-blue-500" />
+                              Actuator Position
+                            </span>
+                            <span className="font-semibold">{machinerySensorData.actuatorPosition}°</span>
+                          </div>
+                          <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <span className="flex items-center gap-2 text-gray-700">
+                              <Gauge className="w-4 h-4 text-red-500" />
+                              Pressure
+                            </span>
+                            <span className="font-semibold">{machinerySensorData.pressure} bar</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <h4 className="font-semibold text-gray-800">Performance Metrics</h4>
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <span className="flex items-center gap-2 text-gray-700">
+                              <Activity className="w-4 h-4 text-green-500" />
+                              Flow Rate
+                            </span>
+                            <span className="font-semibold">{machinerySensorData.flowRate} L/min</span>
+                          </div>
+                          <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <span className="flex items-center gap-2 text-gray-700">
+                              <Zap className="w-4 h-4 text-yellow-500" />
+                              Power Consumption
+                            </span>
+                            <span className="font-semibold">{machinerySensorData.powerConsumption} kW</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 text-xs text-gray-500 text-center">
+                      Last updated: {formatDate(machinerySensorData.lastUpdate)}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <div className="text-center py-16">
+                <div className="text-6xl mb-4">📡</div>
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">Sensor Data Not Available</h3>
+                <p className="text-gray-500 max-w-md mx-auto">
+                  Real-time sensor data is currently only available for vehicles and machinery assets. 
+                  Equipment and infrastructure assets will have sensor integration in future updates.
+                </p>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Cost Calculator (Vehicle Only) */}
+          {asset.asset_type === 'vehicle' && (
+            <TabsContent value="costs" className="space-y-6">
+              <Card>
+                <CardHeader className="bg-gradient-to-r from-amber-50 to-white border-b">
+                  <CardTitle className="flex items-center gap-2 text-amber-800">
+                    <DollarSign className="w-5 h-5 text-amber-600" />
+                    Operational Cost Calculator
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Start Date/Time</label>
+                      <input
+                        type="datetime-local"
+                        value={costStart}
+                        onChange={(e) => setCostStart(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">End Date/Time</label>
+                      <input
+                        type="datetime-local"
+                        value={costEnd}
+                        onChange={(e) => setCostEnd(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Distance (km)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        value={distanceKm}
+                        onChange={(e) => setDistanceKm(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        placeholder="e.g. 125.5"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Idling Time (hours)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        value={idlingHours}
+                        onChange={(e) => setIdlingHours(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        placeholder="e.g. 2.0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Fuel Price (per L)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={fuelPrice}
+                        onChange={(e) => setFuelPrice(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        placeholder="e.g. 1.85"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Consumption (L/100km)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        value={lPer100Km}
+                        onChange={(e) => setLPer100Km(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        placeholder="e.g. 10.0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Other Costs (optional)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={otherCosts}
+                        onChange={(e) => setOtherCosts(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        placeholder="e.g. tolls, parking"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Driver Rate (per hour, optional)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={driverRate}
+                        onChange={(e) => setDriverRate(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        placeholder="e.g. 5.00"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Driver Hours (optional)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        value={driverHours}
+                        onChange={(e) => setDriverHours(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        placeholder="e.g. 8.0"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
+                    <div className="text-center p-4 bg-amber-50 rounded-lg border border-amber-200">
+                      <Gauge className="w-8 h-8 text-amber-600 mx-auto mb-2" />
+                      <div className="text-2xl font-bold text-amber-800">{computedCosts.litersDriving.toFixed(2)} L</div>
+                      <p className="text-sm text-amber-700">Fuel Used</p>
+                    </div>
+                    <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+                      <DollarSign className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                      <div className="text-2xl font-bold text-green-800">${computedCosts.fuelCost.toFixed(2)}</div>
+                      <p className="text-sm text-green-700">Fuel Cost</p>
+                    </div>
+                    <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <DollarSign className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                      <div className="text-2xl font-bold text-blue-800">${computedCosts.total.toFixed(2)}</div>
+                      <p className="text-sm text-blue-700">Total Cost</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 p-4 bg-gray-50 rounded-lg border text-sm text-gray-700">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <span className="font-medium">Driving Fuel:</span> {computedCosts.litersDriving.toFixed(2)} L
+                      </div>
+                      <div>
+                        <span className="font-medium">Driver Cost:</span> ${computedCosts.driverCost.toFixed(2)}
+                      </div>
+                      <div>
+                        <span className="font-medium">Other Costs:</span> ${computedCosts.extra.toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Costs are estimates based on inputs; integrate with telemetry for precise figures.
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+
+          {/* Components Tab */}
+          <TabsContent value="components" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-semibold">Components</h2>
+              <Button onClick={() => setShowComponentModal(true)} className="gap-2">
+                <Plus className="w-4 h-4" />
+                Add Component
+              </Button>
+            </div>
+
+            {/* Components Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {components.map((component) => (
+                <motion.div
+                  key={component.id}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-white rounded-lg border p-6 hover:shadow-lg transition-shadow"
                 >
-                  <Edit className="w-4 h-4" />
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Settings className="w-5 h-5 text-blue-600" />
+                      <h3 className="font-semibold">{component.name}</h3>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditComponent(component)}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  
+                  <p className="text-gray-600 text-sm mb-4">{component.description}</p>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(component.status || 'operational')}`}>
+                        {getStatusIcon(component.status || 'operational')}
+                        {component.status || 'Operational'}
+                      </span>
+                    </div>
+                    
+                    {/* Next Maintenance Due */}
+                    {component.next_maintenance_date ? (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Calendar className="w-4 h-4 text-gray-500" />
+                        <span className="text-gray-600">Next Maintenance:</span>
+                        <span className="font-medium">{formatDate(component.next_maintenance_date)}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <Calendar className="w-4 h-4 text-gray-400" />
+                        <span>Next Maintenance: Not scheduled</span>
+                      </div>
+                    )}
+                    
+                    {/* Last Maintenance */}
+                    {component.last_maintenance_date ? (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Wrench className="w-4 h-4 text-gray-500" />
+                        <span className="text-gray-600">Last Maintenance:</span>
+                        <span className="font-medium">{formatDate(component.last_maintenance_date)}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <Wrench className="w-4 h-4 text-gray-400" />
+                        <span>Last Maintenance: Never</span>
+                      </div>
+                    )}
+                    
+                    {/* Maintenance Interval */}
+                    {component.maintenance_interval_days && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Clock className="w-4 h-4 text-gray-500" />
+                        <span className="text-gray-600">Interval:</span>
+                        <span className="font-medium">{component.maintenance_interval_days} days</span>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            {components.length === 0 && (
+              <div className="text-center py-12">
+                <Settings className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No components yet</h3>
+                <p className="text-gray-600 mb-4">Start by adding components to track maintenance and performance.</p>
+                <Button onClick={() => setShowComponentModal(true)}>
+                  Add First Component
                 </Button>
               </div>
-              
-              <p className="text-gray-600 text-sm mb-4">{component.description}</p>
-              
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(component.status || 'operational')}`}>
-                    {getStatusIcon(component.status || 'operational')}
-                    {component.status || 'Operational'}
-                  </span>
-                </div>
-                
-                {/* Next Maintenance Due */}
-                {component.next_maintenance_date ? (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="w-4 h-4 text-gray-500" />
-                    <span className="text-gray-600">Next Maintenance:</span>
-                    <span className="font-medium">{formatDate(component.next_maintenance_date)}</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-sm text-gray-400">
-                    <Calendar className="w-4 h-4 text-gray-400" />
-                    <span>Next Maintenance: Not scheduled</span>
-                  </div>
-                )}
-                
-                {/* Last Maintenance */}
-                {component.last_maintenance_date ? (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Wrench className="w-4 h-4 text-gray-500" />
-                    <span className="text-gray-600">Last Maintenance:</span>
-                    <span className="font-medium">{formatDate(component.last_maintenance_date)}</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-sm text-gray-400">
-                    <Wrench className="w-4 h-4 text-gray-400" />
-                    <span>Last Maintenance: Never</span>
-                  </div>
-                )}
-                
-                {/* Maintenance Interval */}
-                {component.maintenance_interval_days && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Clock className="w-4 h-4 text-gray-500" />
-                    <span className="text-gray-600">Interval:</span>
-                    <span className="font-medium">{component.maintenance_interval_days} days</span>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          ))}
-        </div>
-
-        {components.length === 0 && (
-          <div className="text-center py-12">
-            <Settings className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No components yet</h3>
-            <p className="text-gray-600 mb-4">Start by adding components to track maintenance and performance.</p>
-            <Button onClick={() => setShowComponentModal(true)}>
-              Add First Component
-            </Button>
-          </div>
-        )}
+            )}
+          </TabsContent>
+        </Tabs>
       </motion.div>
 
       {/* Component Modal */}
