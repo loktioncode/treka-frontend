@@ -675,71 +675,24 @@ export default function ComponentDetailsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {details.downtimeEvents.length === 0 ? (
-                <div className="text-center py-8">
-                  <TrendingDown className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-600">No downtime events recorded</p>
+              <div className="text-center py-16">
+                <div className="text-6xl mb-4">😢</div>
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">Coming Soon</h3>
+                <p className="text-gray-500 max-w-md mx-auto">
+                  Downtime tracking and analysis features are currently under development. 
+                  This will include real-time monitoring, cost analysis, and performance insights.
+                </p>
+                <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200 max-w-md mx-auto">
+                  <h4 className="font-medium text-blue-800 mb-2">Planned Features:</h4>
+                  <ul className="text-sm text-blue-700 space-y-1 text-left">
+                    <li>• Real-time downtime detection</li>
+                    <li>• Cost impact analysis</li>
+                    <li>• Performance metrics & trends</li>
+                    <li>• Maintenance correlation</li>
+                    <li>• Automated alerts</li>
+                  </ul>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {details.downtimeEvents.map((event) => (
-                    <div key={event.id} className="border rounded-lg p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-medium">
-                              {event.maintenanceRelated ? 'Maintenance-Related' : 'Operational'} Downtime
-                            </h4>
-                            {event.maintenanceRelated && (
-                              <Badge variant="outline" size="sm" className="text-blue-600">
-                                Maintenance
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-600">{event.reason}</p>
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {formatDate(event.startDate)} - {formatDate(event.endDate)}
-                            </span>
-                            <span>Duration: {Math.floor(event.duration / 60)}h {event.duration % 60}m</span>
-                            <span>Cost: ${event.cost}</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-lg font-bold text-red-600">
-                            {Math.floor(event.duration / 60)}h {event.duration % 60}m
-                          </div>
-                          <p className="text-xs text-gray-500">downtime</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {/* Summary */}
-                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                    <h4 className="font-medium mb-2">Downtime Summary</h4>
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-600">Total Events:</span>
-                        <p className="font-medium">{details.downtimeEvents.length}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Total Hours:</span>
-                        <p className="font-medium">
-                          {Math.floor(details.downtimeEvents.reduce((total, event) => total + event.duration, 0) / 60)}h
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Total Cost:</span>
-                        <p className="font-medium">
-                          ${details.downtimeEvents.reduce((total, event) => total + event.cost, 0)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
