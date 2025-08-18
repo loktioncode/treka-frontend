@@ -39,9 +39,11 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { formatDate, formatDateForInput } from '@/lib/utils';
 import { ensureId } from '@/lib/id-utils';
+import { useRouter } from 'next/navigation';
 
 export default function ComponentsPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [components, setComponents] = useState<Component[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -314,11 +316,10 @@ export default function ComponentsPage() {
   const actions: DataTableAction<Component>[] = [
     {
       key: 'view',
-      label: 'View',
+      label: 'View Details',
       icon: Eye,
       onClick: (component) => {
-        setSelectedComponent(component);
-        // TODO: Implement view modal
+        router.push(`/dashboard/components/${component.id}`);
       },
       variant: 'secondary'
     },
