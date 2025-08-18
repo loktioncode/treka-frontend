@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { assetAPI, componentAPI, type Asset, type Component, type CreateComponentRequest } from '@/services/api';
-import { PrimaryMaterialLabels, ConditionLabels } from '@/types/api';
+import { PrimaryMaterialLabels, ConditionLabels, type ComponentStatus } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
@@ -491,30 +491,30 @@ export default function AssetViewPage() {
               
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(component.status)}`}>
-                    {getStatusIcon(component.status)}
-                    {component.status}
+                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(component.status || 'operational')}`}>
+                    {getStatusIcon(component.status || 'operational')}
+                    {component.status || 'Operational'}
                   </span>
                 </div>
-                
-                {component.next_maintenance_date && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="w-4 h-4 text-gray-500" />
-                    <span className="text-gray-600">Next Maintenance:</span>
-                    <span className="font-medium">{formatDate(component.next_maintenance_date)}</span>
-                  </div>
-                )}
-                
-                {component.last_maintenance_date && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Wrench className="w-4 h-4 text-gray-500" />
-                    <span className="text-gray-600">Last Maintenance:</span>
-                    <span className="font-medium">{formatDate(component.last_maintenance_date)}</span>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          ))}
+                  
+                  {component.next_maintenance_date && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="w-4 h-4 text-gray-500" />
+                      <span className="text-gray-600">Next Maintenance:</span>
+                      <span className="font-medium">{formatDate(component.next_maintenance_date)}</span>
+                    </div>
+                  )}
+                  
+                  {component.last_maintenance_date && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Wrench className="w-4 h-4 text-gray-500" />
+                      <span className="text-gray-600">Last Maintenance:</span>
+                      <span className="font-medium">{formatDate(component.last_maintenance_date)}</span>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            ))}
         </div>
 
         {components.length === 0 && (
@@ -587,7 +587,7 @@ export default function AssetViewPage() {
               <FormLabel>Status *</FormLabel>
               <Select
                 value={componentFormData.status || 'operational'}
-                onChange={(e) => setComponentFormData({ ...componentFormData, status: e.target.value })}
+                onChange={(e) => setComponentFormData({ ...componentFormData, status: e.target.value as ComponentStatus })}
                 options={[
                   { value: 'operational', label: 'Operational' },
                   { value: 'warning', label: 'Warning' },
@@ -628,6 +628,8 @@ export default function AssetViewPage() {
               />
             </FormField>
           </FormGrid>
+
+
           
           <FormActions>
             <Button
