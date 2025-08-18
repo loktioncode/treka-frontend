@@ -402,6 +402,11 @@ export const notificationAPI = {
   markAllAsRead: async () => {
     const response = await api.patch('/notifications/mark-all-read');
     return response.data;
+  },
+
+  createTestNotification: async () => {
+    const response = await api.post('/notifications/create-test');
+    return response.data;
   }
 };
 

@@ -236,8 +236,8 @@ export interface CreateComponentRequest {
   status: ComponentStatus;
   asset_id: string;
   specifications?: Record<string, unknown>;
-  last_maintenance_date?: string;
-  next_maintenance_date?: string;
+  last_maintenance_date?: Date | string; // Allow both Date object and ISO string
+  next_maintenance_date?: Date | string; // Allow both Date object and ISO string
   maintenance_interval_days?: number;
 }
 
@@ -262,23 +262,60 @@ export interface CreateMaintenanceLogRequest {
 }
 
 // Notification types
-export type NotificationType = 'maintenance_due' | 'asset_alert' | 'system_notification' | 'custom';
-export type NotificationStatus = 'pending' | 'sent' | 'failed' | 'delivered' | 'read';
+export type NotificationType = 'email' | 'whatsapp' | 'MAINTENANCE';
+export type NotificationStatus = 'pending' | 'sent' | 'failed';
+export type NotificationUrgency = 'low' | 'medium' | 'high' | 'critical' | 'OVERDUE' | 'URGENT' | 'HIGH' | 'MEDIUM';
+
+export interface NotificationRecipient {
+  user_id: string;
+  email: string;
+  whatsapp?: string;
+  status: {
+    email: NotificationStatus;
+    whatsapp: NotificationStatus;
+    read: boolean;
+  };
+  email_sent_at?: string;
+  whatsapp_sent_at?: string;
+  read_at?: string;
+}
+
+export interface NotificationHistoryEntry {
+  timestamp: string;
+  action: string;
+  recipients_count?: number;
+  recipient?: string;
+  error?: string;
+  // Escalation properties
+  from_urgency?: string;
+  to_urgency?: string;
+  reason?: string;
+  days_until_maintenance?: number;
+}
 
 export interface Notification {
   id: string;
-  title: string;
-  message: string;
+  client_id?: string;
+  user_id?: string;
+  component_id: string;
+  asset_id?: string;
   notification_type: NotificationType;
   status: NotificationStatus;
-  user_id: string;
-  client_id?: string;
-  related_asset_id?: string;
-  related_component_id?: string;
-  scheduled_for?: string;
-  sent_at?: string;
-  read_at?: string;
+  subject: string;
+  message: string;
+  urgency?: NotificationUrgency;
+  due_date?: string;
+  scheduled_for: string;
+  recipients: NotificationRecipient[];
+  send_count: number;
+  first_sent_at?: string;
+  last_sent_at?: string;
+  history: NotificationHistoryEntry[];
   created_at: string;
+  updated_at: string;
+  sent_at?: string;
+  error_message?: string;
+  read_status?: boolean;
 }
 
 // API Response types

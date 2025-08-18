@@ -13,41 +13,29 @@ import {
   CheckCircle,
   AlertTriangle,
   Info,
-  Clock
+  Clock,
+  Wrench
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
-
-interface Notification {
-  id: string;
-  notification_type: 'email' | 'whatsapp' | 'MAINTENANCE';
-  subject: string;
-  message: string;
-  urgency?: 'low' | 'medium' | 'high' | 'critical';
-  status: 'pending' | 'sent' | 'failed';
-  read_status?: boolean;
-  created_at: string;
-  scheduled_for?: string;
-  due_date?: string;
-  component_id?: string;
-  asset_id?: string;
-}
+import type { Notification } from '@/types/api';
 
 export default function NotificationsPage() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [markingAllRead, setMarkingAllRead] = useState(false);
 
-  // Redirect unauthorized users
+  // Redirect unauthorized users (run only once user is known)
   useEffect(() => {
-    if (user && !['admin', 'user'].includes(user.role)) {
+    if (isLoading) return;
+    if (!user) return; // middleware guards unauthenticated; wait until user populated
+    if (!['admin', 'user', 'super_admin'].includes(user.role)) {
       toast.error('Access denied. This page is for admins and users only.');
       window.location.href = '/dashboard';
-      return;
     }
-  }, [user]);
+  }, [user, isLoading]);
 
   const loadNotifications = useCallback(async () => {
     try {
@@ -56,15 +44,25 @@ export default function NotificationsPage() {
       setNotifications(response);
     } catch (error) {
       console.error('Error loading notifications:', error);
-      toast.error('Failed to load notifications');
+      const axiosError = error as { response?: { status?: number; data?: { detail?: string } }; message?: string };
+      const status = axiosError.response?.status;
+      const detail = axiosError.response?.data?.detail || axiosError.message || 'Unknown error';
+      toast.error(`Failed to load notifications${status ? ` (${status})` : ''}: ${detail}`);
+      // If unauthorized, redirect to login (in case interceptor didn't yet)
+      if (status === 401) {
+        window.location.href = '/login?expired=true';
+      }
     } finally {
       setLoading(false);
     }
   }, []);
 
+  // Load notifications only after user is ready
   useEffect(() => {
+    if (isLoading) return;
+    if (!user) return;
     loadNotifications();
-  }, [loadNotifications]);
+  }, [isLoading, user, loadNotifications]);
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
@@ -100,11 +98,11 @@ export default function NotificationsPage() {
   };
 
   const getNotificationIcon = (type: string, urgency?: string) => {
-    if (urgency === 'critical') return AlertTriangle;
+    if (urgency === 'critical' || urgency === 'OVERDUE') return AlertTriangle;
     
     switch (type) {
       case 'MAINTENANCE':
-        return Clock;
+        return Wrench;
       case 'email':
         return Bell;
       case 'whatsapp':
@@ -114,11 +112,15 @@ export default function NotificationsPage() {
     }
   };
 
-  const getNotificationColor = (urgency: string) => {
-    switch (urgency) {
+  const getNotificationColor = (urgency?: string) => {
+    if (!urgency) return 'text-gray-600 bg-gray-50 border-gray-200';
+    
+    switch (urgency.toLowerCase()) {
       case 'critical':
+      case 'overdue':
         return 'text-red-600 bg-red-50 border-red-200';
       case 'high':
+      case 'urgent':
         return 'text-orange-600 bg-orange-50 border-orange-200';
       case 'medium':
         return 'text-yellow-600 bg-yellow-50 border-yellow-200';
@@ -129,11 +131,15 @@ export default function NotificationsPage() {
     }
   };
 
-  const getUrgencyBadgeVariant = (urgency: string) => {
-    switch (urgency) {
+  const getUrgencyBadgeVariant = (urgency?: string) => {
+    if (!urgency) return 'outline';
+    
+    switch (urgency.toLowerCase()) {
       case 'critical':
+      case 'overdue':
         return 'destructive';
       case 'high':
+      case 'urgent':
         return 'warning';
       case 'medium':
         return 'secondary';
@@ -144,7 +150,62 @@ export default function NotificationsPage() {
     }
   };
 
+  // Smart notification grouping to avoid UI clutter
+  const groupNotifications = (notifications: Notification[]) => {
+    const groups: { [key: string]: Notification[] } = {};
+    
+    notifications.forEach(notification => {
+      // Group by component_id for maintenance notifications to avoid duplicates
+      if (notification.notification_type === 'MAINTENANCE' && notification.component_id) {
+        const key = `maintenance_${notification.component_id}`;
+        if (!groups[key]) {
+          groups[key] = [];
+        }
+        groups[key].push(notification);
+      } else {
+        // For other notification types, use unique ID
+        const key = `unique_${notification.id}`;
+        groups[key] = [notification];
+      }
+    });
+    
+    return Object.values(groups);
+  };
+
+  const getEscalationStatus = (notification: Notification) => {
+    if (notification.notification_type !== 'MAINTENANCE') return null;
+    
+    const history = notification.history || [];
+    const recentEscalations = history.filter(h => 
+      h.action === 'escalated' && 
+      (new Date().getTime() - new Date(h.timestamp).getTime()) < 86400000 // Last 24 hours
+    );
+    
+    if (recentEscalations.length > 0) {
+      const latest = recentEscalations[recentEscalations.length - 1];
+      return {
+        escalated: true,
+        from: latest.from_urgency,
+        to: latest.to_urgency,
+        reason: latest.reason
+      };
+    }
+    
+    return { escalated: false };
+  };
+
+  const getEscalationBadge = (escalationStatus: any) => {
+    if (!escalationStatus || !escalationStatus.escalated) return null;
+    
+    return (
+      <Badge variant="destructive" size="sm" className="ml-2">
+        ESCALATED
+      </Badge>
+    );
+  };
+
   const pendingCount = notifications.filter(n => !n.read_status).length;
+  const groupedNotifications = groupNotifications(notifications);
 
   if (loading) {
     return (
@@ -202,12 +263,29 @@ export default function NotificationsPage() {
               )}
             </Button>
           )}
+          <Button
+            onClick={async () => {
+              try {
+                await notificationAPI.createTestNotification();
+                toast.success('Test notification created!');
+                loadNotifications(); // Reload notifications
+              } catch (error) {
+                console.error('Error creating test notification:', error);
+                toast.error('Failed to create test notification');
+              }
+            }}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <Bell className="h-4 w-4" />
+            Create Test
+          </Button>
         </div>
       </motion.div>
 
       {/* Notifications List */}
       <div className="space-y-4">
-        {notifications.length === 0 ? (
+        {groupedNotifications.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -220,101 +298,136 @@ export default function NotificationsPage() {
             <p className="text-gray-600">
               You&apos;re all caught up! We&apos;ll notify you when there are new updates.
             </p>
+            <div className="mt-4 text-sm text-gray-500">
+              <p>Notifications will appear here for:</p>
+              <ul className="mt-2 space-y-1">
+                <li>• Maintenance due dates</li>
+                <li>• Component alerts</li>
+                <li>• System updates</li>
+              </ul>
+            </div>
           </motion.div>
         ) : (
-          notifications.map((notification, index) => {
-            const Icon = getNotificationIcon(notification.notification_type, notification.urgency);
-            const colorClasses = getNotificationColor(notification.urgency || 'low');
-            
-            return (
-              <motion.div
-                key={notification.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <Card className={`transition-all duration-200 hover:shadow-md ${
-                  !notification.read_status 
-                    ? 'border-l-4 border-l-teal-500 shadow-sm' 
-                    : 'opacity-75'
-                }`}>
-                  <CardContent className="p-6">
-                    <div className="flex items-start gap-4">
-                      {/* Icon */}
-                      <div className={`p-2 rounded-lg ${colorClasses}`}>
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <h3 className={`font-semibold ${
-                              !notification.read_status 
-                                ? 'text-gray-900' 
-                                : 'text-gray-600'
-                            }`}>
-                              {notification.subject}
-                            </h3>
-                            {notification.urgency && (
-                              <Badge 
-                                variant={getUrgencyBadgeVariant(notification.urgency)}
-                                size="sm"
-                              >
-                                {notification.urgency}
-                              </Badge>
-                            )}
-                            {notification.read_status && (
-                              <CheckCircle className="h-4 w-4 text-green-500" />
-                            )}
+          groupedNotifications.map((group, groupIndex) => (
+            <div key={groupIndex} className="space-y-4">
+              {group.map((notification, index) => {
+                const Icon = getNotificationIcon(notification.notification_type, notification.urgency);
+                const colorClasses = getNotificationColor(notification.urgency);
+                const escalationStatus = getEscalationStatus(notification);
+                
+                return (
+                  <motion.div
+                    key={notification.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }} // Smaller delay for grouped items
+                  >
+                    <Card className={`transition-all duration-200 hover:shadow-md ${
+                      !notification.read_status 
+                        ? 'border-l-4 border-l-teal-500 shadow-sm' 
+                        : 'opacity-75'
+                    }`}>
+                      <CardContent className="p-6">
+                        <div className="flex items-start gap-4">
+                          {/* Icon */}
+                          <div className={`p-2 rounded-lg ${colorClasses}`}>
+                            <Icon className="h-5 w-5" />
                           </div>
                           
-                          {!notification.read_status && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleMarkAsRead(notification.id)}
-                              className="flex items-center gap-1 text-gray-500 hover:text-gray-700"
-                            >
-                              <Check className="h-3 w-3" />
-                              Mark as read
-                            </Button>
-                          )}
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <h3 className={`font-semibold ${
+                                  !notification.read_status 
+                                    ? 'text-gray-900' 
+                                    : 'text-gray-600'
+                                }`}>
+                                  {notification.subject}
+                                </h3>
+                                {notification.urgency && (
+                                  <Badge 
+                                    variant={getUrgencyBadgeVariant(notification.urgency)}
+                                    size="sm"
+                                  >
+                                    {notification.urgency}
+                                  </Badge>
+                                )}
+                                {getEscalationBadge(escalationStatus)}
+                                {notification.read_status && (
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                )}
+                              </div>
+                              
+                              {!notification.read_status && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleMarkAsRead(notification.id)}
+                                  className="flex items-center gap-1 text-gray-500 hover:text-gray-700"
+                                >
+                                  <Check className="h-3 w-3" />
+                                  Mark as read
+                                </Button>
+                              )}
+                            </div>
+                            
+                            <p className={`text-sm mb-3 ${
+                              !notification.read_status 
+                                ? 'text-gray-700' 
+                                : 'text-gray-500'
+                            }`}>
+                              {notification.message}
+                            </p>
+                            
+                            {escalationStatus && escalationStatus.escalated && (
+                               <div className="bg-orange-50 border-l-4 border-orange-400 p-3 mb-3 rounded-r">
+                                 <div className="flex items-center gap-2 text-sm">
+                                   <AlertTriangle className="h-4 w-4 text-orange-500" />
+                                   <span className="font-medium text-orange-800">Escalated Alert</span>
+                                 </div>
+                                 <div className="text-xs text-orange-700 mt-1">
+                                   <span>Urgency increased from <strong>{escalationStatus.from}</strong> to <strong>{escalationStatus.to}</strong></span>
+                                   {escalationStatus.reason && (
+                                     <span className="block mt-1">Reason: {escalationStatus.reason}</span>
+                                   )}
+                                 </div>
+                               </div>
+                             )}
+
+                            <div className="flex items-center gap-4 text-xs text-gray-500">
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {formatDate(notification.created_at)}
+                              </span>
+                              {notification.due_date && (
+                                <span className="flex items-center gap-1">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Due: {formatDate(notification.due_date)}
+                                </span>
+                              )}
+                              {notification.scheduled_for && (
+                                <span className="flex items-center gap-1">
+                                  <BellRing className="h-3 w-3" />
+                                  Scheduled: {formatDate(notification.scheduled_for)}
+                                </span>
+                              )}
+                              {notification.recipients && notification.recipients.length > 0 && (
+                                <span className="flex items-center gap-1">
+                                  <Info className="h-3 w-3" />
+                                  {notification.recipients.length} recipient{notification.recipients.length !== 1 ? 's' : ''}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        
-                        <p className={`text-sm mb-3 ${
-                          !notification.read_status 
-                            ? 'text-gray-700' 
-                            : 'text-gray-500'
-                        }`}>
-                          {notification.message}
-                        </p>
-                        
-                        <div className="flex items-center gap-4 text-xs text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {formatDate(notification.created_at)}
-                          </span>
-                          {notification.due_date && (
-                            <span className="flex items-center gap-1">
-                              <AlertTriangle className="h-3 w-3" />
-                              Due: {formatDate(notification.due_date)}
-                            </span>
-                          )}
-                          {notification.scheduled_for && (
-                            <span className="flex items-center gap-1">
-                              <BellRing className="h-3 w-3" />
-                              Scheduled: {formatDate(notification.scheduled_for)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </div>
+          ))
         )}
       </div>
     </div>

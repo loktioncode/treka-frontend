@@ -60,9 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loadUser = useCallback(async () => {
     try {
       const userData = await userAPI.getCurrentUser();
-      if (userData.role !== 'super_admin' && userData.role !== 'admin') {
-        throw new Error('Unauthorized access');
-      }
+      // Allow all authenticated roles: super_admin, admin, user
       setUser(userData);
       return userData;
     } catch (error) {

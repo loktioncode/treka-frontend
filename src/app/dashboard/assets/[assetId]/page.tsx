@@ -148,10 +148,10 @@ export default function AssetViewPage() {
         ...componentFormData,
         asset_id: assetId as string,
         // Convert date strings to ISO datetime format or undefined if empty
-        last_maintenance_date: componentFormData.last_maintenance_date 
+        last_maintenance_date: componentFormData.last_maintenance_date && componentFormData.last_maintenance_date.trim() !== ''
           ? new Date(componentFormData.last_maintenance_date).toISOString()
           : undefined,
-        next_maintenance_date: componentFormData.next_maintenance_date 
+        next_maintenance_date: componentFormData.next_maintenance_date && componentFormData.next_maintenance_date.trim() !== ''
           ? new Date(componentFormData.next_maintenance_date).toISOString()
           : undefined
       };
@@ -495,25 +495,46 @@ export default function AssetViewPage() {
                     {component.status || 'Operational'}
                   </span>
                 </div>
-                  
-                  {component.next_maintenance_date && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="w-4 h-4 text-gray-500" />
-                      <span className="text-gray-600">Next Maintenance:</span>
-                      <span className="font-medium">{formatDate(component.next_maintenance_date)}</span>
-                    </div>
-                  )}
-                  
-                  {component.last_maintenance_date && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Wrench className="w-4 h-4 text-gray-500" />
-                      <span className="text-gray-600">Last Maintenance:</span>
-                      <span className="font-medium">{formatDate(component.last_maintenance_date)}</span>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            ))}
+                
+                {/* Next Maintenance Due */}
+                {component.next_maintenance_date ? (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Calendar className="w-4 h-4 text-gray-500" />
+                    <span className="text-gray-600">Next Maintenance:</span>
+                    <span className="font-medium">{formatDate(component.next_maintenance_date)}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-sm text-gray-400">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    <span>Next Maintenance: Not scheduled</span>
+                  </div>
+                )}
+                
+                {/* Last Maintenance */}
+                {component.last_maintenance_date ? (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Wrench className="w-4 h-4 text-gray-500" />
+                    <span className="text-gray-600">Last Maintenance:</span>
+                    <span className="font-medium">{formatDate(component.last_maintenance_date)}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-sm text-gray-400">
+                    <Wrench className="w-4 h-4 text-gray-400" />
+                    <span>Last Maintenance: Never</span>
+                  </div>
+                )}
+                
+                {/* Maintenance Interval */}
+                {component.maintenance_interval_days && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Clock className="w-4 h-4 text-gray-500" />
+                    <span className="text-gray-600">Interval:</span>
+                    <span className="font-medium">{component.maintenance_interval_days} days</span>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          ))}
         </div>
 
         {components.length === 0 && (

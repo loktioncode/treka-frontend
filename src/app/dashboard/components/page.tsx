@@ -363,11 +363,23 @@ export default function ComponentsPage() {
     setIsSubmitting(true);
 
     try {
+      // Convert date strings to proper format for the API
+      const processedData = {
+        ...formData,
+        // Convert date strings to ISO datetime format or undefined if empty
+        last_maintenance_date: formData.last_maintenance_date && formData.last_maintenance_date.trim() !== ''
+          ? new Date(formData.last_maintenance_date).toISOString()
+          : undefined,
+        next_maintenance_date: formData.next_maintenance_date && formData.next_maintenance_date.trim() !== ''
+          ? new Date(formData.next_maintenance_date).toISOString()
+          : undefined
+      };
+
       if (selectedComponent) {
-        await componentAPI.updateComponent(selectedComponent.id, formData);
+        await componentAPI.updateComponent(selectedComponent.id, processedData);
         toast.success('Component updated successfully');
       } else {
-        await componentAPI.createComponent(formData as CreateComponentRequest);
+        await componentAPI.createComponent(processedData as CreateComponentRequest);
         toast.success('Component created successfully');
       }
       
