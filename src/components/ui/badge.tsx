@@ -90,7 +90,7 @@ export function RoleBadge({
   className, 
   ...props 
 }: { 
-  role: 'super_admin' | 'admin' | 'user' 
+  role: 'super_admin' | 'admin' | 'user' | 'technician' | 'driver'
 } & Omit<BadgeProps, 'variant'>) {
   const roleConfig = {
     super_admin: { 
@@ -104,6 +104,14 @@ export function RoleBadge({
     user: { 
       className: "bg-green-600 text-white border-green-200",
       label: "User"
+    },
+    technician: { 
+      className: "bg-blue-600 text-white border-blue-200",
+      label: "Technician"
+    },
+    driver: { 
+      className: "bg-orange-600 text-white border-orange-200",
+      label: "Driver"
     }
   }
 

@@ -740,11 +740,10 @@ export default function AssetsPage() {
                     })}
                     options={[
                       { value: '', label: 'Select fuel type' },
-                      { value: 'gasoline', label: 'Gasoline' },
+                      { value: 'petrol', label: 'Petrol' },
                       { value: 'diesel', label: 'Diesel' },
                       { value: 'electric', label: 'Electric' },
-                      { value: 'hybrid', label: 'Hybrid' },
-                      { value: 'hydrogen', label: 'Hydrogen' }
+                      { value: 'hybrid', label: 'Hybrid' }
                     ]}
                   />
                 </FormField>

@@ -1,10 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Bot, X, MessageSquare } from 'lucide-react';
+import { Bot, X } from 'lucide-react';
 import { Chat, ChatMessage } from './chat';
-import { Button } from './button';
-import { Card } from './card';
 
 interface FloatingChatButtonProps {
   onSendMessage: (message: string) => void;

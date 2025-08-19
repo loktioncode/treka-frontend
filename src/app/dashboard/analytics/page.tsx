@@ -3,14 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Chat, ChatMessage } from '@/components/ui/chat';
+import { ChatMessage } from '@/components/ui/chat';
 import { FloatingChatButton } from '@/components/ui/floating-chat-button';
 import { AnalyticsFilters, AnalyticsFilters as AnalyticsFiltersType } from '@/components/ui/analytics-filters';
 import { 
   SimpleBarChart, 
-  SimpleLineChart, 
   SimplePieChart, 
   MultiLineChart,
   MetricCard 
@@ -21,11 +19,8 @@ import {
   AlertTriangle,
   Calendar,
   Download,
-  Eye,
   Brain,
   Activity,
-  DollarSign,
-  Shield,
   Settings,
   RefreshCw,
   Clock
@@ -33,7 +28,7 @@ import {
 import { analyticsAPI, assetAPI, componentAPI, clientAPI, notificationAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import toast from 'react-hot-toast';
-import type { AssetStatus, AssetType, ComponentStatus } from '@/types/api';
+import type { AssetStatus, AssetType } from '@/types/api';
 
 interface DashboardStats {
   assets: {
@@ -86,14 +81,38 @@ interface Component {
   updated_at?: string;
 }
 
+interface MaintenanceLog {
+  id: string;
+  component_id: string;
+  description: string;
+  date: string;
+  technician: string;
+  cost: number;
+  status: string;
+  created_at: string;
+  resolved_at?: string;
+}
+
+interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  priority: string;
+  created_at: string;
+  read: boolean;
+  status: string;
+  acknowledged_at?: string;
+}
+
 export default function AnalyticsPage() {
   const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [components, setComponents] = useState<Component[]>([]);
   const [clients, setClients] = useState<Array<{ id: string; name: string }>>([]);
-  const [maintenanceLogs, setMaintenanceLogs] = useState<any[]>([]);
-  const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
+  const [maintenanceLogs, setMaintenanceLogs] = useState<MaintenanceLog[]>([]);
+  const [recentNotifications, setRecentNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<AnalyticsFiltersType>({
     dateRange: '30d',
@@ -222,7 +241,7 @@ export default function AnalyticsPage() {
             // Combine all successful results into one array
             const allMaintenanceLogs = maintenanceResults
               .filter(result => result.status === 'fulfilled')
-              .flatMap(result => (result as PromiseFulfilledResult<any[]>).value);
+              .flatMap(result => (result as PromiseFulfilledResult<MaintenanceLog[]>).value);
             
             console.log(`Successfully loaded maintenance logs from ${maintenanceResults.filter(r => r.status === 'fulfilled').length}/${componentsToUse.length} components`);
             console.log('Total maintenance logs loaded:', allMaintenanceLogs.length);
@@ -399,55 +418,7 @@ export default function AnalyticsPage() {
     return [];
   };
 
-  const generateStatusData = () => {
-    // If we have detailed components, use them
-    if (components && components.length > 0) {
-      const statusCounts = components.reduce((acc, component) => {
-        acc[component.status] = (acc[component.status] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
 
-      return Object.entries(statusCounts).map(([type, count]) => ({
-        name: type.charAt(0).toUpperCase() + type.slice(1),
-        value: count,
-      }));
-    }
-
-    // No components available - return empty array
-    return [];
-  };
-
-  const generateAssetValueData = () => {
-    // If we have detailed assets, use them
-    if (assets && assets.length > 0) {
-      // Group assets by month based on creation date or last updated date
-      const monthlyData: Record<string, number> = {};
-      
-      assets.forEach(asset => {
-        // Use creation date or fallback to current month
-        const date = asset.created_at ? new Date(asset.created_at) : new Date();
-        const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
-        
-        monthlyData[monthKey] = (monthlyData[monthKey] || 0) + (asset.current_value || 0);
-      });
-
-      // Convert to array format for charts
-      return Object.entries(monthlyData).map(([month, value]) => ({
-        month,
-        value: Math.round(value)
-      }));
-    }
-
-    // If we only have stats data, create a basic monthly trend
-    if (stats?.assets?.total_value) {
-      const currentMonth = new Date().toLocaleDateString('en-US', { month: 'short' });
-      return [
-        { month: currentMonth, value: Math.round(stats.assets.total_value) }
-      ];
-    }
-
-    return [];
-  };
 
   const generatePerformanceData = () => {
     // If we have detailed components, use them
@@ -834,18 +805,7 @@ export default function AnalyticsPage() {
     return components.filter(component => component.status === 'critical').length;
   };
 
-  const calculateSystemUptime = () => {
-    // Use stats data if available, otherwise calculate from components array
-    if (stats?.components?.total !== undefined && stats.components.total > 0) {
-      const operational = stats.components.operational || 0;
-      return Math.round((operational / stats.components.total) * 100);
-    }
-    
-    if (components.length === 0) return 100;
-    
-    const operationalComponents = components.filter(c => c.status === 'operational').length;
-    return Math.round((operationalComponents / components.length) * 100);
-  };
+
 
   // Simplified trend calculations (in a real app, these would compare with historical data)
   const calculateAssetGrowth = () => {
@@ -856,15 +816,7 @@ export default function AnalyticsPage() {
     return assets.length > 0 ? 'up' as const : 'neutral' as const;
   };
 
-  const calculateValueGrowth = () => {
-    const totalValue = calculateTotalAssetValue();
-    return totalValue > 0 ? '+0.0%' : '0.0%';
-  };
 
-  const calculateValueTrend = () => {
-    const totalValue = calculateTotalAssetValue();
-    return totalValue > 0 ? 'up' as const : 'neutral' as const;
-  };
 
   const calculateCriticalChange = () => {
     const criticalCount = calculateCriticalComponents();
@@ -876,15 +828,7 @@ export default function AnalyticsPage() {
     return criticalCount > 0 ? 'down' as const : 'neutral' as const;
   };
 
-  const calculateUptimeChange = () => {
-    const uptime = calculateSystemUptime();
-    return uptime > 95 ? '+0.0%' : '0.0%';
-  };
 
-  const calculateUptimeTrend = () => {
-    const uptime = calculateSystemUptime();
-    return uptime > 95 ? 'up' as const : 'neutral' as const;
-  };
 
   const calculateResponseTimeAverage = () => {
     // Calculate average response time based on maintenance logs and notifications
@@ -1020,7 +964,7 @@ export default function AnalyticsPage() {
             <Package className="h-12 w-12 text-blue-500 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-blue-900 mb-2">No Data Available</h3>
             <p className="text-blue-700 mb-4">
-              Your analytics dashboard is currently empty. To get started, you'll need to add some assets and components to your system.
+              Your analytics dashboard is currently empty. To get started, you&apos;ll need to add some assets and components to your system.
             </p>
             <div className="space-y-2 text-sm text-blue-600">
               <p>• Add assets through the Assets management section</p>

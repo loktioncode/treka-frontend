@@ -4,7 +4,7 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
-  role: 'super_admin' | 'admin' | 'user';
+  role: 'super_admin' | 'admin' | 'user' | 'technician' | 'driver';
   client_id?: string;
   is_active: boolean;
   notification_preferences: {
@@ -18,6 +18,10 @@ export interface User {
   hourly_rate?: number;
   industry?: string;
   specializations?: string[];
+  // Driver fields
+  license_number?: string;
+  license_type?: string;
+  vehicle_assignments?: string[];
 }
 
 export interface CreateUserRequest {
@@ -25,7 +29,7 @@ export interface CreateUserRequest {
   password: string;
   first_name: string;
   last_name: string;
-  role?: 'user' | 'admin';  // Allow both user and admin roles
+  role?: 'user' | 'admin' | 'technician' | 'driver';  // Allow all user roles
   notification_preferences?: {
     email?: boolean;
     whatsapp?: boolean;
@@ -35,25 +39,32 @@ export interface CreateUserRequest {
   hourly_rate?: number;
   industry?: string;
   specializations?: string[];
+  // Driver fields (optional)
+  license_number?: string;
+  license_type?: string;
+  vehicle_assignments?: string[];
 }
 
 export interface CreateAdminRequest extends CreateUserRequest {
   client_id: string;
-  role?: 'admin';  // Override to prefer admin role
+  role?: 'admin' | 'technician' | 'driver';  // Allow admin, technician, and driver roles
 }
 
 export interface UpdateUserRoleRequest {
-  role: 'super_admin' | 'admin' | 'user';
+  role: 'super_admin' | 'admin' | 'user' | 'technician' | 'driver';
   client_id?: string;
 }
 
 // Client types
+export type ClientType = 'industrial' | 'logistics';
+
 export interface Client {
   id: string;
   name: string;
   description?: string;
   contact_email: string;
   contact_phone?: string;
+  client_type: ClientType;
   address?: {
     street: string;
     city: string;
@@ -71,6 +82,7 @@ export interface CreateClientRequest {
   description?: string;
   contact_email: string;
   contact_phone?: string;
+  client_type: ClientType;
   address?: {
     street: string;
     city: string;
@@ -153,6 +165,7 @@ export interface VehicleDetails {
   engine_type?: string;
   fuel_type?: string;
   mileage?: number;
+  driver_id?: string;  // ID of assigned driver
 }
 
 export interface MachineryDetails {

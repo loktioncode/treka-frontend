@@ -8,8 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { QuickStats } from '@/components/ui/stats-card';
-import { StatusBadge } from '@/components/ui/badge';
-import { Form, FormField, FormLabel, FormSection, FormGrid, FormActions, Textarea } from '@/components/ui/form';
+import { Form, FormField, FormLabel, FormSection, FormGrid, FormActions, Textarea, Select } from '@/components/ui/form';
 import { Building2, Edit, Trash2, Users, Eye, Mail, Phone, MapPin, Plus, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -17,6 +16,7 @@ import { formatDate } from '@/lib/utils';
 import { PageTransition } from '@/components/PageTransition';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from '@/hooks/useClients';
+import { Badge } from '@/components/ui/badge';
 
 export default function ClientsPage() {
   const { user } = useAuth();
@@ -39,6 +39,7 @@ export default function ClientsPage() {
     description: '',
     contact_email: '',
     contact_phone: '',
+    client_type: 'industrial',
     address: {
       street: '',
       city: '',
@@ -66,6 +67,7 @@ export default function ClientsPage() {
       description: '',
       contact_email: '',
       contact_phone: '',
+      client_type: 'industrial',
       address: {
         street: '',
         city: '',
@@ -118,10 +120,12 @@ export default function ClientsPage() {
           data: formData 
         });
         setShowEditModal(false);
+        toast.success('Client updated successfully');
       } else {
         // Create client
         await createClientMutation.mutateAsync(formData as CreateClientRequest);
         setShowCreateModal(false);
+        toast.success(`Client "${formData.name}" created successfully! A default admin account has been created with login credentials sent to ${formData.contact_email}`);
       }
       
       resetForm();
@@ -139,6 +143,7 @@ export default function ClientsPage() {
       description: client.description,
       contact_email: client.contact_email,
       contact_phone: client.contact_phone,
+      client_type: client.client_type,
       address: client.address
     });
     setShowEditModal(true);
@@ -185,6 +190,18 @@ export default function ClientsPage() {
       )
     },
     {
+      key: 'client_type',
+      title: 'Type',
+      sortable: true,
+      render: (client) => (
+        <Badge
+          variant={client.client_type === 'industrial' ? 'default' : 'secondary'}
+        >
+          {client.client_type === 'industrial' ? 'Industrial' : 'Logistics'}
+        </Badge>
+      )
+    },
+    {
       key: 'contact_email',
       title: 'Contact',
       render: (client) => (
@@ -221,13 +238,15 @@ export default function ClientsPage() {
       )
     },
     {
-      key: 'is_active',
+      key: 'status',
       title: 'Status',
       render: (client) => (
-        <StatusBadge 
-          status={client.is_active ? 'active' : 'inactive'} 
+        <Badge 
+          variant={client.is_active ? 'success' : 'secondary'}
           size="sm"
-        />
+        >
+          {client.is_active ? 'Active' : 'Inactive'}
+        </Badge>
       )
     },
     {
@@ -445,6 +464,20 @@ export default function ClientsPage() {
                 value={formData.contact_phone || ''}
                 onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
                 placeholder="Enter contact phone"
+                disabled={isSubmitting}
+              />
+            </FormField>
+
+            <FormField name="client_type">
+              <FormLabel>Client Type</FormLabel>
+              <Select
+                value={formData.client_type || ''}
+                onChange={(e) => setFormData({ ...formData, client_type: e.target.value as CreateClientRequest['client_type'] })}
+                options={[
+                  { value: 'industrial', label: 'Industrial' },
+                  { value: 'logistics', label: 'Logistics' }
+                ]}
+                placeholder="Select a client type"
                 disabled={isSubmitting}
               />
             </FormField>

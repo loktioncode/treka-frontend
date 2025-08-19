@@ -15,7 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { Card, CardContent } from '@/components/ui/card';
-import { StatusBadge, RoleBadge } from '@/components/ui/badge';
+import { RoleBadge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { 
   Form, 
   FormField, 
@@ -55,7 +56,7 @@ export default function UsersPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<User>>({});
   const [showRoleChangeModal, setShowRoleChangeModal] = useState(false);
-  const [roleChangeData, setRoleChangeData] = useState<{ role: 'super_admin' | 'admin' | 'user' | ''; client_id?: string }>({ role: '' });
+  const [roleChangeData, setRoleChangeData] = useState<{ role: 'super_admin' | 'admin' | 'user' | 'technician' | 'driver' | ''; client_id?: string }>({ role: '' });
   const [showRoleChangeConfirmation, setShowRoleChangeConfirmation] = useState(false);
   
   // Debug role change data changes
@@ -63,16 +64,20 @@ export default function UsersPage() {
     console.log('🔍 roleChangeData changed:', roleChangeData);
   }, [roleChangeData]);
 
-  // Form state
-  const [formData, setFormData] = useState<Partial<CreateUserRequest & CreateAdminRequest>>({
+  // Form state - using a union type that includes all necessary fields
+  const [formData, setFormData] = useState<Partial<CreateUserRequest> & { client_id?: string }>({
     email: '',
     password: '',
     first_name: '',
     last_name: '',
+    role: 'user',
     client_id: '',
     hourly_rate: undefined,
     industry: undefined,
     specializations: [],
+    license_number: undefined,
+    license_type: undefined,
+    vehicle_assignments: [],
     notification_preferences: {
       email: true,
       whatsapp: false
@@ -239,27 +244,77 @@ export default function UsersPage() {
     }
   };
 
+  // Get available roles based on client type
+  const getAvailableRoles = () => {
+    const baseRoles = [
+      { value: 'user', label: 'User' },
+      { value: 'admin', label: 'Admin' }
+    ];
+
+    // For admin users, determine roles based on their client type
+    if (user?.role === 'admin' && user.client_id) {
+      const currentClient = clients.find(c => c.id === user.client_id);
+      if (currentClient?.client_type === 'logistics') {
+        return [
+          { value: 'user', label: 'User' },
+          { value: 'driver', label: 'Driver' },
+          { value: 'technician', label: 'Technician (Mechanic)' }
+        ];
+      } else if (currentClient?.client_type === 'industrial') {
+        return [
+          { value: 'user', label: 'User' },
+          { value: 'technician', label: 'Technician' }
+        ];
+      }
+      // Fallback for unknown client type
+      return [{ value: 'user', label: 'User' }];
+    }
+
+    // For super admin, show all roles
+    if (user?.role === 'super_admin') {
+      return [
+        { value: 'user', label: 'User' },
+        { value: 'admin', label: 'Admin' },
+        { value: 'technician', label: 'Technician' },
+        { value: 'driver', label: 'Driver' }
+      ];
+    }
+
+    return baseRoles;
+  };
+
   const resetForm = () => {
     setFormData({
       email: '',
       password: '',
       first_name: '',
       last_name: '',
-      client_id: user?.role === 'admin' ? user.client_id : '',
+      role: 'user',
+      client_id: '',
       hourly_rate: undefined,
       industry: undefined,
       specializations: [],
+      license_number: undefined,
+      license_type: undefined,
+      vehicle_assignments: [],
       notification_preferences: {
         email: true,
         whatsapp: false
       }
     });
     setFormErrors({});
-    setIsCreatingAdmin(false);
   };
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
+
+    if (!formData.first_name?.trim()) {
+      errors.first_name = 'First name is required';
+    }
+
+    if (!formData.last_name?.trim()) {
+      errors.last_name = 'Last name is required';
+    }
 
     if (!formData.email?.trim()) {
       errors.email = 'Email is required';
@@ -273,14 +328,30 @@ export default function UsersPage() {
       errors.password = 'Password must be at least 8 characters long';
     }
 
-    if (!formData.first_name?.trim()) {
-      errors.first_name = 'First name is required';
+    // Role-specific validation
+    if (formData.role === 'technician') {
+      if (!formData.hourly_rate || formData.hourly_rate <= 0) {
+        errors.hourly_rate = 'Hourly rate is required for technician role';
+      }
     }
 
-    if (!formData.last_name?.trim()) {
-      errors.last_name = 'Last name is required';
+    if (formData.role === 'driver') {
+      if (!formData.license_number?.trim()) {
+        errors.license_number = 'License number is required for driver role';
+      }
     }
 
+    // Validate role availability based on client type
+    if (user?.role === 'admin' && user.client_id) {
+      const currentClient = clients.find(c => c.id === user.client_id);
+      if (currentClient?.client_type === 'logistics' && !['user', 'driver', 'technician'].includes(formData.role || '')) {
+        errors.role = 'Invalid role for logistics client';
+      } else if (currentClient?.client_type === 'industrial' && !['user', 'technician'].includes(formData.role || '')) {
+        errors.role = 'Invalid role for industrial client';
+      }
+    }
+
+    // Client validation for admin users
     if (user?.role === 'super_admin' && isCreatingAdmin && !formData.client_id) {
       errors.client_id = 'Client is required for admin users';
     }
@@ -306,8 +377,19 @@ export default function UsersPage() {
         await userAPI.createAdmin(adminData);
         toast.success('Admin user created successfully');
       } else if (user?.role === 'admin' && user.client_id) {
-        // Create regular user for client
-        await clientAPI.createClientUser(user.client_id, formData as CreateUserRequest);
+        // Create regular user for client - use the role from form data
+        const userData = {
+          ...formData,
+          role: formData.role || 'user'
+        } as CreateUserRequest;
+        
+        console.log('🔍 Creating client user with data:', userData);
+        console.log('🔍 Client ID:', user.client_id);
+        console.log('🔍 User role:', userData.role);
+        console.log('🔍 Form data role:', formData.role);
+        console.log('🔍 Available roles:', getAvailableRoles());
+        
+        await clientAPI.createClientUser(user.client_id, userData);
         toast.success('User created successfully');
       } else if (user?.role === 'admin' && !user.client_id) {
         // Admin user doesn't have a client assigned
@@ -396,9 +478,13 @@ export default function UsersPage() {
       first_name: user.first_name,
       last_name: user.last_name,
       email: user.email,
+      role: user.role,
       hourly_rate: user.hourly_rate,
       industry: user.industry,
-      specializations: user.specializations || [],
+      specializations: user.specializations,
+      license_number: user.license_number,
+      license_type: user.license_type,
+      vehicle_assignments: user.vehicle_assignments,
       notification_preferences: user.notification_preferences
     });
     setShowEditModal(true);
@@ -743,10 +829,12 @@ export default function UsersPage() {
       key: 'is_active',
       title: 'Status',
       render: (user) => (
-        <StatusBadge 
-          status={user.is_active ? 'active' : 'inactive'} 
-          size="sm"
-        />
+        <Badge 
+          variant={user.is_active ? 'success' : 'destructive'} 
+          className="text-xs"
+        >
+          {user.is_active ? 'Active' : 'Inactive'}
+        </Badge>
       )
     },
 
@@ -1091,6 +1179,184 @@ export default function UsersPage() {
                 />
               </FormField>
             )}
+
+            <FormField name="role">
+              <FormLabel>Role</FormLabel>
+              <Select
+                options={getAvailableRoles()}
+                value={formData.role || 'user'}
+                onChange={(e) => {
+                  const newRole = e.target.value as CreateUserRequest['role'];
+                  console.log('🔍 Role changed to:', newRole);
+                  setFormData({ ...formData, role: newRole });
+                }}
+                disabled={isSubmitting}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                {user?.role === 'admin' && user.client_id && clients.find(c => c.id === user.client_id)?.client_type === 'logistics' 
+                  ? 'Logistics clients can have drivers and technician mechanics for vehicle maintenance'
+                  : user?.role === 'admin' && user.client_id && clients.find(c => c.id === user.client_id)?.client_type === 'industrial'
+                  ? 'Industrial clients can have technicians for equipment maintenance'
+                  : 'Select the appropriate role for this user'
+                }
+              </p>
+            </FormField>
+
+            {/* Technician-specific fields */}
+            {formData.role === 'technician' && (
+              <>
+                <FormField name="hourly_rate">
+                  <FormLabel required>Hourly Rate</FormLabel>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.hourly_rate || ''}
+                    onChange={(e) => setFormData({ 
+                      ...formData, 
+                      hourly_rate: e.target.value ? parseFloat(e.target.value) : undefined 
+                    })}
+                    placeholder="Enter hourly rate for technician work"
+                    disabled={isSubmitting}
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Set hourly rate for maintenance work cost calculations
+                  </p>
+                </FormField>
+
+                <FormField name="industry">
+                  <FormLabel>Industry (Optional)</FormLabel>
+                  <Select
+                    value={formData.industry || ''}
+                    onChange={(e) => setFormData({ 
+                      ...formData, 
+                      industry: e.target.value || undefined,
+                      specializations: [] // Reset specializations when industry changes
+                    })}
+                    options={[
+                      { value: '', label: 'Select industry' },
+                      { value: 'Manufacturing', label: 'Manufacturing' },
+                      { value: 'Construction', label: 'Construction' },
+                      { value: 'Healthcare', label: 'Healthcare' },
+                      { value: 'Transportation', label: 'Transportation' },
+                      { value: 'Energy', label: 'Energy' },
+                      { value: 'Technology', label: 'Technology' },
+                      { value: 'Agriculture', label: 'Agriculture' },
+                      { value: 'Mining', label: 'Mining' },
+                      { value: 'Chemical', label: 'Chemical' },
+                      { value: 'Food & Beverage', label: 'Food & Beverage' },
+                      { value: 'Pharmaceuticals', label: 'Pharmaceuticals' },
+                      { value: 'Automotive', label: 'Automotive' },
+                      { value: 'Aerospace', label: 'Aerospace' },
+                      { value: 'Maritime', label: 'Maritime' },
+                      { value: 'Telecommunications', label: 'Telecommunications' },
+                      { value: 'Utilities', label: 'Utilities' },
+                      { value: 'Waste Management', label: 'Waste Management' },
+                      { value: 'Textiles', label: 'Textiles' },
+                      { value: 'Paper & Pulp', label: 'Paper & Pulp' },
+                      { value: 'Other', label: 'Other' }
+                    ]}
+                    disabled={isSubmitting}
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Select primary industry for future auto-assignment
+                  </p>
+                </FormField>
+
+                {formData.industry && (
+                  <FormField name="specializations">
+                    <FormLabel>Specializations (Optional)</FormLabel>
+                    <div className="space-y-2">
+                      {formData.industry === 'Manufacturing' && (
+                        <div className="grid grid-cols-2 gap-2">
+                          {['CNC', 'Welding', 'Electronics', 'Mechanical', 'Quality Control'].map((spec) => (
+                            <Checkbox
+                              key={spec}
+                              label={spec}
+                              checked={formData.specializations?.includes(spec) || false}
+                              onChange={(e) => {
+                                const current = formData.specializations || [];
+                                if (e.target.checked) {
+                                  setFormData({ ...formData, specializations: [...current, spec] });
+                                } else {
+                                  setFormData({ ...formData, specializations: current.filter(s => s !== spec) });
+                                }
+                              }}
+                              disabled={isSubmitting}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      {formData.industry === 'Construction' && (
+                        <div className="grid grid-cols-2 gap-2">
+                          {['Electrical', 'Plumbing', 'HVAC', 'Structural', 'Safety'].map((spec) => (
+                            <Checkbox
+                              key={spec}
+                              label={spec}
+                              checked={formData.specializations?.includes(spec) || false}
+                              onChange={(e) => {
+                                const current = formData.specializations || [];
+                                if (e.target.checked) {
+                                  setFormData({ ...formData, specializations: [...current, spec] });
+                                } else {
+                                  setFormData({ ...formData, specializations: current.filter(s => s !== spec) });
+                                }
+                              }}
+                              disabled={isSubmitting}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      {formData.industry && formData.industry !== 'Manufacturing' && formData.industry !== 'Construction' && (
+                        <p className="text-sm text-gray-500">
+                          Specialization options for {formData.industry} will be available in future updates.
+                        </p>
+                      )}
+                    </div>
+                  </FormField>
+                )}
+              </>
+            )}
+
+            {/* Driver-specific fields */}
+            {formData.role === 'driver' && (
+              <>
+                <FormField name="license_number">
+                  <FormLabel required>License Number</FormLabel>
+                  <Input
+                    value={formData.license_number || ''}
+                    onChange={(e) => setFormData({ ...formData, license_number: e.target.value })}
+                    placeholder="Enter driver&apos;s license number"
+                    disabled={isSubmitting}
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Driver&apos;s license number is required for driver role
+                  </p>
+                </FormField>
+
+                <FormField name="license_type">
+                  <FormLabel>License Type (Optional)</FormLabel>
+                  <Select
+                    value={formData.license_type || ''}
+                    onChange={(e) => setFormData({ ...formData, license_type: e.target.value || undefined })}
+                    options={[
+                      { value: '', label: 'Select license type' },
+                      { value: 'Class A', label: 'Class A - Commercial' },
+                      { value: 'Class B', label: 'Class B - Commercial' },
+                      { value: 'Class C', label: 'Class C - Regular' },
+                      { value: 'Class D', label: 'Class D - Regular' },
+                      { value: 'CDL', label: 'Commercial Driver License' },
+                      { value: 'Motorcycle', label: 'Motorcycle' },
+                      { value: 'Other', label: 'Other' }
+                    ]}
+                    disabled={isSubmitting}
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Type of driver&apos;s license held
+                  </p>
+                </FormField>
+              </>
+            )}
           </FormSection>
 
           <FormSection title="User Information">
@@ -1115,117 +1381,6 @@ export default function UsersPage() {
                 />
               </FormField>
             </FormGrid>
-
-            <FormField name="hourly_rate">
-              <FormLabel>Hourly Rate (Optional)</FormLabel>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.hourly_rate || ''}
-                onChange={(e) => setFormData({ 
-                  ...formData, 
-                  hourly_rate: e.target.value ? parseFloat(e.target.value) : undefined 
-                })}
-                placeholder="Enter hourly rate for technician work"
-                disabled={isSubmitting}
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                Set hourly rate for maintenance work cost calculations
-              </p>
-            </FormField>
-
-            <FormField name="industry">
-              <FormLabel>Industry (Optional)</FormLabel>
-              <Select
-                value={formData.industry || ''}
-                onChange={(e) => setFormData({ 
-                  ...formData, 
-                  industry: e.target.value || undefined,
-                  specializations: [] // Reset specializations when industry changes
-                })}
-                options={[
-                  { value: '', label: 'Select industry' },
-                  { value: 'Manufacturing', label: 'Manufacturing' },
-                  { value: 'Construction', label: 'Construction' },
-                  { value: 'Healthcare', label: 'Healthcare' },
-                  { value: 'Transportation', label: 'Transportation' },
-                  { value: 'Energy', label: 'Energy' },
-                  { value: 'Technology', label: 'Technology' },
-                  { value: 'Agriculture', label: 'Agriculture' },
-                  { value: 'Mining', label: 'Mining' },
-                  { value: 'Chemical', label: 'Chemical' },
-                  { value: 'Food & Beverage', label: 'Food & Beverage' },
-                  { value: 'Pharmaceuticals', label: 'Pharmaceuticals' },
-                  { value: 'Automotive', label: 'Automotive' },
-                  { value: 'Aerospace', label: 'Aerospace' },
-                  { value: 'Maritime', label: 'Maritime' },
-                  { value: 'Telecommunications', label: 'Telecommunications' },
-                  { value: 'Utilities', label: 'Utilities' },
-                  { value: 'Waste Management', label: 'Waste Management' },
-                  { value: 'Textiles', label: 'Textiles' },
-                  { value: 'Paper & Pulp', label: 'Paper & Pulp' },
-                  { value: 'Other', label: 'Other' }
-                ]}
-                disabled={isSubmitting}
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                Select primary industry for future auto-assignment
-              </p>
-            </FormField>
-
-            {formData.industry && (
-              <FormField name="specializations">
-                <FormLabel>Specializations (Optional)</FormLabel>
-                <div className="space-y-2">
-                  {formData.industry === 'Manufacturing' && (
-                    <div className="grid grid-cols-2 gap-2">
-                      {['CNC', 'Welding', 'Electronics', 'Mechanical', 'Quality Control'].map((spec) => (
-                        <Checkbox
-                          key={spec}
-                          label={spec}
-                          checked={formData.specializations?.includes(spec) || false}
-                          onChange={(e) => {
-                            const current = formData.specializations || [];
-                            if (e.target.checked) {
-                              setFormData({ ...formData, specializations: [...current, spec] });
-                            } else {
-                              setFormData({ ...formData, specializations: current.filter(s => s !== spec) });
-                            }
-                          }}
-                          disabled={isSubmitting}
-                        />
-                      ))}
-                    </div>
-                  )}
-                  {formData.industry === 'Construction' && (
-                    <div className="grid grid-cols-2 gap-2">
-                      {['Electrical', 'Plumbing', 'HVAC', 'Structural', 'Safety'].map((spec) => (
-                        <Checkbox
-                          key={spec}
-                          label={spec}
-                          checked={formData.specializations?.includes(spec) || false}
-                          onChange={(e) => {
-                            const current = formData.specializations || [];
-                            if (e.target.checked) {
-                              setFormData({ ...formData, specializations: [...current, spec] });
-                            } else {
-                              setFormData({ ...formData, specializations: current.filter(s => s !== spec) });
-                            }
-                          }}
-                          disabled={isSubmitting}
-                        />
-                      ))}
-                    </div>
-                  )}
-                  {formData.industry && formData.industry !== 'Manufacturing' && formData.industry !== 'Construction' && (
-                    <p className="text-sm text-gray-500">
-                      Specialization options for {formData.industry} will be available in future updates.
-                    </p>
-                  )}
-                </div>
-              </FormField>
-            )}
 
             <FormField name="email">
               <FormLabel required>Email Address</FormLabel>
@@ -1398,7 +1553,9 @@ export default function UsersPage() {
                 <div className="space-y-3">
                   <div>
                     <label className="text-sm font-medium text-gray-500">Status</label>
-                    <StatusBadge status={selectedUser.is_active ? 'active' : 'inactive'} />
+                    <Badge variant={selectedUser.is_active ? 'success' : 'destructive'}>
+                      {selectedUser.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">Created</label>
