@@ -429,7 +429,23 @@ export const analyticsAPI = {
   },
 
   getAIInsights: async (query: string, filters?: Record<string, unknown>) => {
-    const response = await api.post('/analytics/ai-insights', { query, filters });
+    // Try completely different payload structures that might be expected
+    const payload = {
+      // Try a data wrapper structure
+      data: {
+        query: query,
+        filters: filters
+      },
+      // Also try individual fields
+      user_query: query,
+      analysis_request: query,
+      context: {
+        filters: filters
+      }
+    };
+    
+    console.log('AI Insights API payload:', payload);
+    const response = await api.post('/analytics/ai-insights', payload);
     return response.data;
   }
 };

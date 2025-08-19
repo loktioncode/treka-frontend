@@ -293,6 +293,7 @@ export default function AnalyticsPage() {
         searchQuery: filters.searchQuery,
       };
       
+      console.log('Sending AI insights request with payload:', { message, filtersForAI });
       const aiResponse = await analyticsAPI.getAIInsights(message, filtersForAI);
       
       const assistantMessage: ChatMessage = {
