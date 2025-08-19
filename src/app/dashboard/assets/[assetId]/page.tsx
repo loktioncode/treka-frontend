@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
-import { assetAPI, componentAPI, type Asset, type Component, type CreateComponentRequest } from '@/services/api';
+import { assetAPI, componentAPI, clientAPI, type Asset, type Component, type CreateComponentRequest } from '@/services/api';
 import { type ComponentStatus } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,6 +45,7 @@ export default function AssetViewPage() {
   const router = useRouter();
   const [asset, setAsset] = useState<Asset | null>(null);
   const [components, setComponents] = useState<Component[]>([]);
+  const [drivers, setDrivers] = useState<{ id: string; first_name: string; last_name: string; license_number?: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [showComponentModal, setShowComponentModal] = useState(false);
   const [selectedComponent, setSelectedComponent] = useState<Component | null>(null);
@@ -209,12 +210,30 @@ export default function AssetViewPage() {
     }
   }, [assetId]);
 
+  const loadDrivers = useCallback(async () => {
+    try {
+      if (asset?.client_id) {
+        const response = await clientAPI.getClientUsers(asset.client_id, { role: 'driver' });
+        setDrivers(response || []);
+      }
+    } catch (error) {
+      console.error('Error loading drivers:', error);
+      setDrivers([]);
+    }
+  }, [asset?.client_id]);
+
   useEffect(() => {
     if (assetId) {
       loadAsset();
       loadComponents();
     }
   }, [assetId, loadAsset, loadComponents]);
+
+  useEffect(() => {
+    if (asset) {
+      loadDrivers();
+    }
+  }, [asset, loadDrivers]);
 
   const handleComponentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -564,6 +583,15 @@ export default function AssetViewPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">Fuel Type</label>
                       <p className="text-gray-900">{asset.vehicle_details.fuel_type || 'Not specified'}</p>
                     </div>
+                    {asset.vehicle_details?.driver_id && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Assigned Driver</label>
+                        <p className="text-gray-900">
+                          {drivers.find(d => d.id === asset.vehicle_details?.driver_id)?.first_name} {drivers.find(d => d.id === asset.vehicle_details?.driver_id)?.last_name}
+                          {drivers.find(d => d.id === asset.vehicle_details?.driver_id)?.license_number && ` (${drivers.find(d => d.id === asset.vehicle_details?.driver_id)?.license_number})`}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

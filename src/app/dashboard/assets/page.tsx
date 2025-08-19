@@ -41,6 +41,7 @@ export default function AssetsPage() {
   const searchParams = useSearchParams();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [drivers, setDrivers] = useState<{ id: string; first_name: string; last_name: string; license_number?: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -71,7 +72,8 @@ export default function AssetsPage() {
       license_plate: '',
       engine_type: '',
       fuel_type: '',
-      mileage: 0
+      mileage: 0,
+      driver_id: undefined
     },
     machinery_details: {
       make: '',
@@ -104,7 +106,8 @@ export default function AssetsPage() {
     license_plate: updates.license_plate || formData.vehicle_details?.license_plate || '',
     engine_type: updates.engine_type || formData.vehicle_details?.engine_type || '',
     fuel_type: updates.fuel_type || formData.vehicle_details?.fuel_type || '',
-    mileage: updates.mileage || formData.vehicle_details?.mileage || 0
+    mileage: updates.mileage || formData.vehicle_details?.mileage || 0,
+    driver_id: updates.driver_id || formData.vehicle_details?.driver_id || undefined
   });
 
   const createCompleteMachineryDetails = (updates: Partial<MachineryDetails>): MachineryDetails => ({
@@ -181,11 +184,39 @@ export default function AssetsPage() {
     }
   }, [user]);
 
+  // Load drivers for the current client
+  const loadDrivers = useCallback(async () => {
+    try {
+      if (user?.role === 'admin' && user.client_id) {
+        // Load drivers for the current client
+        const response = await clientAPI.getClientUsers(user.client_id, { role: 'driver' });
+        setDrivers(response || []);
+      } else if (user?.role === 'super_admin' && selectedClient) {
+        // Super admin can see drivers for selected client
+        const response = await clientAPI.getClientUsers(selectedClient, { role: 'driver' });
+        setDrivers(response || []);
+      } else {
+        setDrivers([]);
+      }
+    } catch (error) {
+      console.error('Error loading drivers:', error);
+      setDrivers([]);
+    }
+  }, [user, selectedClient]);
+
   // Load data
   useEffect(() => {
     loadAssets();
     loadClients();
-  }, [loadAssets, loadClients]);
+    loadDrivers();
+  }, [loadAssets, loadClients, loadDrivers]);
+
+  // Reload drivers when selected client changes
+  useEffect(() => {
+    if (user?.role === 'super_admin') {
+      loadDrivers();
+    }
+  }, [selectedClient, loadDrivers, user?.role]);
 
   // Handle edit mode from URL
   useEffect(() => {
@@ -205,6 +236,7 @@ export default function AssetsPage() {
           location: assetToEdit.location,
           vehicle_details: assetToEdit.vehicle_details,
           machinery_details: assetToEdit.machinery_details,
+          equipment_details: assetToEdit.equipment_details,
           infrastructure_details: assetToEdit.infrastructure_details
         });
         setShowCreateModal(true);
@@ -748,6 +780,23 @@ export default function AssetsPage() {
                   />
                 </FormField>
 
+                <FormField name="vehicle_license_plate">
+                  <FormLabel htmlFor="vehicle_license_plate">License Plate</FormLabel>
+                  <Input
+                    id="vehicle_license_plate"
+                    value={formData.vehicle_details?.license_plate || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      vehicle_details: createCompleteVehicleDetails({ license_plate: e.target.value })
+                    })}
+                    placeholder="e.g., CA 123-456 (SA) or ABC-123 (ZW)"
+                    maxLength={20}
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    South African format: CA 123-456 | Zimbabwean format: ABC-123
+                  </p>
+                </FormField>
+
                 <FormField name="vehicle_mileage">
                   <FormLabel htmlFor="vehicle_mileage">Mileage</FormLabel>
                   <Input
@@ -761,6 +810,28 @@ export default function AssetsPage() {
                     placeholder="e.g., 50000"
                     min="0"
                   />
+                </FormField>
+
+                <FormField name="vehicle_driver">
+                  <FormLabel htmlFor="vehicle_driver">Assigned Driver</FormLabel>
+                  <Select
+                    id="vehicle_driver"
+                    value={formData.vehicle_details?.driver_id || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      vehicle_details: createCompleteVehicleDetails({ driver_id: e.target.value || undefined })
+                    })}
+                    options={[
+                      { value: '', label: 'No driver assigned' },
+                      ...(drivers || []).map(driver => ({
+                        value: driver.id,
+                        label: `${driver.first_name} ${driver.last_name} (${driver.license_number})`
+                      }))
+                    ]}
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Assign a driver to this vehicle (optional)
+                  </p>
                 </FormField>
               </FormGrid>
             </FormSection>

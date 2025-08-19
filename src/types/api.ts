@@ -387,7 +387,7 @@ export interface ComponentFilters extends PaginationParams {
 }
 
 export interface UserFilters extends PaginationParams {
-  role?: 'admin' | 'user';
+  role?: 'admin' | 'user' | 'technician' | 'driver';
   is_active?: boolean;
   search?: string;
 }
