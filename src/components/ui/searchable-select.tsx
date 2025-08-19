@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, ChevronDown, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { createPortal } from 'react-dom';
 
 interface SearchableSelectOption {
   value: string;
@@ -147,8 +148,16 @@ export function SearchableSelect({
         </div>
       </div>
 
-      {isOpen && (
-        <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-xl max-h-60 overflow-hidden">
+      {isOpen && createPortal(
+        <div 
+          className="fixed z-[9999] bg-white border border-gray-300 rounded-md shadow-xl max-h-60 overflow-hidden"
+          style={{
+            top: containerRef.current ? containerRef.current.getBoundingClientRect().bottom + 4 : 0,
+            left: containerRef.current ? containerRef.current.getBoundingClientRect().left : 0,
+            width: containerRef.current ? containerRef.current.getBoundingClientRect().width : 'auto',
+            minWidth: containerRef.current ? containerRef.current.getBoundingClientRect().width : 'auto'
+          }}
+        >
           <div className="p-2 border-b border-gray-200 bg-gray-50">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
@@ -191,7 +200,8 @@ export function SearchableSelect({
               ))
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

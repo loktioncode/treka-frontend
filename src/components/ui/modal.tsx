@@ -32,7 +32,7 @@ const Modal = ({
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog 
         as="div" 
-        className="relative z-50" 
+        className="relative z-[9998]" 
         onClose={closeOnOverlayClick ? onClose : () => {}}
       >
         <Transition.Child
@@ -60,7 +60,7 @@ const Modal = ({
             >
               <Dialog.Panel 
                 className={cn(
-                  "w-full transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all",
+                  "w-full transform rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all",
                   sizeClasses[size]
                 )}
               >
