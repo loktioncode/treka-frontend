@@ -1,17 +1,17 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
-  componentAPI, 
-  assetAPI, 
-  clientAPI, 
   type Component, 
   type Asset,
-  type Client, 
+  type Client,
   type CreateComponentRequest, 
   type ComponentFilters
 } from '@/services/api';
+import { useComponents, useCreateComponent, useUpdateComponent, useDeleteComponent } from '@/hooks/useComponents';
+import { useAssets } from '@/hooks/useAssets';
+import { useClients } from '@/hooks/useClients';
 import { ComponentStatus } from '@/types/api';
 import { DataTable, type Column, type DataTableAction } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
@@ -38,16 +38,18 @@ import {
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { formatDate, formatDateForInput } from '@/lib/utils';
-import { ensureId } from '@/lib/id-utils';
 import { useRouter } from 'next/navigation';
 
 export default function ComponentsPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const [components, setComponents] = useState<Component[]>([]);
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // React Query hooks
+  const { data: clients = [] } = useClients();
+  const { data: assets = [] } = useAssets();
+  const createComponentMutation = useCreateComponent();
+  const updateComponentMutation = useUpdateComponent();
+  const deleteComponentMutation = useDeleteComponent();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedComponent, setSelectedComponent] = useState<Component | null>(null);
@@ -58,6 +60,17 @@ export default function ComponentsPage() {
   const [selectedAsset, setSelectedAsset] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+
+  // Build filters for React Query
+  const filters: ComponentFilters = {
+    search: searchTerm || undefined,
+    status: (statusFilter as 'operational' | 'warning' | 'critical' | 'maintenance' | 'inactive' | undefined) || undefined,
+    asset_id: selectedAsset || undefined,
+    client_id: selectedClient || undefined
+  };
+
+  // Get components using React Query
+  const { data: components = [], isLoading: loading } = useComponents(filters);
 
   // Form state
   const [formData, setFormData] = useState<{
@@ -83,91 +96,10 @@ export default function ComponentsPage() {
   });
 
 
-  // Load components based on filters
-  const loadComponents = useCallback(async () => {
-    try {
-      setLoading(true);
-      
-      const filters: ComponentFilters = {
-        search: searchTerm || undefined,
-        status: (statusFilter as 'operational' | 'warning' | 'critical' | 'maintenance' | 'inactive' | undefined) || undefined,
-        asset_id: selectedAsset || undefined,
-        client_id: selectedClient || undefined
-      };
-
-      let response;
-      if (user?.role === 'super_admin') {
-        if (selectedClient) {
-          response = await componentAPI.getClientComponents(selectedClient, filters);
-        } else {
-          response = await componentAPI.getComponents(filters);
-        }
-      } else {
-        response = await componentAPI.getComponents(filters);
-      }
-      
-      const transformedComponents = ensureId(response);
-      setComponents(transformedComponents);
-    } catch (error) {
-      toast.error('Failed to load components');
-      console.error('Error loading components:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user, selectedClient, selectedAsset, searchTerm, statusFilter]);
-
-  // Load assets and clients
-  const loadAssets = useCallback(async () => {
-    try {
-      let response;
-      if (selectedClient) {
-        response = await assetAPI.getClientAssets(selectedClient);
-      } else {
-        response = await assetAPI.getAssets();
-      }
-      const transformedAssets = ensureId(response);
-      setAssets(transformedAssets);
-    } catch (error) {
-      console.error('Error loading assets:', error);
-    }
-  }, [selectedClient]);
-
-  const loadClients = useCallback(async () => {
-    try {
-      if (user?.role === 'super_admin') {
-        // Super admin can see all clients
-        const response = await clientAPI.getClients();
-        const transformedClients = ensureId(response);
-        setClients(transformedClients);
-      } else if (user?.role === 'admin' && user.client_id) {
-        // Client admin can only see their own client
-        const response = await clientAPI.getClient(user.client_id);
-        const transformedClient = ensureId([response]);
-        setClients(transformedClient);
-      } else {
-        // Regular users don't need client list
-        setClients([]);
-      }
-    } catch (error) {
-      console.error('Error loading clients:', error);
-      setClients([]);
-    }
-  }, [user]);
-
-  // Load data
+  // Reset asset filter when client changes
   useEffect(() => {
-    loadComponents();
-    if (user?.role === 'super_admin' || user?.role === 'admin') {
-      loadClients();
-    }
-    loadAssets();
-  }, [user, loadClients, loadComponents, loadAssets]);
-
-  // Reload assets when client filter changes
-  useEffect(() => {
-    loadAssets();
     setSelectedAsset(''); // Reset asset filter when client changes
-  }, [selectedClient, loadAssets]);
+  }, [selectedClient]);
 
   // Stats
   const stats = [
@@ -181,7 +113,7 @@ export default function ComponentsPage() {
     },
     {
       title: 'Operational',
-      value: components.filter(comp => comp.status === 'operational').length.toString(),
+      value: components.filter((comp: Component) => comp.status === 'operational').length.toString(),
       description: 'Working normally',
       icon: CheckCircle,
       color: 'green' as const,
@@ -189,7 +121,7 @@ export default function ComponentsPage() {
     },
     {
       title: 'Critical Issues',
-      value: components.filter(comp => comp.status === 'critical').length.toString(),
+      value: components.filter((comp: Component) => comp.status === 'critical').length.toString(),
       description: 'Need immediate attention',
       icon: AlertTriangle,
       color: 'red' as const,
@@ -197,7 +129,7 @@ export default function ComponentsPage() {
     },
     {
       title: 'Maintenance Due',
-      value: components.filter(comp => {
+      value: components.filter((comp: Component) => {
         if (!comp.next_maintenance_date) return false;
         const dueDate = new Date(comp.next_maintenance_date);
         const today = new Date();
@@ -239,7 +171,7 @@ export default function ComponentsPage() {
       key: 'asset_id',
       title: 'Asset',
       render: (component) => {
-        const asset = assets.find(a => a.id === component.asset_id);
+        const asset = assets.find((a: Asset) => a.id === component.asset_id);
         return asset ? (
           <div className="flex items-center gap-2">
             <Package className="w-3 h-3 text-gray-400" />
@@ -299,7 +231,7 @@ export default function ComponentsPage() {
       key: 'client_id',
       title: 'Client',
       render: (component) => {
-        const client = clients.find(c => c.id === component.client_id);
+        const client = clients.find((c: Client) => c.id === component.client_id);
         return client ? (
           <div className="flex items-center gap-2">
             <Building2 className="w-3 h-3 text-gray-400" />
@@ -392,11 +324,14 @@ export default function ComponentsPage() {
       };
 
       if (selectedComponent) {
-        await componentAPI.updateComponent(selectedComponent.id, processedData);
-        toast.success('Component updated successfully');
+        // Update existing component
+        await updateComponentMutation.mutateAsync({ 
+          componentId: selectedComponent.id, 
+          data: processedData 
+        });
       } else {
-        await componentAPI.createComponent(processedData as CreateComponentRequest);
-        toast.success('Component created successfully');
+        // Create new component
+        await createComponentMutation.mutateAsync(processedData as CreateComponentRequest);
       }
       
       setShowCreateModal(false);
@@ -412,7 +347,6 @@ export default function ComponentsPage() {
         next_maintenance_date: '',
         maintenance_interval_days: 30
       });
-      loadComponents();
     } catch (error: unknown) {
       if (error && typeof error === 'object' && 'response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'detail' in error.response.data) {
         const detail = error.response.data.detail;
@@ -434,11 +368,10 @@ export default function ComponentsPage() {
 
     setIsSubmitting(true);
     try {
-      await componentAPI.deleteComponent(selectedComponent.id);
-      toast.success('Component deleted successfully');
+      await deleteComponentMutation.mutateAsync(selectedComponent.id);
+      
       setShowDeleteModal(false);
       setSelectedComponent(null);
-      loadComponents();
     } catch {
       toast.error('Failed to delete component');
     } finally {
@@ -491,7 +424,7 @@ export default function ComponentsPage() {
                 className="w-full"
                 options={[
                   { value: '', label: 'All Clients' },
-                  ...(clients.map(client => ({ value: client.id, label: client.name })))
+                  ...(clients.map((client: Client) => ({ value: client.id, label: client.name })))
                 ]}
               />
             </div>
@@ -504,7 +437,7 @@ export default function ComponentsPage() {
               onChange={(e) => setSelectedAsset(e.target.value)}
               options={[
                 { value: '', label: 'All Assets' },
-                ...(assets.map(asset => ({ value: asset.id, label: asset.name })))
+                ...(assets.map((asset: Asset) => ({ value: asset.id, label: asset.name })))
               ]}
             />
           </div>
@@ -620,7 +553,7 @@ export default function ComponentsPage() {
                   onChange={(e) => setFormData({ ...formData, asset_id: e.target.value })}
                   options={[
                     { value: '', label: 'Select an asset' },
-                    ...assets.map(asset => ({ value: asset.id, label: asset.name }))
+                    ...assets.map((asset: Asset) => ({ value: asset.id, label: asset.name }))
                   ]}
                   required
                 />

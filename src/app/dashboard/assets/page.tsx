@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { assetAPI, clientAPI, type Asset, type Client, type CreateAssetRequest, type AssetFilters } from '@/services/api';
+import { type Asset, type Client, type CreateAssetRequest, type AssetFilters } from '@/services/api';
+import { useAssets, useCreateAsset, useUpdateAsset, useDeleteAsset } from '@/hooks/useAssets';
+import { useClients } from '@/hooks/useClients';
 import { type VehicleDetails, type MachineryDetails, type EquipmentDetails } from '@/types/api';
 
 import { DataTable, type Column, type DataTableAction } from '@/components/ui/data-table';
@@ -31,7 +33,6 @@ import {
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
-import { ensureId } from '@/lib/id-utils';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PrimaryMaterial, PrimaryMaterialLabels, Condition, ConditionLabels } from '@/types/api';
 
@@ -39,9 +40,12 @@ export default function AssetsPage() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // React Query hooks
+  const { data: clients = [] } = useClients();
+  const createAssetMutation = useCreateAsset();
+  const updateAssetMutation = useUpdateAsset();
+  const deleteAssetMutation = useDeleteAsset();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
@@ -52,6 +56,17 @@ export default function AssetsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('');
+
+  // Build filters for React Query
+  const filters: AssetFilters = {
+    search: searchTerm || undefined,
+    status: (statusFilter as 'active' | 'maintenance' | 'retired' | 'damaged' | undefined) || undefined,
+    asset_type: (typeFilter as 'vehicle' | 'machinery' | 'equipment' | 'infrastructure' | undefined) || undefined,
+    client_id: selectedClient || undefined
+  };
+
+  // Get assets using React Query
+  const { data: assets = [], isLoading: loading } = useAssets(filters);
 
   // Form state
   const [formData, setFormData] = useState<Partial<CreateAssetRequest>>({
@@ -124,76 +139,13 @@ export default function AssetsPage() {
     serial_number: updates.serial_number || formData.equipment_details?.serial_number || ''
   });
 
-  // Helper functions removed as they were unused
-
-  // Load assets based on filters
-  const loadAssets = useCallback(async () => {
-    try {
-      setLoading(true);
-      
-      const filters: AssetFilters = {
-        search: searchTerm || undefined,
-        status: (statusFilter as 'active' | 'maintenance' | 'retired' | 'damaged' | undefined) || undefined,
-        asset_type: (typeFilter as 'vehicle' | 'machinery' | 'equipment' | 'infrastructure' | undefined) || undefined,
-        client_id: selectedClient || undefined
-      };
-
-      let response;
-      if (user?.role === 'super_admin') {
-        if (selectedClient) {
-          response = await assetAPI.getClientAssets(selectedClient, filters);
-        } else {
-          response = await assetAPI.getAssets(filters);
-        }
-      } else {
-        response = await assetAPI.getAssets(filters);
-      }
-      
-      const transformedAssets = ensureId(response);
-      setAssets(transformedAssets);
-    } catch (error) {
-      toast.error('Failed to load assets');
-      console.error('Error loading assets:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user, selectedClient, searchTerm, statusFilter, typeFilter]);
-
-  // Load clients based on user role
-  const loadClients = useCallback(async () => {
-    try {
-      if (user?.role === 'super_admin') {
-        // Super admin can see all clients
-        const response = await clientAPI.getClients();
-        const transformedClients = ensureId(response || []);
-        setClients(transformedClients);
-      } else if (user?.role === 'admin' && user.client_id) {
-        // Client admin can only see their own client
-        const response = await clientAPI.getClient(user.client_id);
-        const transformedClient = ensureId([response]);
-        setClients(transformedClient);
-      } else {
-        // Regular users don't need client list
-        setClients([]);
-      }
-    } catch (error) {
-      console.error('Error loading clients:', error);
-      toast.error('Failed to load clients');
-      setClients([]); // Set to empty array on error to prevent undefined
-    }
-  }, [user]);
-
-  // Load data
-  useEffect(() => {
-    loadAssets();
-    loadClients();
-  }, [loadAssets, loadClients]);
+  // React Query handles all data loading automatically
 
   // Handle edit mode from URL
   useEffect(() => {
     const editAssetId = searchParams.get('edit');
     if (editAssetId && assets.length > 0) {
-      const assetToEdit = assets.find(asset => asset.id === editAssetId);
+      const assetToEdit = assets.find((asset: Asset) => asset.id === editAssetId);
       if (assetToEdit) {
         setSelectedAsset(assetToEdit);
         setFormData({
@@ -229,7 +181,7 @@ export default function AssetsPage() {
     },
     {
       title: 'Active Assets',
-      value: assets.filter(asset => asset.status === 'active').length.toString(),
+      value: assets.filter((asset: Asset) => asset.status === 'active').length.toString(),
       description: 'Operational',
       icon: TrendingUp,
       color: 'green' as const,
@@ -237,7 +189,7 @@ export default function AssetsPage() {
     },
     {
       title: 'Maintenance Required',
-      value: assets.filter(asset => asset.status === 'maintenance').length.toString(),
+      value: assets.filter((asset: Asset) => asset.status === 'maintenance').length.toString(),
       description: 'Need attention',
       icon: Wrench,
       color: 'yellow' as const,
@@ -245,7 +197,7 @@ export default function AssetsPage() {
     },
     {
       title: 'Total Value',
-      value: `$${assets.reduce((sum, asset) => sum + (asset.current_value || 0), 0).toLocaleString()}`,
+      value: `$${assets.reduce((sum: number, asset: Asset) => sum + (asset.current_value || 0), 0).toLocaleString()}`,
       description: 'Current valuation',
       icon: DollarSign,
       color: 'purple' as const,
@@ -322,7 +274,7 @@ export default function AssetsPage() {
       key: 'client_id',
       title: 'Client',
       render: (asset) => {
-        const client = clients.find(c => c.id === asset.client_id);
+        const client = clients.find((c: Client) => c.id === asset.client_id);
         return client ? (
           <div className="flex items-center gap-2">
             <Building2 className="w-3 h-3 text-gray-400" />
@@ -384,16 +336,18 @@ export default function AssetsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // setFormErrors({});
     setIsSubmitting(true);
 
     try {
       if (selectedAsset) {
-        await assetAPI.updateAsset(selectedAsset.id, formData);
-        toast.success('Asset updated successfully');
+        // Update existing asset
+        await updateAssetMutation.mutateAsync({ 
+          assetId: selectedAsset.id, 
+          data: formData 
+        });
       } else {
-        await assetAPI.createAsset(formData as CreateAssetRequest);
-        toast.success('Asset created successfully');
+        // Create new asset
+        await createAssetMutation.mutateAsync(formData as CreateAssetRequest);
       }
       
       setShowCreateModal(false);
@@ -412,7 +366,6 @@ export default function AssetsPage() {
         equipment_details: undefined,
         infrastructure_details: undefined
       });
-      loadAssets();
     } catch (error: unknown) {
       if (error && typeof error === 'object' && 'response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'detail' in error.response.data) {
         const detail = error.response.data.detail;
@@ -434,11 +387,10 @@ export default function AssetsPage() {
 
     setIsSubmitting(true);
     try {
-      await assetAPI.deleteAsset(selectedAsset.id);
-      toast.success('Asset deleted successfully');
+      await deleteAssetMutation.mutateAsync(selectedAsset.id);
+      
       setShowDeleteModal(false);
       setSelectedAsset(null);
-      loadAssets();
     } catch {
       toast.error('Failed to delete asset');
     } finally {
@@ -491,7 +443,7 @@ export default function AssetsPage() {
                 className="w-full"
                 options={[
                   { value: '', label: 'All Clients' },
-                  ...(clients?.map(client => ({ value: client.id, label: client.name })) || [])
+                  ...(clients?.map((client: Client) => ({ value: client.id, label: client.name })) || [])
                 ]}
               />
             </div>
