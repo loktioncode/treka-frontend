@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   type User, 
+  type Client,
   type CreateUserRequest, 
   type CreateAdminRequest 
 } from '@/services/api';
@@ -88,7 +90,7 @@ const validateLicenseNumber = (licenseNumber: string, licenseType: string): { is
 export default function UsersPage() {
   const { user } = useAuth();
   
-  // React Query hooks
+  // React Query hooks - backend now handles role-based filtering
   const { data: users = [], isLoading: loading } = useUsers();
   const { data: clients = [] } = useClients();
   const createUserMutation = useCreateUser();
@@ -100,8 +102,7 @@ export default function UsersPage() {
   
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [showUserModal, setShowUserModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<User>>({});
@@ -127,6 +128,8 @@ export default function UsersPage() {
     specializations: [],
     license_number: undefined,
     license_type: undefined,
+    license_front_image: undefined,
+    license_back_image: undefined,
     vehicle_assignments: [],
     notification_preferences: {
       email: true,
@@ -161,16 +164,52 @@ export default function UsersPage() {
 
   // React Query hooks handle all API calls automatically
 
-  // Get available roles based on client type
-  const getAvailableRoles = () => {
+  // Get available roles based on client type and current user role
+  const getAvailableRoles = (currentUserRole?: string) => {
     const baseRoles = [
       { value: 'user', label: 'User' },
       { value: 'admin', label: 'Admin' }
     ];
 
+    // If checking for a specific user's available roles (for role changes)
+    if (currentUserRole) {
+      // Drivers cannot be promoted to admin (business rule)
+      if (currentUserRole === 'driver') {
+        return [
+          { value: 'user', label: 'User' },
+          { value: 'technician', label: 'Technician' }
+        ];
+      }
+      
+      // Technicians can be promoted to user or admin
+      if (currentUserRole === 'technician') {
+        return [
+          { value: 'user', label: 'User' },
+          { value: 'admin', label: 'Admin' }
+        ];
+      }
+      
+      // Regular users can be promoted to admin
+      if (currentUserRole === 'user') {
+        return [
+          { value: 'admin', label: 'Admin' },
+          { value: 'technician', label: 'Technician' },
+          { value: 'driver', label: 'Driver' }
+        ];
+      }
+      
+      // Admins can be demoted to user or technician
+      if (currentUserRole === 'admin') {
+        return [
+          { value: 'user', label: 'User' },
+          { value: 'technician', label: 'Technician' }
+        ];
+      }
+    }
+
     // For admin users, determine roles based on their client type
     if (user?.role === 'admin' && user.client_id) {
-      const currentClient = clients.find((c: { id: string }) => c.id === user.client_id);
+      const currentClient = clients.find((c: Client) => c.id === user.client_id);
       if (currentClient?.client_type === 'logistics') {
         return [
           { value: 'user', label: 'User' },
@@ -213,6 +252,8 @@ export default function UsersPage() {
       specializations: [],
       license_number: undefined,
       license_type: undefined,
+      license_front_image: undefined,
+      license_back_image: undefined,
       vehicle_assignments: [],
       notification_preferences: {
         email: true,
@@ -269,7 +310,7 @@ export default function UsersPage() {
 
     // Validate role availability based on client type
     if (user?.role === 'admin' && user.client_id) {
-      const currentClient = clients.find((c: { id: string }) => c.id === user.client_id);
+      const currentClient = clients.find((c: Client) => c.id === user.client_id);
       if (currentClient?.client_type === 'logistics' && !['user', 'driver', 'technician'].includes(formData.role || '')) {
         errors.role = 'Invalid role for logistics client';
       } else if (currentClient?.client_type === 'industrial' && !['user', 'technician'].includes(formData.role || '')) {
@@ -447,11 +488,16 @@ export default function UsersPage() {
   const handleViewUser = (user: User) => {
     console.log('👁️ View user clicked:', user);
     setSelectedUser(user);
-    setShowViewModal(true);
+    setShowUserModal(true);
   };
 
   const handleEditUser = (user: User) => {
     console.log('✏️ Edit user clicked:', user);
+    console.log('🔍 User license data:', {
+      license_number: user.license_number,
+      license_type: user.license_type,
+      vehicle_assignments: user.vehicle_assignments
+    });
     setSelectedUser(user);
     setEditFormData({
       first_name: user.first_name,
@@ -461,12 +507,14 @@ export default function UsersPage() {
       hourly_rate: user.hourly_rate,
       industry: user.industry,
       specializations: user.specializations,
-      license_number: user.license_number,
-      license_type: user.license_type,
-      vehicle_assignments: user.vehicle_assignments,
+      license_number: user.license_number || '',
+      license_type: user.license_type || '',
+      license_front_image: user.license_front_image || '',
+      license_back_image: user.license_back_image || '',
+      vehicle_assignments: user.vehicle_assignments || [],
       notification_preferences: user.notification_preferences
     });
-    setShowEditModal(true);
+    setShowUserModal(true);
   };
 
   const handleUpdateUser = async () => {
@@ -571,7 +619,7 @@ export default function UsersPage() {
       await updateUserMutation.mutateAsync({ userId, data: changedFields });
       
       toast.success('User updated successfully');
-      setShowEditModal(false);
+      setShowUserModal(false);
       setSelectedUser(null);
     } catch (error: unknown) {
       let message = 'Failed to update user';
@@ -626,6 +674,12 @@ export default function UsersPage() {
       return;
     }
     
+    // Prevent drivers from being upgraded to admin (business rule)
+    if (selectedUser.role === 'driver' && roleChangeData.role === 'admin') {
+      toast.error('Drivers cannot be promoted to admin role. Drivers must first be upgraded to regular user, then to admin.');
+      return;
+    }
+    
     // Prevent changing super admin roles if not super admin
     if (user?.role !== 'super_admin' && selectedUser.role === 'super_admin') {
       toast.error('Only super admins can modify super admin roles');
@@ -670,10 +724,10 @@ export default function UsersPage() {
         user: selectedUser
       });
       
-      // Validate client_id if it's being sent
-      if (roleChangeData.client_id) {
-        // Check if client_id is actually a valid client ID (not a name)
-        const client = clients.find((c: { id: string }) => c.id === roleChangeData.client_id);
+              // Validate client_id if it's being sent
+        if (roleChangeData.client_id) {
+          // Check if client_id is actually a valid client ID (not a name)
+          const client = clients.find((c: Client) => c.id === roleChangeData.client_id);
         if (!client) {
       
           toast.error('Invalid client selection. Please try again.');
@@ -760,18 +814,7 @@ export default function UsersPage() {
       key: 'role',
       title: 'Role',
       render: (userRow) => (
-        <div className="flex items-center gap-2">
-          <Shield className="h-4 w-4 text-gray-400" />
-          <RoleBadge role={userRow.role} size="sm" />
-          {/* Show edit indicator if role can be changed */}
-          {((user?.role === 'super_admin') || 
-            (user?.role === 'admin' && user.client_id === userRow.client_id && userRow.role !== 'super_admin' && userRow.role !== 'admin')) && (
-            <div className="text-xs text-teal-600 bg-teal-50 px-2 py-1 rounded-full border border-teal-200">
-              <Shield className="h-3 w-3 inline mr-1" />
-              Editable
-            </div>
-          )}
-        </div>
+        <RoleBadge role={userRow.role} size="sm" />
       )
     },
     {
@@ -856,7 +899,7 @@ export default function UsersPage() {
         if (user.role === 'super_admin') {
           return <span className="text-gray-400">-</span>;
         }
-        const client = clients.find((c: { id: string }) => c.id === user.client_id);
+        const client = clients.find((c: Client) => c.id === user.client_id);
         return (
           <span className="text-sm text-gray-600">
             {client?.name || 'Unknown'}
@@ -874,13 +917,7 @@ export default function UsersPage() {
       onClick: handleViewUser,
       variant: 'secondary'
     },
-    {
-      key: 'edit',
-      label: 'Edit',
-      icon: Edit,
-      onClick: handleEditUser,
-      variant: 'secondary'
-    },
+
     {
       key: 'change_role',
       label: 'Change Role',
@@ -949,7 +986,7 @@ export default function UsersPage() {
       ]
     : [];
 
-  const clientOptions = clients.map((client: { id: string; name: string }) => ({
+  const clientOptions = clients.map((client: Client) => ({
     key: client.id,
     value: client.id,
     label: client.name
@@ -1001,7 +1038,7 @@ export default function UsersPage() {
               <div>
                 <p className="text-sm font-medium text-gray-600">Active Users</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {users.filter((u: { is_active: boolean }) => u.is_active).length}
+                  {users.filter((u: User) => u.is_active).length}
                 </p>
               </div>
               <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
@@ -1016,7 +1053,7 @@ export default function UsersPage() {
               <div>
                 <p className="text-sm font-medium text-gray-600">Admins</p>
                 <p className="text-2xl font-bold text-purple-600">
-                  {users.filter((u: { role: string }) => ['admin', 'super_admin'].includes(u.role)).length}
+                  {users.filter((u: User) => ['admin', 'super_admin'].includes(u.role)).length}
                 </p>
               </div>
               <Shield className="h-8 w-8 text-purple-600" />
@@ -1029,7 +1066,7 @@ export default function UsersPage() {
               <div>
                 <p className="text-sm font-medium text-gray-600">This Month</p>
                 <p className="text-2xl font-bold text-teal-600">
-                  {users.filter((u: { created_at: string }) => {
+                  {users.filter((u: User) => {
                     const created = new Date(u.created_at);
                     const now = new Date();
                     return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
@@ -1191,9 +1228,9 @@ export default function UsersPage() {
                 disabled={isSubmitting}
               />
               <p className="text-sm text-gray-500 mt-1">
-                {user?.role === 'admin' && user.client_id && clients.find((c: { id: string }) => c.id === user.client_id)?.client_type === 'logistics' 
+                {user?.role === 'admin' && user.client_id && clients.find((c: Client) => c.id === user.client_id)?.client_type === 'logistics' 
                   ? 'Logistics clients can have drivers and technician mechanics for vehicle maintenance'
-                  : user?.role === 'admin' && user.client_id && clients.find((c: { id: string }) => c.id === user.client_id)?.client_type === 'industrial'
+                  : user?.role === 'admin' && user.client_id && clients.find((c: Client) => c.id === user.client_id)?.client_type === 'industrial'
                   ? 'Industrial clients can have technicians for equipment maintenance'
                   : 'Select the appropriate role for this user'
                 }
@@ -1545,9 +1582,9 @@ export default function UsersPage() {
 
       {/* View User Modal */}
       <Modal
-        isOpen={showViewModal}
+        isOpen={showUserModal}
         onClose={() => {
-          setShowViewModal(false);
+          setShowUserModal(false);
           setSelectedUser(null);
         }}
         title="User Details"
@@ -1645,7 +1682,7 @@ export default function UsersPage() {
                   variant={selectedUser.is_active ? "destructive" : "default"}
                   onClick={async () => {
                     await handleToggleActivation(selectedUser);
-                    setShowViewModal(false);
+                    setShowUserModal(false);
                   }}
                   className="flex items-center gap-2"
                 >
@@ -1668,7 +1705,7 @@ export default function UsersPage() {
                   <Button
                     variant="outline"
                     onClick={() => {
-                      setShowViewModal(false);
+                      setShowUserModal(false);
                       setRoleChangeData({ role: selectedUser.role });
                       setShowRoleChangeModal(true);
                     }}
@@ -1683,7 +1720,7 @@ export default function UsersPage() {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setShowViewModal(false);
+                    setShowUserModal(false);
                     handleEditUser(selectedUser);
                   }}
                 >
@@ -1693,7 +1730,7 @@ export default function UsersPage() {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setShowViewModal(false);
+                    setShowUserModal(false);
                     setSelectedUser(null);
                   }}
                 >
@@ -1707,9 +1744,9 @@ export default function UsersPage() {
 
       {/* Edit User Modal */}
       <Modal
-        isOpen={showEditModal}
+        isOpen={showUserModal}
         onClose={() => {
-          setShowEditModal(false);
+          setShowUserModal(false);
           setSelectedUser(null);
         }}
         title="Edit User"
@@ -1956,6 +1993,103 @@ export default function UsersPage() {
                 </FormField>
               </FormGrid>
 
+              {/* License Images */}
+              <FormGrid cols={2}>
+                <FormField name="license_front_image">
+                  <FormLabel>Front License Image</FormLabel>
+                  <div className="space-y-3">
+                    {editFormData.license_front_image ? (
+                      <div className="relative">
+                        <Image 
+                          src={editFormData.license_front_image} 
+                          alt="Front License" 
+                          width={400}
+                          height={128}
+                          className="w-full h-32 object-cover rounded-lg border border-gray-300"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="absolute top-2 right-2 bg-white/90 hover:bg-white"
+                          onClick={() => setEditFormData({ ...editFormData, license_front_image: '' })}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                        <div className="w-12 h-12 bg-gray-100 rounded-full mx-auto mb-3 flex items-center justify-center">
+                          <span className="text-gray-400 text-2xl">📷</span>
+                        </div>
+                        <p className="text-sm text-gray-500 mb-2">No front license image</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            // TODO: Implement file upload
+                            toast('File upload functionality coming soon!');
+                          }}
+                        >
+                          Upload Image
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Front side of driver&apos;s license
+                  </p>
+                </FormField>
+
+                <FormField name="license_back_image">
+                  <FormLabel>Back License Image</FormLabel>
+                  <div className="space-y-3">
+                    {editFormData.license_back_image ? (
+                      <div className="relative">
+                        <Image 
+                          src={editFormData.license_back_image} 
+                          alt="Back License" 
+                          width={400}
+                          height={128}
+                          className="w-full h-32 object-cover rounded-lg border border-gray-300"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="absolute top-2 right-2 bg-white/90 hover:bg-white"
+                          onClick={() => setEditFormData({ ...editFormData, license_back_image: '' })}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                        <div className="w-12 h-12 bg-gray-100 rounded-full mx-auto mb-3 flex items-center justify-center">
+                          <span className="text-gray-400 text-2xl">📷</span>
+                        </div>
+                        <p className="text-sm text-gray-500 mb-2">No back license image</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            // TODO: Implement file upload
+                            toast('File upload functionality coming soon!');
+                          }}
+                        >
+                          Upload Image
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Back side of driver&apos;s license
+                  </p>
+                </FormField>
+              </FormGrid>
+
               <FormField name="vehicle_assignments">
                 <FormLabel>Current Vehicle Assignments</FormLabel>
                 <div className={`p-3 bg-gray-50 rounded-lg border ${editFormData.vehicle_assignments && editFormData.vehicle_assignments.length > 0 ? 'border-teal-600' : ''}`}>
@@ -2024,7 +2158,7 @@ export default function UsersPage() {
               type="button"
               variant="outline"
               onClick={() => {
-                setShowEditModal(false);
+                setShowUserModal(false);
                 setSelectedUser(null);
               }}
               disabled={isSubmitting}
@@ -2039,7 +2173,7 @@ export default function UsersPage() {
                 type="button"
                 variant="outline"
                 onClick={() => {
-                  setShowEditModal(false);
+                  setShowUserModal(false);
                   setRoleChangeData({ role: selectedUser?.role || '' });
                   setShowRoleChangeModal(true);
                 }}
@@ -2094,13 +2228,13 @@ export default function UsersPage() {
                 New Role
               </label>
               <Select
-                options={[
-                  { key: 'user', value: 'user', label: 'Regular User' },
-                  { key: 'admin', value: 'admin', label: 'Admin User' },
-                  ...(user?.role === 'super_admin' ? [{ key: 'super_admin', value: 'super_admin', label: 'Super Admin' }] : [])
-                ]}
+                options={getAvailableRoles(selectedUser?.role).map(role => ({
+                  key: role.value,
+                  value: role.value,
+                  label: role.label
+                }))}
                 value={roleChangeData.role}
-                onChange={(e) => setRoleChangeData({ ...roleChangeData, role: e.target.value as 'super_admin' | 'admin' | 'user' })}
+                onChange={(e) => setRoleChangeData({ ...roleChangeData, role: e.target.value as 'super_admin' | 'admin' | 'user' | 'technician' | 'driver' })}
                 disabled={isSubmitting}
               />
             </div>

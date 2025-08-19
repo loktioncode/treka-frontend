@@ -21,6 +21,8 @@ export interface User {
   // Driver fields
   license_number?: string;
   license_type?: string;
+  license_front_image?: string;  // Path to front license image
+  license_back_image?: string;   // Path to back license image
   vehicle_assignments?: string[];
 }
 
@@ -42,6 +44,8 @@ export interface CreateUserRequest {
   // Driver fields (optional)
   license_number?: string;
   license_type?: string;
+  license_front_image?: string;
+  license_back_image?: string;
   vehicle_assignments?: string[];
 }
 
