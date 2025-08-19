@@ -43,6 +43,41 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
 
+// License number validation functions
+const validateLicenseNumber = (licenseNumber: string, licenseType: string): { isValid: boolean; error: string } => {
+  if (!licenseNumber.trim()) {
+    return { isValid: false, error: 'License number is required' };
+  }
+
+  // Remove spaces and convert to uppercase for validation
+  const cleanLicense = licenseNumber.replace(/\s/g, '').toUpperCase();
+
+  // South African License Validation
+  if (licenseType.startsWith('Code') || licenseType === 'PrDP' || licenseType === 'DDP') {
+    // SA format: 1234567890123 (13 digits)
+    if (!/^\d{13}$/.test(cleanLicense)) {
+      return { isValid: false, error: 'South African license must be 13 digits' };
+    }
+    return { isValid: true, error: '' };
+  }
+
+  // Zimbabwean License Validation
+  if (licenseType.startsWith('Class') || licenseType === 'PSV') {
+    // ZW format: ZW123456789 (ZW + 9 digits) or 123456789 (9 digits)
+    if (!/^(ZW)?\d{9}$/.test(cleanLicense)) {
+      return { isValid: false, error: 'Zimbabwean license must be 9 digits or ZW + 9 digits' };
+    }
+    return { isValid: true, error: '' };
+  }
+
+  // Other license types - basic validation
+  if (cleanLicense.length < 5 || cleanLicense.length > 20) {
+    return { isValid: false, error: 'License number must be between 5 and 20 characters' };
+  }
+
+  return { isValid: true, error: '' };
+};
+
 export default function UsersPage() {
   const { user } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
@@ -85,6 +120,7 @@ export default function UsersPage() {
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
+  const [editLicenseNumberError, setEditLicenseNumberError] = useState('');
 
   // Redirect unauthorized users
   useEffect(() => {
@@ -338,6 +374,15 @@ export default function UsersPage() {
     if (formData.role === 'driver') {
       if (!formData.license_number?.trim()) {
         errors.license_number = 'License number is required for driver role';
+      } else {
+        if (!formData.license_type) {
+          errors.license_type = 'License type is required when license number is provided';
+        } else {
+          const validation = validateLicenseNumber(formData.license_number, formData.license_type);
+          if (!validation.isValid) {
+            errors.license_number = validation.error;
+          }
+        }
       }
     }
 
@@ -360,8 +405,20 @@ export default function UsersPage() {
     return Object.keys(errors).length === 0;
   };
 
+
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Additional license number validation for drivers
+    if (formData.role === 'driver' && formData.license_number?.trim() && formData.license_type) {
+      const validation = validateLicenseNumber(formData.license_number, formData.license_type);
+      if (!validation.isValid) {
+        setFormErrors(prev => ({ ...prev, license_number: validation.error }));
+        return;
+      }
+    }
+    
     if (!validateForm()) return;
 
     setIsSubmitting(true);
@@ -508,6 +565,22 @@ export default function UsersPage() {
     
     if (!editFormData.last_name?.trim()) {
       errors.last_name = 'Last name is required';
+    }
+    
+    // License number validation for drivers
+    if (editFormData.role === 'driver') {
+      if (!editFormData.license_number?.trim()) {
+        errors.license_number = 'License number is required for driver role';
+      } else {
+        if (!editFormData.license_type) {
+          errors.license_type = 'License type is required when license number is provided';
+        } else {
+          const validation = validateLicenseNumber(editFormData.license_number, editFormData.license_type);
+          if (!validation.isValid) {
+            errors.license_number = validation.error;
+          }
+        }
+      }
     }
     
     // Check if email is being changed and if it's different from current
@@ -1200,6 +1273,17 @@ export default function UsersPage() {
                   const newRole = e.target.value as CreateUserRequest['role'];
                   console.log('🔍 Role changed to:', newRole);
                   setFormData({ ...formData, role: newRole });
+                  
+                  // Clear related errors when role changes
+                  if (newRole !== 'driver') {
+                    setFormErrors(prev => ({ ...prev, license_number: '', license_type: '' }));
+                  }
+                  if (newRole !== 'technician') {
+                    setFormErrors(prev => ({ ...prev, industry: '', specializations: '' }));
+                  }
+                  if (newRole !== 'admin') {
+                    setFormErrors(prev => ({ ...prev, client_id: '' }));
+                  }
                 }}
                 disabled={isSubmitting}
               />
@@ -1336,20 +1420,55 @@ export default function UsersPage() {
                   <FormLabel required>License Number</FormLabel>
                   <Input
                     value={formData.license_number || ''}
-                    onChange={(e) => setFormData({ ...formData, license_number: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, license_number: e.target.value });
+                      // Clear error when user starts typing
+                      if (formErrors.license_number) {
+                        setFormErrors(prev => ({ ...prev, license_number: '' }));
+                      }
+                    }}
+                    onBlur={() => {
+                      if (formData.license_number?.trim() && formData.license_type) {
+                        const validation = validateLicenseNumber(formData.license_number, formData.license_type);
+                        if (!validation.isValid) {
+                          setFormErrors(prev => ({ ...prev, license_number: validation.error }));
+                        }
+                      }
+                    }}
                     placeholder="Enter driver&apos;s license number"
                     disabled={isSubmitting}
+                    className={formErrors.license_number ? 'border-red-500' : ''}
                   />
-                  <p className="text-sm text-gray-500 mt-1">
-                    Driver&apos;s license number is required for driver role
-                  </p>
+                  {formErrors.license_number ? (
+                    <p className="text-sm text-red-500 mt-1">{formErrors.license_number}</p>
+                  ) : (
+                    <p className="text-sm text-gray-500 mt-1">
+                      Driver&apos;s license number is required for driver role
+                    </p>
+                  )}
                 </FormField>
 
                 <FormField name="license_type">
                   <FormLabel>License Type (Optional)</FormLabel>
                   <Select
                     value={formData.license_type || ''}
-                    onChange={(e) => setFormData({ ...formData, license_type: e.target.value || undefined })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, license_type: e.target.value || undefined });
+                      // Clear license type error when user selects a type
+                      if (formErrors.license_type) {
+                        setFormErrors(prev => ({ ...prev, license_type: '' }));
+                      }
+                      
+                      // Validate license number when license type changes
+                      if (formData.license_number?.trim() && e.target.value) {
+                        const validation = validateLicenseNumber(formData.license_number, e.target.value);
+                        if (!validation.isValid) {
+                          setFormErrors(prev => ({ ...prev, license_number: validation.error }));
+                        } else {
+                          setFormErrors(prev => ({ ...prev, license_number: '' }));
+                        }
+                      }
+                    }}
                     options={[
                       { value: '', label: 'Select license type' },
                       // South African License Types
@@ -1374,9 +1493,13 @@ export default function UsersPage() {
                     ]}
                     disabled={isSubmitting}
                   />
-                  <p className="text-sm text-gray-500 mt-1">
-                    Type of driver&apos;s license held
-                  </p>
+                  {formErrors.license_type ? (
+                    <p className="text-sm text-red-500 mt-1">{formErrors.license_type}</p>
+                  ) : (
+                    <p className="text-sm text-gray-500 mt-1">
+                      Type of driver&apos;s license held
+                    </p>
+                  )}
                 </FormField>
               </>
             )}
@@ -1861,41 +1984,84 @@ export default function UsersPage() {
                   <FormLabel>License Number</FormLabel>
                   <Input
                     value={editFormData.license_number || ''}
-                    onChange={(e) => setEditFormData({ ...editFormData, license_number: e.target.value })}
-                    placeholder="Enter driver's license number"
+                    onChange={(e) => {
+                      setEditFormData({ ...editFormData, license_number: e.target.value });
+                      // Clear error when user starts typing
+                      if (editLicenseNumberError) {
+                        setEditLicenseNumberError('');
+                      }
+                    }}
+                    onBlur={() => {
+                      if (editFormData.license_number?.trim() && editFormData.license_type) {
+                        const validation = validateLicenseNumber(editFormData.license_number, editFormData.license_type);
+                        if (!validation.isValid) {
+                          setEditLicenseNumberError(validation.error);
+                        }
+                      }
+                    }}
+                    placeholder="Enter driver&apos;s license number"
                     disabled={isSubmitting}
+                    className={editLicenseNumberError ? 'border-red-500' : ''}
                   />
-                  <p className="text-sm text-gray-500 mt-1">
-                    Driver&apos;s license number for identification
-                  </p>
+                  {editLicenseNumberError ? (
+                    <p className="text-sm text-red-500 mt-1">{editLicenseNumberError}</p>
+                  ) : (
+                    <p className="text-sm text-gray-500 mt-1">
+                      Driver&apos;s license number for identification
+                    </p>
+                  )}
                 </FormField>
 
                 <FormField name="license_type">
                   <FormLabel>License Type</FormLabel>
                   <Select
                     value={editFormData.license_type || ''}
-                    onChange={(e) => setEditFormData({ 
-                      ...editFormData, 
-                      license_type: e.target.value || undefined 
-                    })}
+                    onChange={(e) => {
+                      setEditFormData({ 
+                        ...editFormData, 
+                        license_type: e.target.value || undefined 
+                      });
+                      // Validate license number when license type changes
+                      if (editFormData.license_number?.trim() && e.target.value) {
+                        const validation = validateLicenseNumber(editFormData.license_number, e.target.value);
+                        if (!validation.isValid) {
+                          setEditLicenseNumberError(validation.error);
+                        } else {
+                          setEditLicenseNumberError('');
+                        }
+                      }
+                    }}
                     options={[
                       { value: '', label: 'Select license type' },
-                      { value: 'Class A', label: 'Class A - Commercial Vehicle' },
-                      { value: 'Class B', label: 'Class B - Heavy Vehicle' },
-                      { value: 'Class C', label: 'Class C - Light Vehicle' },
-                      { value: 'Class D', label: 'Class D - Car' },
-                      { value: 'Class E', label: 'Class E - Motorcycle' },
-                      { value: 'Class F', label: 'Class F - Farm Vehicle' },
-                      { value: 'Class G', label: 'Class G - Moped' },
-                      { value: 'Class M', label: 'Class M - Motorcycle' },
-                      { value: 'Class R', label: 'Class R - Restricted' },
+                      // South African License Types
+                      { value: 'Code A', label: 'Code A - Motorcycles (SA)' },
+                      { value: 'Code A1', label: 'Code A1 - Light Motorcycles (SA)' },
+                      { value: 'Code B', label: 'Code B - Light Motor Vehicles (SA)' },
+                      { value: 'Code C', label: 'Code C - Heavy Motor Vehicles (SA)' },
+                      { value: 'Code C1', label: 'Code C1 - Medium Heavy Vehicles (SA)' },
+                      { value: 'Code EB', label: 'Code EB - Light Vehicle + Trailer (SA)' },
+                      { value: 'Code EC', label: 'Code EC - Heavy Vehicle + Trailer (SA)' },
+                      { value: 'Code EC1', label: 'Code EC1 - Medium Heavy + Trailer (SA)' },
+                      { value: 'PrDP', label: 'Professional Driving Permit (SA)' },
+                      { value: 'DDP', label: 'Dangerous Goods Permit (SA)' },
+                      // Zimbabwean License Types
+                      { value: 'Class 1', label: 'Class 1 - Light Motor Vehicles (ZW)' },
+                      { value: 'Class 2', label: 'Class 2 - Heavy Motor Vehicles (ZW)' },
+                      { value: 'Class 3', label: 'Class 3 - Extra Heavy Vehicles (ZW)' },
+                      { value: 'Class 4', label: 'Class 4 - Motorcycles (ZW)' },
+                      { value: 'PSV', label: 'Public Service Vehicle (ZW)' },
+                      // General
                       { value: 'Other', label: 'Other' }
                     ]}
                     disabled={isSubmitting}
                   />
-                  <p className="text-sm text-gray-500 mt-1">
-                    Type of driver&apos;s license held
-                  </p>
+                  {editLicenseNumberError ? (
+                    <p className="text-sm text-red-500 mt-1">{editLicenseNumberError}</p>
+                  ) : (
+                    <p className="text-sm text-gray-500 mt-1">
+                      Type of driver&apos;s license held
+                    </p>
+                  )}
                 </FormField>
               </FormGrid>
 
