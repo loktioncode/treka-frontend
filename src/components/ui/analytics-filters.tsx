@@ -11,7 +11,9 @@ import {
   Calendar, 
   Package, 
   Search,
-  RefreshCw
+  RefreshCw,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 export interface AnalyticsFilters extends Record<string, unknown> {
@@ -110,19 +112,24 @@ export function AnalyticsFilters({
 
   return (
     <div className={className}>
-      {/* Filter Toggle Button */}
-      <div className="flex items-center gap-3 mb-4">
+      {/* Enhanced Filter Toggle Button */}
+      <div className="flex items-center gap-3 mb-6">
         <Button
           variant="outline"
           onClick={() => setIsExpanded(!isExpanded)}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 bg-white hover:bg-gray-50 border-gray-300 hover:border-teal-500 text-gray-700 hover:text-teal-700 transition-all duration-200 shadow-sm"
         >
           <Filter className="h-4 w-4" />
-          Filters
+          <span className="font-medium">Filters</span>
           {getActiveFiltersCount() > 0 && (
-            <Badge variant="secondary" className="ml-1">
+            <Badge variant="secondary" className="ml-1 bg-teal-100 text-teal-800 border-teal-200">
               {getActiveFiltersCount()}
             </Badge>
+          )}
+          {isExpanded ? (
+            <ChevronUp className="h-4 w-4 ml-1" />
+          ) : (
+            <ChevronDown className="h-4 w-4 ml-1" />
           )}
         </Button>
         
@@ -131,23 +138,24 @@ export function AnalyticsFilters({
             variant="ghost"
             size="sm"
             onClick={handleReset}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors duration-200"
           >
             <RefreshCw className="h-4 w-4 mr-1" />
-            Reset
+            Clear All
           </Button>
         )}
       </div>
 
-      {/* Active Filters Display */}
+      {/* Enhanced Active Filters Display */}
       {getActiveFiltersCount() > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="flex flex-wrap gap-2 mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <span className="text-sm font-medium text-gray-700 mr-2">Active Filters:</span>
           {filters.startDate && (
-            <Badge variant="secondary" className="flex items-center gap-1">
+            <Badge variant="secondary" className="flex items-center gap-1 bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200">
               From: {new Date(filters.startDate).toLocaleDateString()}
               <button
                 onClick={() => removeFilter('startDate')}
-                className="ml-1 hover:text-red-600"
+                className="ml-1 hover:text-blue-600 transition-colors"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -155,11 +163,11 @@ export function AnalyticsFilters({
           )}
           
           {filters.endDate && (
-            <Badge variant="secondary" className="flex items-center gap-1">
+            <Badge variant="secondary" className="flex items-center gap-1 bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200">
               To: {new Date(filters.endDate).toLocaleDateString()}
               <button
                 onClick={() => removeFilter('endDate')}
-                className="ml-1 hover:text-red-600"
+                className="ml-1 hover:text-blue-600 transition-colors"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -169,11 +177,11 @@ export function AnalyticsFilters({
           {filters.assetIds?.map((id) => {
             const asset = assets.find(a => a.id === id);
             return (
-              <Badge key={id} variant="secondary" className="flex items-center gap-1">
+              <Badge key={id} variant="secondary" className="flex items-center gap-1 bg-green-100 text-green-800 border-green-200 hover:bg-green-200">
                 Asset: {asset?.name || id}
                 <button
                   onClick={() => removeFilter('assetIds')}
-                  className="ml-1 hover:text-red-600"
+                  className="ml-1 hover:text-green-600 transition-colors"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -182,11 +190,11 @@ export function AnalyticsFilters({
           })}
           
           {filters.status?.map((status) => (
-            <Badge key={status} variant="secondary" className="flex items-center gap-1">
+            <Badge key={status} variant="secondary" className="flex items-center gap-1 bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-200">
               Status: {status}
               <button
                 onClick={() => removeFilter('status')}
-                className="ml-1 hover:text-red-600"
+                className="ml-1 hover:text-purple-600 transition-colors"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -194,11 +202,11 @@ export function AnalyticsFilters({
           ))}
           
           {filters.searchQuery && (
-            <Badge variant="secondary" className="flex items-center gap-1">
+            <Badge variant="secondary" className="flex items-center gap-1 bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-200">
               Search: {filters.searchQuery}
               <button
                 onClick={() => removeFilter('searchQuery')}
-                className="ml-1 hover:text-red-600"
+                className="ml-1 hover:text-orange-600 transition-colors"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -207,20 +215,20 @@ export function AnalyticsFilters({
         </div>
       )}
 
-      {/* Expanded Filters */}
+      {/* Enhanced Expanded Filters */}
       {isExpanded && (
-        <Card className="p-6 mb-6">
+        <Card className="p-6 mb-6 border-0 shadow-lg bg-gradient-to-br from-white to-gray-50">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Date Range */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
+            <div className="space-y-3">
+              <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-teal-600" />
                 Date Range
               </label>
               <select
                 value={localFilters.dateRange}
                 onChange={(e) => handleFilterChange('dateRange', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200 bg-white shadow-sm"
               >
                 {DATE_RANGES.map((range) => (
                   <option key={range.value} value={range.value}>
@@ -233,46 +241,49 @@ export function AnalyticsFilters({
             {/* Custom Date Range */}
             {localFilters.dateRange === 'custom' && (
               <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Start Date</label>
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold text-gray-700">Start Date</label>
                   <Input
                     type="date"
                     value={localFilters.startDate || ''}
                     onChange={(e) => handleFilterChange('startDate', e.target.value)}
+                    className="px-4 py-3 border-gray-300 focus:border-teal-500 focus:ring-teal-500"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">End Date</label>
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold text-gray-700">End Date</label>
                   <Input
                     type="date"
                     value={localFilters.endDate || ''}
                     onChange={(e) => handleFilterChange('endDate', e.target.value)}
+                    className="px-4 py-3 border-gray-300 focus:border-teal-500 focus:ring-teal-500"
                   />
                 </div>
               </>
             )}
 
             {/* Search Query */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <Search className="h-4 w-4" />
+            <div className="space-y-3">
+              <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Search className="h-4 w-4 text-teal-600" />
                 Search
               </label>
               <Input
                 placeholder="Search assets, components..."
                 value={localFilters.searchQuery || ''}
                 onChange={(e) => handleFilterChange('searchQuery', e.target.value)}
+                className="px-4 py-3 border-gray-300 focus:border-teal-500 focus:ring-teal-500"
               />
             </div>
 
             {/* Client Filter */}
             {clients.length > 0 && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Client</label>
+              <div className="space-y-3">
+                <label className="text-sm font-semibold text-gray-700">Client</label>
                 <select
                   value={localFilters.clientId || ''}
                   onChange={(e) => handleFilterChange('clientId', e.target.value || undefined)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200 bg-white shadow-sm"
                 >
                   <option value="">All Clients</option>
                   {clients.map((client) => (
@@ -285,9 +296,9 @@ export function AnalyticsFilters({
             )}
 
             {/* Asset Type */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <Package className="h-4 w-4" />
+            <div className="space-y-3">
+              <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Package className="h-4 w-4 text-teal-600" />
                 Asset Type
               </label>
               <select
@@ -297,7 +308,7 @@ export function AnalyticsFilters({
                   const selected = Array.from(e.target.selectedOptions, option => option.value);
                   handleFilterChange('assetType', selected.length > 0 ? selected : undefined);
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200 bg-white shadow-sm min-h-[120px]"
               >
                 {ASSET_TYPES.map((type) => (
                   <option key={type} value={type}>
@@ -308,8 +319,8 @@ export function AnalyticsFilters({
             </div>
 
             {/* Status */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Status</label>
+            <div className="space-y-3">
+              <label className="text-sm font-semibold text-gray-700">Status</label>
               <select
                 multiple
                 value={localFilters.status || []}
@@ -317,7 +328,7 @@ export function AnalyticsFilters({
                   const selected = Array.from(e.target.selectedOptions, option => option.value);
                   handleFilterChange('status', selected.length > 0 ? selected : undefined);
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200 bg-white shadow-sm min-h-[120px]"
               >
                 {COMPONENT_STATUSES.map((status) => (
                   <option key={status} value={status}>
@@ -328,8 +339,8 @@ export function AnalyticsFilters({
             </div>
 
             {/* Condition */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Condition</label>
+            <div className="space-y-3">
+              <label className="text-sm font-semibold text-gray-700">Condition</label>
               <select
                 multiple
                 value={localFilters.condition || []}
@@ -337,7 +348,7 @@ export function AnalyticsFilters({
                   const selected = Array.from(e.target.selectedOptions, option => option.value);
                   handleFilterChange('condition', selected.length > 0 ? selected : undefined);
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200 bg-white shadow-sm min-h-[120px]"
               >
                 {CONDITIONS.map((condition) => (
                   <option key={condition} value={condition}>
@@ -348,12 +359,19 @@ export function AnalyticsFilters({
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-            <Button variant="outline" onClick={() => setIsExpanded(false)}>
+          {/* Enhanced Action Buttons */}
+          <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsExpanded(false)}
+              className="px-6 py-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
+            >
               Cancel
             </Button>
-            <Button onClick={handleApplyFilters} className="bg-teal-600 hover:bg-teal-700 text-white">
+            <Button 
+              onClick={handleApplyFilters} 
+              className="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
+            >
               Apply Filters
             </Button>
           </div>

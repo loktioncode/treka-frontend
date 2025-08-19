@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Chat, ChatMessage } from '@/components/ui/chat';
+import { FloatingChatButton } from '@/components/ui/floating-chat-button';
 import { AnalyticsFilters, AnalyticsFilters as AnalyticsFiltersType } from '@/components/ui/analytics-filters';
 import { 
   SimpleBarChart, 
@@ -22,14 +23,14 @@ import {
   Download,
   Eye,
   Brain,
-  MessageSquare,
   Activity,
   DollarSign,
   Shield,
   Settings,
-  RefreshCw
+  RefreshCw,
+  Clock
 } from 'lucide-react';
-import { analyticsAPI, assetAPI, componentAPI, clientAPI } from '@/services/api';
+import { analyticsAPI, assetAPI, componentAPI, clientAPI, notificationAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import type { AssetStatus, AssetType, ComponentStatus } from '@/types/api';
@@ -70,6 +71,8 @@ interface Asset {
   current_value: number;
   purchase_date: string;
   location: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface Component {
@@ -79,6 +82,8 @@ interface Component {
   condition: string;
   last_maintenance: string;
   next_maintenance_date: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export default function AnalyticsPage() {
@@ -87,6 +92,8 @@ export default function AnalyticsPage() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [components, setComponents] = useState<Component[]>([]);
   const [clients, setClients] = useState<Array<{ id: string; name: string }>>([]);
+  const [maintenanceLogs, setMaintenanceLogs] = useState<any[]>([]);
+  const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<AnalyticsFiltersType>({
     dateRange: '30d',
@@ -105,40 +112,146 @@ export default function AnalyticsPage() {
   // Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
-  const [showChat, setShowChat] = useState(false);
+  
+
 
   // Load data
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       
+      console.log('Loading analytics data...', { user, filters });
+      
       // Load dashboard stats
       const statsData = await analyticsAPI.getDashboardStats(
         user?.role === 'super_admin' ? filters.clientId : undefined
       );
+      console.log('Stats data loaded:', statsData);
       setStats(statsData);
 
-      // Load assets
-      const assetsData = await assetAPI.getAssets({
-        client_id: user?.role === 'super_admin' ? filters.clientId : undefined,
-        status: filters.status?.[0] as AssetStatus | undefined, // Take first status if multiple
-        asset_type: filters.assetType?.[0] as AssetType | undefined, // Take first type if multiple
-        search: filters.searchQuery,
-      });
-      setAssets(assetsData.items || []);
+      // Load comprehensive assets data with more details
+      try {
+        console.log('Loading comprehensive assets data...');
+        const assetsData = await assetAPI.getAssets({
+          client_id: user?.role === 'super_admin' ? filters.clientId : undefined,
+          status: filters.status?.[0] as AssetStatus | undefined,
+          asset_type: filters.assetType?.[0] as AssetType | undefined,
+          search: filters.searchQuery,
+          limit: 100, // Get more assets for better insights
+        });
+        console.log('Assets data loaded successfully:', assetsData);
+        if (assetsData.items && assetsData.items.length > 0) {
+          setAssets(assetsData.items);
+          console.log('Set detailed assets:', assetsData.items);
+        } else {
+          console.log('Assets API returned empty items array');
+          setAssets([]);
+        }
+      } catch (error) {
+        console.error('Failed to load detailed assets:', error);
+        setAssets([]);
+      }
 
-      // Load components
-      const componentsData = await componentAPI.getComponents({
-        client_id: user?.role === 'super_admin' ? filters.clientId : undefined,
-        status: filters.status?.[0] as ComponentStatus | undefined, // Take first status if multiple
-        search: filters.searchQuery,
-      });
-      setComponents(componentsData.items || []);
+      // Load comprehensive components data with maintenance history
+      let componentsToUse: Component[] = [];
+      try {
+        console.log('Loading comprehensive components data...');
+        const componentsData = await componentAPI.getComponents({
+          client_id: user?.role === 'super_admin' ? filters.clientId : undefined,
+          search: filters.searchQuery,
+          limit: 100, // Get more components for better insights
+        });
+        console.log('Components data loaded:', componentsData);
+        console.log('Components API response structure:', {
+          hasItems: !!componentsData.items,
+          itemsLength: componentsData.items?.length || 0,
+          firstItem: componentsData.items?.[0],
+          responseKeys: Object.keys(componentsData)
+        });
+        
+        if (componentsData.items && componentsData.items.length > 0) {
+          componentsToUse = componentsData.items;
+          setComponents(componentsData.items);
+          console.log('Set detailed components:', componentsData.items);
+          console.log('Component IDs from API:', componentsData.items.map((c: Component) => ({ id: c.id, name: c.name })));
+        } else {
+          console.log('Components API returned empty items array');
+          componentsToUse = [];
+          setComponents([]);
+        }
+      } catch (error) {
+        console.error('Failed to load detailed components:', error);
+        componentsToUse = [];
+        setComponents([]);
+      }
 
       // Load clients (for super admin)
       if (user?.role === 'super_admin') {
         const clientsData = await clientAPI.getClients();
+        console.log('Clients data loaded:', clientsData);
         setClients(clientsData.items || []);
+      }
+
+      // Load maintenance logs for better insights
+      try {
+        console.log('Loading maintenance logs...');
+        
+        if (componentsToUse.length > 0) {
+          // Check if we have real component IDs or fallback ones
+          const hasRealComponentIds = componentsToUse.some(comp => !comp.id.startsWith('component-'));
+          
+          if (hasRealComponentIds) {
+            console.log(`Fetching maintenance logs from ${componentsToUse.length} components with real IDs...`);
+            
+            // Fast algorithm: Use Promise.allSettled to fetch from all components concurrently
+            // This is much faster than sequential calls and handles failures gracefully
+            const maintenancePromises = componentsToUse.map(async (component) => {
+              try {
+                console.log(`Fetching maintenance logs for component: ${component.id} (${component.name})`);
+                const response = await componentAPI.getMaintenanceLogs(component.id, { limit: 20 });
+                return response.items || [];
+              } catch (error) {
+                console.warn(`Failed to fetch maintenance logs for component ${component.id}:`, error);
+                return []; // Return empty array for failed components
+              }
+            });
+            
+            // Execute all requests concurrently and wait for results
+            const maintenanceResults = await Promise.allSettled(maintenancePromises);
+            
+            // Combine all successful results into one array
+            const allMaintenanceLogs = maintenanceResults
+              .filter(result => result.status === 'fulfilled')
+              .flatMap(result => (result as PromiseFulfilledResult<any[]>).value);
+            
+            console.log(`Successfully loaded maintenance logs from ${maintenanceResults.filter(r => r.status === 'fulfilled').length}/${componentsToUse.length} components`);
+            console.log('Total maintenance logs loaded:', allMaintenanceLogs.length);
+            setMaintenanceLogs(allMaintenanceLogs);
+          } else {
+            console.log('⚠️ Skipping maintenance logs - using fallback component IDs that will not work with API');
+            console.log('Fallback component IDs:', componentsToUse.map(c => c.id));
+            setMaintenanceLogs([]);
+          }
+        } else {
+          console.log('No components available for maintenance logs');
+          setMaintenanceLogs([]);
+        }
+      } catch (error) {
+        console.error('Failed to load maintenance logs:', error);
+        console.log('Component IDs available:', componentsToUse.map(c => ({ id: c.id, name: c.name })));
+        setMaintenanceLogs([]);
+      }
+
+      // Load recent notifications for insights
+      try {
+        console.log('Loading recent notifications...');
+        const notificationsData = await notificationAPI.getNotifications({ 
+          limit: 20
+        });
+        console.log('Notifications loaded:', notificationsData);
+        setRecentNotifications(notificationsData.items || []);
+      } catch (error) {
+        console.error('Failed to load notifications:', error);
       }
     } catch (error) {
       console.error('Error loading analytics data:', error);
@@ -223,53 +336,642 @@ export default function AnalyticsPage() {
     }
   };
 
-  // Generate chart data
+  // Generate real chart data from database
   const generateAssetTypeData = () => {
-    const typeCounts = assets.reduce((acc, asset) => {
+    // If we have detailed assets, use them
+    if (assets && assets.length > 0) {
+      const typeCounts = assets.reduce((acc, asset) => {
+        acc[asset.asset_type] = (acc[asset.asset_type] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      return Object.entries(typeCounts).map(([type, count]) => ({
+        name: type.charAt(0).toUpperCase() + type.slice(1),
+        value: count,
+      }));
+    }
+
+    // No assets available - return empty array
+    return [];
+  };
+
+  const generateMaintenanceTrendsData = () => {
+    // If we have detailed components, calculate maintenance trends
+    if (components && components.length > 0) {
+      const now = new Date();
+      const currentMonth = now.toLocaleDateString('en-US', { month: 'short' });
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleDateString('en-US', { month: 'short' });
+      
+      // Count components by maintenance status
+      let onTimeCount = 0;
+      let missedCount = 0;
+      
+      components.forEach(component => {
+        if (component.next_maintenance_date) {
+          const dueDate = new Date(component.next_maintenance_date);
+          if (dueDate >= now) {
+            onTimeCount++;
+          } else {
+            missedCount++;
+          }
+        }
+      });
+      
+      return [
+        { month: lastMonth, value: onTimeCount, type: 'On Time' },
+        { month: currentMonth, value: missedCount, type: 'Missed' }
+      ];
+    }
+
+    // If we have stats data, use that for trends
+    if (stats?.components?.total) {
+      const currentMonth = new Date().toLocaleDateString('en-US', { month: 'short' });
+      const lastMonth = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toLocaleDateString('en-US', { month: 'short' });
+      
+      return [
+        { month: lastMonth, value: stats.components.operational || 0, type: 'On Time' },
+        { month: currentMonth, value: (stats.components.total - (stats.components.operational || 0)), type: 'Missed' }
+      ];
+    }
+
+    // No data available - return empty array
+    return [];
+  };
+
+  const generateStatusData = () => {
+    // If we have detailed components, use them
+    if (components && components.length > 0) {
+      const statusCounts = components.reduce((acc, component) => {
+        acc[component.status] = (acc[component.status] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      return Object.entries(statusCounts).map(([type, count]) => ({
+        name: type.charAt(0).toUpperCase() + type.slice(1),
+        value: count,
+      }));
+    }
+
+    // No components available - return empty array
+    return [];
+  };
+
+  const generateAssetValueData = () => {
+    // If we have detailed assets, use them
+    if (assets && assets.length > 0) {
+      // Group assets by month based on creation date or last updated date
+      const monthlyData: Record<string, number> = {};
+      
+      assets.forEach(asset => {
+        // Use creation date or fallback to current month
+        const date = asset.created_at ? new Date(asset.created_at) : new Date();
+        const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
+        
+        monthlyData[monthKey] = (monthlyData[monthKey] || 0) + (asset.current_value || 0);
+      });
+
+      // Convert to array format for charts
+      return Object.entries(monthlyData).map(([month, value]) => ({
+        month,
+        value: Math.round(value)
+      }));
+    }
+
+    // If we only have stats data, create a basic monthly trend
+    if (stats?.assets?.total_value) {
+      const currentMonth = new Date().toLocaleDateString('en-US', { month: 'short' });
+      return [
+        { month: currentMonth, value: Math.round(stats.assets.total_value) }
+      ];
+    }
+
+    return [];
+  };
+
+  const generatePerformanceData = () => {
+    // If we have detailed components, use them
+    if (components && components.length > 0) {
+      // Calculate real performance metrics based on component data
+      const monthlyData: Record<string, { uptime: number; efficiency: number; maintenance: number }> = {};
+      
+      components.forEach(component => {
+        const date = component.created_at ? new Date(component.created_at) : new Date();
+        const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
+        
+        if (!monthlyData[monthKey]) {
+          monthlyData[monthKey] = { uptime: 0, efficiency: 0, maintenance: 0 };
+        }
+        
+        // Calculate uptime based on status (operational = 100%, others = reduced)
+        const uptime = component.status === 'operational' ? 100 : 
+                       component.status === 'warning' ? 85 : 
+                       component.status === 'critical' ? 50 : 
+                       component.status === 'maintenance' ? 0 : 75;
+        
+        // Calculate efficiency based on maintenance schedule
+        const efficiency = component.next_maintenance_date ? 
+          Math.max(50, 100 - (new Date(component.next_maintenance_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30)) : 75;
+        
+        // Calculate maintenance hours (simplified)
+        const maintenance = component.status === 'maintenance' ? 8 : 0;
+        
+        monthlyData[monthKey].uptime += uptime;
+        monthlyData[monthKey].efficiency += efficiency;
+        monthlyData[monthKey].maintenance += maintenance;
+      });
+
+      // Average the metrics per month
+      return Object.entries(monthlyData).map(([month, metrics]) => ({
+        month,
+        uptime: Math.round((metrics.uptime / components.length) * 10) / 10,
+        efficiency: Math.round((metrics.efficiency / components.length) * 10) / 10,
+        maintenance: Math.round(metrics.maintenance * 10) / 10
+      }));
+    }
+
+    // If we only have stats data, create basic performance metrics
+    if (stats?.components?.total) {
+      const currentMonth = new Date().toLocaleDateString('en-US', { month: 'short' });
+      const uptime = stats.components.total > 0 ? 
+        Math.round((stats.components.operational / stats.components.total) * 100) : 100;
+      
+      return [
+        { 
+          month: currentMonth, 
+          uptime: uptime, 
+          efficiency: 85, 
+          maintenance: 0 
+        }
+      ];
+    }
+
+    return [];
+  };
+
+  const generateAssetStatusByTypeData = () => {
+    // If we have detailed assets, use them
+    if (assets && assets.length > 0) {
+      // Group assets by type and status
+      const typeStatusCounts: Record<string, Record<string, number>> = {};
+      
+      assets.forEach(asset => {
+        if (!typeStatusCounts[asset.asset_type]) {
+          typeStatusCounts[asset.asset_type] = { active: 0, maintenance: 0, retired: 0, damaged: 0 };
+        }
+        
+        const status = asset.status as 'active' | 'maintenance' | 'retired' | 'damaged';
+        if (status in typeStatusCounts[asset.asset_type]) {
+          typeStatusCounts[asset.asset_type][status]++;
+        }
+      });
+
+      // Convert to chart data format
+      return Object.entries(typeStatusCounts).map(([type, statusCounts]) => ({
+        type: type.charAt(0).toUpperCase() + type.slice(1),
+        ...statusCounts
+      }));
+    }
+
+    // If we only have stats data, create basic status distribution
+    if (stats?.assets?.total) {
+      // Create a more realistic distribution based on common asset types
+      const vehicleCount = Math.ceil(stats.assets.total / 2);
+      const infrastructureCount = stats.assets.total - vehicleCount;
+      
+      const distribution = [];
+      
+      if (vehicleCount > 0) {
+        distribution.push({
+          type: 'Vehicle',
+          active: Math.min(vehicleCount, stats.assets.active || 0),
+          maintenance: Math.min(vehicleCount, stats.assets.maintenance || 0),
+          retired: 0,
+          damaged: 0
+        });
+      }
+      
+      if (infrastructureCount > 0) {
+        distribution.push({
+          type: 'Infrastructure',
+          active: Math.min(infrastructureCount, stats.assets.active || 0),
+          maintenance: Math.min(infrastructureCount, stats.assets.maintenance || 0),
+          retired: 0,
+          damaged: 0
+        });
+      }
+      
+      return distribution;
+    }
+
+    return [];
+  };
+
+  // Generate real-time insights
+  const generateMaintenanceInsights = () => {
+    if (!components || components.length === 0) {
+      return null;
+    }
+
+    const now = new Date();
+    const fourteenDaysFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+    
+    const componentsNeedingMaintenance = components.filter(component => {
+      if (!component.next_maintenance_date) return false;
+      const maintenanceDate = new Date(component.next_maintenance_date);
+      return maintenanceDate <= fourteenDaysFromNow;
+    });
+
+    // Calculate maintenance delays
+    const delayedComponents = components.filter(component => {
+      if (!component.next_maintenance_date) return false;
+      const maintenanceDate = new Date(component.next_maintenance_date);
+      return maintenanceDate < now;
+    });
+
+    if (componentsNeedingMaintenance.length === 0 && delayedComponents.length === 0) {
+      return (
+        <div className="p-3 bg-green-50 rounded-lg">
+          <p className="text-sm text-green-800">
+            <strong>Maintenance Status:</strong> All components are on schedule
+          </p>
+        </div>
+      );
+    }
+
+    const insights = [];
+
+    // Show delayed maintenance alerts
+    if (delayedComponents.length > 0) {
+      const criticalDelayed = delayedComponents.filter(c => c.status === 'critical').length;
+      const avgDelayDays = Math.round(
+        delayedComponents.reduce((sum, c) => {
+          const delay = now.getTime() - new Date(c.next_maintenance_date).getTime();
+          return sum + (delay / (1000 * 60 * 60 * 24));
+        }, 0) / delayedComponents.length
+      );
+
+      insights.push(
+        <div key="delayed" className="p-3 bg-red-50 rounded-lg">
+          <p className="text-sm text-red-800">
+            <strong>⚠️ Maintenance Overdue:</strong> {delayedComponents.length} component{delayedComponents.length !== 1 ? 's' : ''} 
+            {criticalDelayed > 0 ? ` (${criticalDelayed} critical)` : ''} 
+            overdue by {avgDelayDays} day{avgDelayDays !== 1 ? 's' : ''} on average
+          </p>
+        </div>
+      );
+    }
+
+    // Show upcoming maintenance alerts
+    if (componentsNeedingMaintenance.length > 0) {
+      const criticalCount = componentsNeedingMaintenance.filter(c => c.status === 'critical').length;
+      const warningCount = componentsNeedingMaintenance.filter(c => c.status === 'warning').length;
+
+      let alertColor = 'bg-amber-50';
+      let textColor = 'text-amber-800';
+      let priority = 'Maintenance Due';
+
+      if (criticalCount > 0) {
+        alertColor = 'bg-red-50';
+        textColor = 'text-red-800';
+        priority = 'Critical Alert';
+      }
+
+      insights.push(
+        <div key="upcoming" className={`p-3 ${alertColor} rounded-lg`}>
+          <p className={`text-sm ${textColor}`}>
+            <strong>{priority}:</strong> {componentsNeedingMaintenance.length} component{componentsNeedingMaintenance.length !== 1 ? 's' : ''} 
+            {criticalCount > 0 ? ` (${criticalCount} critical)` : ''} 
+            {warningCount > 0 ? ` (${warningCount} warning)` : ''} 
+            need maintenance within 14 days
+          </p>
+        </div>
+      );
+    }
+
+    return <div className="space-y-2">{insights}</div>;
+  };
+
+  const generateEfficiencyInsights = () => {
+    if (!assets || assets.length === 0) {
+      return null;
+    }
+
+    const activeAssets = assets.filter(asset => asset.status === 'active');
+    const maintenanceAssets = assets.filter(asset => asset.status === 'maintenance');
+    const totalValue = activeAssets.reduce((sum, asset) => sum + (asset.current_value || 0), 0);
+    const avgValue = totalValue / activeAssets.length;
+
+    // Calculate efficiency based on asset utilization and maintenance status
+    const utilizationRate = (activeAssets.length / assets.length) * 100;
+    const maintenanceRate = (maintenanceAssets.length / assets.length) * 100;
+    const efficiency = Math.min(100, Math.max(50, utilizationRate + (avgValue > 100000 ? 20 : 0)));
+
+    // Calculate value efficiency
+    const totalAssetValue = assets.reduce((sum, asset) => sum + (asset.current_value || 0), 0);
+    const activeValueRate = totalValue / totalAssetValue * 100;
+
+    return (
+      <div className="p-3 bg-blue-50 rounded-lg">
+        <p className="text-sm text-blue-800">
+          <strong>Asset Efficiency:</strong> {Math.round(efficiency)}% overall efficiency
+        </p>
+        <p className="text-xs text-blue-700 mt-1">
+          Utilization: {Math.round(utilizationRate)}% | Maintenance: {Math.round(maintenanceRate)}% | 
+          Value Active: {Math.round(activeValueRate)}%
+        </p>
+      </div>
+    );
+  };
+
+  const generateCostInsights = () => {
+    if (!assets || assets.length === 0) {
+      return null;
+    }
+
+    const assetTypeCounts = assets.reduce((acc, asset) => {
       acc[asset.asset_type] = (acc[asset.asset_type] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    return Object.entries(typeCounts).map(([type, count]) => ({
-      name: type.charAt(0).toUpperCase() + type.slice(1),
-      value: count,
-    }));
-  };
-
-  const generateStatusData = () => {
-    const statusCounts = components.reduce((acc, component) => {
-      acc[component.status] = (acc[component.status] || 0) + 1;
+    const assetTypeValues = assets.reduce((acc, asset) => {
+      if (!acc[asset.asset_type]) acc[asset.asset_type] = 0;
+      acc[asset.asset_type] += asset.current_value || 0;
       return acc;
     }, {} as Record<string, number>);
 
-    return Object.entries(statusCounts).map(([status, count]) => ({
-      name: status.charAt(0).toUpperCase() + status.slice(1),
-      value: count,
-    }));
+    const mostCommonType = Object.entries(assetTypeCounts).sort(([,a], [,b]) => b - a)[0];
+    const highestValueType = Object.entries(assetTypeValues).sort(([,a], [,b]) => b - a)[0];
+    
+    const insights = [];
+
+    // Asset consolidation insight
+    if (mostCommonType && mostCommonType[1] > 2) {
+      insights.push(
+        <div key="consolidation" className="p-3 bg-amber-50 rounded-lg">
+          <p className="text-sm text-amber-800">
+            <strong>Asset Consolidation:</strong> {mostCommonType[0].charAt(0).toUpperCase() + mostCommonType[0].slice(1)} 
+            type has {mostCommonType[1]} assets - consider consolidation for cost optimization
+          </p>
+        </div>
+      );
+    }
+
+    // Value concentration insight
+    if (highestValueType && highestValueType[1] > 50000) {
+      const percentage = Math.round((highestValueType[1] / calculateTotalAssetValue()) * 100);
+      insights.push(
+        <div key="value" className="p-3 bg-blue-50 rounded-lg">
+          <p className="text-sm text-blue-800">
+            <strong>Value Concentration:</strong> {highestValueType[0].charAt(0).toUpperCase() + highestValueType[0].slice(1)} 
+            assets represent {percentage}% of total portfolio value
+          </p>
+        </div>
+      );
+    }
+
+    // Maintenance cost insight
+    const maintenanceAssets = assets.filter(asset => asset.status === 'maintenance');
+    if (maintenanceAssets.length > 0) {
+      const maintenanceValue = maintenanceAssets.reduce((sum, asset) => sum + (asset.current_value || 0), 0);
+      const maintenancePercentage = Math.round((maintenanceValue / calculateTotalAssetValue()) * 100);
+      
+      insights.push(
+        <div key="maintenance" className="p-3 bg-orange-50 rounded-lg">
+          <p className="text-sm text-orange-800">
+            <strong>Maintenance Impact:</strong> {maintenanceAssets.length} asset{maintenanceAssets.length !== 1 ? 's' : ''} 
+            worth ${maintenanceValue.toLocaleString()} ({maintenancePercentage}% of portfolio) are currently under maintenance
+          </p>
+        </div>
+      );
+    }
+
+    if (insights.length === 0) {
+      return (
+        <div className="p-3 bg-green-50 rounded-lg">
+          <p className="text-sm text-green-800">
+            <strong>Asset Distribution:</strong> Well-balanced asset portfolio across different types
+          </p>
+        </div>
+      );
+    }
+
+    return <div className="space-y-2">{insights}</div>;
   };
 
-  const generateAssetValueData = () => {
-    const monthlyData = [
-      { month: 'Jan', value: 1250000 },
-      { month: 'Feb', value: 1320000 },
-      { month: 'Mar', value: 1280000 },
-      { month: 'Apr', value: 1450000 },
-      { month: 'May', value: 1380000 },
-      { month: 'Jun', value: 1520000 },
-    ];
+  const generateNotificationInsights = () => {
+    if (!recentNotifications || recentNotifications.length === 0) {
+      return null;
+    }
 
-    return monthlyData;
+    const highPriorityNotifications = recentNotifications.filter(notification => 
+      notification.priority === 'high' || notification.priority === 'critical'
+    );
+
+    const overdueNotifications = recentNotifications.filter(notification => {
+      if (!notification.created_at) return false;
+      const createdDate = new Date(notification.created_at);
+      const now = new Date();
+      const daysSinceCreated = (now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
+      return daysSinceCreated > 7; // Notifications older than 7 days
+    });
+
+    const insights = [];
+
+    // High priority notifications
+    if (highPriorityNotifications.length > 0) {
+      insights.push(
+        <div key="high-priority" className="p-3 bg-red-50 rounded-lg">
+          <p className="text-sm text-red-800">
+            <strong>🚨 High Priority Alerts:</strong> {highPriorityNotifications.length} notification{highPriorityNotifications.length !== 1 ? 's' : ''} 
+            require immediate attention
+          </p>
+        </div>
+      );
+    }
+
+    // Overdue notifications
+    if (overdueNotifications.length > 0) {
+      insights.push(
+        <div key="overdue" className="p-3 bg-orange-50 rounded-lg">
+          <p className="text-sm text-orange-800">
+            <strong>⏰ Overdue Notifications:</strong> {overdueNotifications.length} notification{overdueNotifications.length !== 1 ? 's' : ''} 
+            have been pending for over 7 days
+          </p>
+        </div>
+      );
+    }
+
+    // General notification status
+    if (insights.length === 0 && recentNotifications.length > 0) {
+      insights.push(
+        <div key="general" className="p-3 bg-blue-50 rounded-lg">
+          <p className="text-sm text-blue-800">
+            <strong>Notification Status:</strong> {recentNotifications.length} pending notification{recentNotifications.length !== 1 ? 's' : ''} 
+            in the system
+          </p>
+        </div>
+      );
+    }
+
+    return insights.length > 0 ? <div className="space-y-2">{insights}</div> : null;
   };
 
-  const generatePerformanceData = () => {
-    return [
-      { month: 'Jan', uptime: 99.2, efficiency: 87.5, maintenance: 12.3 },
-      { month: 'Feb', uptime: 99.5, efficiency: 89.1, maintenance: 10.8 },
-      { month: 'Mar', uptime: 98.8, efficiency: 85.9, maintenance: 14.2 },
-      { month: 'Apr', uptime: 99.7, efficiency: 91.3, maintenance: 8.7 },
-      { month: 'May', uptime: 99.1, efficiency: 88.7, maintenance: 11.3 },
-      { month: 'Jun', uptime: 99.9, efficiency: 93.2, maintenance: 6.8 },
-    ];
+  // Real-time metric calculations
+  const calculateTotalAssetValue = () => {
+    // Use stats data if available, otherwise calculate from assets array
+    if (stats?.assets?.total_value !== undefined) {
+      return stats.assets.total_value;
+    }
+    return assets.reduce((sum, asset) => sum + (asset.current_value || 0), 0);
+  };
+
+  const calculateCriticalComponents = () => {
+    // Use stats data if available, otherwise calculate from components array
+    if (stats?.components?.critical !== undefined) {
+      return stats.components.critical;
+    }
+    return components.filter(component => component.status === 'critical').length;
+  };
+
+  const calculateSystemUptime = () => {
+    // Use stats data if available, otherwise calculate from components array
+    if (stats?.components?.total !== undefined && stats.components.total > 0) {
+      const operational = stats.components.operational || 0;
+      return Math.round((operational / stats.components.total) * 100);
+    }
+    
+    if (components.length === 0) return 100;
+    
+    const operationalComponents = components.filter(c => c.status === 'operational').length;
+    return Math.round((operationalComponents / components.length) * 100);
+  };
+
+  // Simplified trend calculations (in a real app, these would compare with historical data)
+  const calculateAssetGrowth = () => {
+    return assets.length > 0 ? '+0.0%' : '0.0%';
+  };
+
+  const calculateAssetTrend = () => {
+    return assets.length > 0 ? 'up' as const : 'neutral' as const;
+  };
+
+  const calculateValueGrowth = () => {
+    const totalValue = calculateTotalAssetValue();
+    return totalValue > 0 ? '+0.0%' : '0.0%';
+  };
+
+  const calculateValueTrend = () => {
+    const totalValue = calculateTotalAssetValue();
+    return totalValue > 0 ? 'up' as const : 'neutral' as const;
+  };
+
+  const calculateCriticalChange = () => {
+    const criticalCount = calculateCriticalComponents();
+    return criticalCount > 0 ? '-0.0%' : '0.0%';
+  };
+
+  const calculateCriticalTrend = () => {
+    const criticalCount = calculateCriticalComponents();
+    return criticalCount > 0 ? 'down' as const : 'neutral' as const;
+  };
+
+  const calculateUptimeChange = () => {
+    const uptime = calculateSystemUptime();
+    return uptime > 95 ? '+0.0%' : '0.0%';
+  };
+
+  const calculateUptimeTrend = () => {
+    const uptime = calculateSystemUptime();
+    return uptime > 95 ? 'up' as const : 'neutral' as const;
+  };
+
+  const calculateResponseTimeAverage = () => {
+    // Calculate average response time based on maintenance logs and notifications
+    if (!maintenanceLogs.length && !recentNotifications.length) {
+      return 0;
+    }
+
+    let totalResponseTime = 0;
+    let resolvedCount = 0;
+
+    // Look for maintenance logs that have been resolved
+    maintenanceLogs.forEach(log => {
+      if (log.status === 'resolved' && log.resolved_at && log.created_at) {
+        const alertDate = new Date(log.created_at);
+        const resolvedDate = new Date(log.resolved_at);
+        const responseTime = Math.ceil((resolvedDate.getTime() - alertDate.getTime()) / (1000 * 60 * 60 * 24));
+        totalResponseTime += responseTime;
+        resolvedCount++;
+      }
+    });
+
+    // Also check notifications that might have been acknowledged
+    recentNotifications.forEach(notification => {
+      if (notification.status === 'acknowledged' && notification.acknowledged_at && notification.created_at) {
+        const alertDate = new Date(notification.created_at);
+        const acknowledgedDate = new Date(notification.acknowledged_at);
+        const responseTime = Math.ceil((acknowledgedDate.getTime() - alertDate.getTime()) / (1000 * 60 * 60 * 24));
+        totalResponseTime += responseTime;
+        resolvedCount++;
+      }
+    });
+
+    // If no resolved items, try to estimate from pending ones
+    if (resolvedCount === 0) {
+      const pendingItems = [
+        ...maintenanceLogs.filter(log => log.status === 'pending'),
+        ...recentNotifications.filter(n => n.status === 'pending')
+      ];
+      
+      if (pendingItems.length > 0) {
+        // Estimate based on average age of pending items
+        const now = new Date();
+        const totalAge = pendingItems.reduce((sum, item) => {
+          if (item.created_at) {
+            const age = Math.ceil((now.getTime() - new Date(item.created_at).getTime()) / (1000 * 60 * 60 * 24));
+            return sum + age;
+          }
+          return sum;
+        }, 0);
+        return Math.round(totalAge / pendingItems.length);
+      }
+    }
+
+    return resolvedCount > 0 ? Math.round(totalResponseTime / resolvedCount) : 0;
+  };
+
+  const calculateResponseTimeChange = () => {
+    const avgResponseTime = calculateResponseTimeAverage();
+    // In a real app, this would compare with historical data
+    return avgResponseTime > 0 ? '-0.0%' : '0.0%';
+  };
+
+  const calculateResponseTimeTrend = () => {
+    const avgResponseTime = calculateResponseTimeAverage();
+    // In a real app, this would compare with historical data
+    return avgResponseTime > 0 ? 'down' as const : 'neutral' as const;
+  };
+
+  const calculateComponentsDueSoon = () => {
+    // Count components due for maintenance in the next 5 days
+    const now = new Date();
+    const fiveDaysFromNow = new Date(now.getTime() + (5 * 24 * 60 * 60 * 1000));
+    
+    return components.filter(component => {
+      if (!component.next_maintenance_date) return false;
+      const dueDate = new Date(component.next_maintenance_date);
+      return dueDate <= fiveDaysFromNow && dueDate >= now;
+    }).length;
+  };
+
+  const calculateComponentsDueChange = () => {
+    const dueSoon = calculateComponentsDueSoon();
+    return dueSoon > 0 ? '+0.0%' : '0.0%';
+  };
+
+  const calculateComponentsDueTrend = () => {
+    const dueSoon = calculateComponentsDueSoon();
+    return dueSoon > 0 ? 'up' as const : 'neutral' as const;
   };
 
   if (loading) {
@@ -299,15 +1001,6 @@ export default function AnalyticsPage() {
           </p>
         </div>
         <div className="mt-4 sm:mt-0 flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowChat(!showChat)}
-            className="flex items-center gap-2"
-          >
-            <MessageSquare className="h-4 w-4" />
-            {showChat ? 'Hide' : 'Show'} AI Chat
-          </Button>
           <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             Export Report
@@ -318,6 +1011,24 @@ export default function AnalyticsPage() {
           </Button>
         </div>
       </div>
+
+      {/* No Data Message */}
+      {stats && stats.assets.total === 0 && stats.components.total === 0 && (
+        <Card className="p-6 bg-blue-50 border border-blue-200">
+          <div className="text-center">
+            <Package className="h-12 w-12 text-blue-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-blue-900 mb-2">No Data Available</h3>
+            <p className="text-blue-700 mb-4">
+              Your analytics dashboard is currently empty. To get started, you'll need to add some assets and components to your system.
+            </p>
+            <div className="space-y-2 text-sm text-blue-600">
+              <p>• Add assets through the Assets management section</p>
+              <p>• Create components in the Components section</p>
+              <p>• Once data is added, charts and insights will automatically populate</p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Filters */}
       <AnalyticsFilters
@@ -332,34 +1043,34 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
           title="Total Assets"
-          value={stats?.assets.total.toLocaleString() || '0'}
-          change="+12.5%"
-          trend="up"
+          value={(stats?.assets?.total || assets.length).toString()}
+          change={calculateAssetGrowth()}
+          trend={calculateAssetTrend()}
           icon={<Package className="h-6 w-6" />}
           color="text-blue-600"
         />
         <MetricCard
-          title="Asset Value"
-          value={`$${(stats?.assets.total_value || 0).toLocaleString()}`}
-          change="+8.2%"
-          trend="up"
-          icon={<DollarSign className="h-6 w-6" />}
+          title="Response Time Average"
+          value={`${calculateResponseTimeAverage()} days`}
+          change={calculateResponseTimeChange()}
+          trend={calculateResponseTimeTrend()}
+          icon={<Clock className="h-6 w-6" />}
           color="text-green-600"
         />
         <MetricCard
           title="Critical Components"
-          value={stats?.components.critical || 0}
-          change="-15.3%"
-          trend="down"
+          value={calculateCriticalComponents()}
+          change={calculateCriticalChange()}
+          trend={calculateCriticalTrend()}
           icon={<AlertTriangle className="h-6 w-6" />}
           color="text-red-600"
         />
         <MetricCard
-          title="System Uptime"
-          value="99.8%"
-          change="+0.2%"
-          trend="up"
-          icon={<Shield className="h-6 w-6" />}
+          title="Components Due Soon"
+          value={calculateComponentsDueSoon()}
+          change={calculateComponentsDueChange()}
+          trend={calculateComponentsDueTrend()}
+          icon={<Calendar className="h-6 w-6" />}
           color="text-purple-600"
         />
       </div>
@@ -377,16 +1088,6 @@ export default function AnalyticsPage() {
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
-              {/* Asset Value Trend */}
-              <SimpleLineChart
-                data={generateAssetValueData()}
-                xKey="month"
-                yKey="value"
-                title="Asset Value Trend"
-                subtitle="Monthly asset value changes"
-                showArea={true}
-              />
-
               {/* Asset Type Distribution */}
               <SimplePieChart
                 data={generateAssetTypeData()}
@@ -395,6 +1096,8 @@ export default function AnalyticsPage() {
                 title="Asset Type Distribution"
                 subtitle="Breakdown by asset category"
               />
+
+
             </TabsContent>
 
             <TabsContent value="performance" className="space-y-6">
@@ -413,25 +1116,20 @@ export default function AnalyticsPage() {
             </TabsContent>
 
             <TabsContent value="trends" className="space-y-6">
-              {/* Component Status Trends */}
+              {/* Maintenance Trends */}
               <SimpleBarChart
-                data={generateStatusData()}
-                xKey="name"
+                data={generateMaintenanceTrendsData()}
+                xKey="month"
                 yKey="value"
-                title="Component Status Distribution"
-                subtitle="Current component health status"
+                title="Maintenance Trends"
+                subtitle="Maintenance missed vs on-time trends"
               />
             </TabsContent>
 
             <TabsContent value="distribution" className="space-y-6">
               {/* Asset Status by Type */}
               <SimpleBarChart
-                data={[
-                  { type: 'Vehicle', active: 45, maintenance: 12, retired: 3 },
-                  { type: 'Machinery', active: 78, maintenance: 23, retired: 8 },
-                  { type: 'Equipment', active: 156, maintenance: 34, retired: 12 },
-                  { type: 'Infrastructure', active: 89, maintenance: 15, retired: 5 },
-                ]}
+                data={generateAssetStatusByTypeData()}
                 xKey="type"
                 yKey="active"
                 title="Asset Status by Type"
@@ -443,38 +1141,17 @@ export default function AnalyticsPage() {
 
         {/* Right Sidebar */}
         <div className="space-y-6">
-          {/* AI Chat */}
-          {showChat && (
-            <Chat
-              messages={chatMessages}
-              onSendMessage={handleChatMessage}
-              isLoading={isChatLoading}
-              className="h-96"
-            />
-          )}
-
           {/* Quick Insights */}
           <Card className="p-6">
             <div className="flex items-center gap-3 mb-4">
               <Brain className="h-5 w-5 text-teal-600" />
-              <h3 className="text-lg font-semibold text-gray-900">AI Insights</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Real-Time Insights</h3>
             </div>
             <div className="space-y-3">
-              <div className="p-3 bg-teal-50 rounded-lg">
-                <p className="text-sm text-teal-800">
-                  <strong>Performance Alert:</strong> 3 components are approaching maintenance due dates
-                </p>
-              </div>
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>Efficiency Trend:</strong> Asset utilization has improved 12% this month
-                </p>
-              </div>
-              <div className="p-3 bg-amber-50 rounded-lg">
-                <p className="text-sm text-amber-800">
-                  <strong>Cost Optimization:</strong> Consider consolidating similar equipment types
-                </p>
-              </div>
+              {generateMaintenanceInsights()}
+              {generateEfficiencyInsights()}
+              {generateCostInsights()}
+              {generateNotificationInsights()}
             </div>
           </Card>
 
@@ -523,71 +1200,14 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* Bottom Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Performing Assets */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Top Performing Assets</h3>
-            <Button variant="outline" size="sm">
-              <Eye className="h-4 w-4 mr-2" />
-              View All
-            </Button>
-          </div>
-          <div className="space-y-4">
-            {assets.slice(0, 5).map((asset, index) => (
-              <div key={asset.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-teal-100 rounded-full flex items-center justify-center">
-                    <span className="text-sm font-medium text-teal-600">{index + 1}</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{asset.name}</p>
-                    <p className="text-sm text-gray-500">{asset.asset_type}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-medium text-gray-900">${asset.current_value.toLocaleString()}</p>
-                  <Badge className={asset.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
-                    {asset.status}
-                  </Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
 
-        {/* Maintenance Schedule */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Upcoming Maintenance</h3>
-            <Button variant="outline" size="sm">
-              <Calendar className="h-4 w-4 mr-2" />
-              Schedule
-            </Button>
-          </div>
-          <div className="space-y-4">
-            {components
-              .filter(c => c.next_maintenance_date)
-              .slice(0, 5)
-              .map((component) => (
-                <div key={component.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{component.name}</p>
-                    <p className="text-sm text-gray-500">Due: {new Date(component.next_maintenance_date).toLocaleDateString()}</p>
-                  </div>
-                  <Badge className={
-                    component.status === 'critical' ? 'bg-red-100 text-red-800' :
-                    component.status === 'warning' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-green-100 text-green-800'
-                  }>
-                    {component.status}
-                  </Badge>
-                </div>
-              ))}
-          </div>
-        </Card>
-      </div>
+
+      {/* Floating Chat Button */}
+      <FloatingChatButton
+        messages={chatMessages}
+        onSendMessage={handleChatMessage}
+        isLoading={isChatLoading}
+      />
     </div>
   );
 }

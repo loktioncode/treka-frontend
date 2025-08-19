@@ -70,6 +70,16 @@ interface BarChartProps {
 }
 
 export function SimpleBarChart({ data, xKey, yKey, color = CHART_COLORS.primary, title, subtitle }: BarChartProps) {
+  if (!data || data.length === 0) {
+    return (
+      <ChartCard title={title || 'Data Chart'} subtitle={subtitle}>
+        <div className="flex items-center justify-center h-full text-gray-500">
+          <p>No data available</p>
+        </div>
+      </ChartCard>
+    );
+  }
+
   return (
     <ChartCard title={title || 'Data Chart'} subtitle={subtitle}>
       <ResponsiveContainer width="100%" height="100%">
@@ -119,6 +129,16 @@ interface LineChartProps {
 }
 
 export function SimpleLineChart({ data, xKey, yKey, color = CHART_COLORS.primary, title, subtitle, showArea = false }: LineChartProps) {
+  if (!data || data.length === 0) {
+    return (
+      <ChartCard title={title || 'Trend Chart'} subtitle={subtitle}>
+        <div className="flex items-center justify-center h-full text-gray-500">
+          <p>No data available</p>
+        </div>
+      </ChartCard>
+    );
+  }
+
   return (
     <ChartCard title={title || 'Trend Chart'} subtitle={subtitle}>
       <ResponsiveContainer width="100%" height="100%">
@@ -175,6 +195,16 @@ interface PieChartProps {
 }
 
 export function SimplePieChart({ data, nameKey, valueKey, title, subtitle }: PieChartProps) {
+  if (!data || data.length === 0) {
+    return (
+      <ChartCard title={title || 'Distribution Chart'} subtitle={subtitle}>
+        <div className="flex items-center justify-center h-full text-gray-500">
+          <p>No data available</p>
+        </div>
+      </ChartCard>
+    );
+  }
+
   const COLORS = [
     CHART_COLORS.primary,
     CHART_COLORS.secondary,
@@ -235,6 +265,16 @@ interface MultiLineChartProps {
 }
 
 export function MultiLineChart({ data, xKey, lines, title, subtitle }: MultiLineChartProps) {
+  if (!data || data.length === 0) {
+    return (
+      <ChartCard title={title || 'Multi-Series Chart'} subtitle={subtitle}>
+        <div className="flex items-center justify-center h-full text-gray-500">
+          <p>No data available</p>
+        </div>
+      </ChartCard>
+    );
+  }
+
   return (
     <ChartCard title={title || 'Multi-Series Chart'} subtitle={subtitle}>
       <ResponsiveContainer width="100%" height="100%">

@@ -348,6 +348,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </main>
       </div>
+
+      {/* Floating Chat Button - will be implemented by individual pages */}
     </div>
   );
 }

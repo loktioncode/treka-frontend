@@ -56,13 +56,13 @@ export function Chat({ messages, onSendMessage, isLoading = false, className = '
   return (
     <Card className={`flex flex-col h-full ${className}`}>
       {/* Chat Header */}
-      <div className="flex items-center gap-3 p-4 border-b border-gray-200">
+      <div className="flex items-center gap-3 p-4 border-b-2 border-teal-700">
         <div className="p-2 bg-teal-100 rounded-full">
-          <Bot className="h-5 w-5 text-teal-600" />
+          <Bot className="h-5 w-5 text-teal-700" />
         </div>
         <div>
-          <h3 className="font-semibold text-gray-900">AI Analytics Assistant</h3>
-          <p className="text-sm text-gray-500">Ask questions about your data</p>
+          <h3 className="font-semibold text-teal-900">AI Analytics Assistant</h3>
+          <p className="text-sm text-teal-700">Ask questions about your data</p>
         </div>
         <Badge variant="secondary" className="ml-auto">
           <Sparkles className="h-3 w-3 mr-1" />
@@ -73,8 +73,8 @@ export function Chat({ messages, onSendMessage, isLoading = false, className = '
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">
-            <Bot className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+          <div className="text-center text-teal-700 py-8">
+            <Bot className="h-12 w-12 mx-auto mb-3 text-teal-400" />
             <p className="text-sm">Start a conversation to get insights about your data</p>
             <p className="text-xs mt-1">Try asking: &quot;What are the top performing assets?&quot;</p>
           </div>
@@ -102,13 +102,13 @@ export function Chat({ messages, onSendMessage, isLoading = false, className = '
                 <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                 
                 {message.metadata?.insights && message.metadata.insights.length > 0 && (
-                  <div className="mt-2 pt-2 border-t border-gray-200">
-                    <p className="text-xs font-medium text-gray-600 mb-1">Key Insights:</p>
+                  <div className="mt-2 pt-2 border-t border-teal-700">
+                    <p className="text-xs font-medium text-teal-700 mb-1">Key Insights:</p>
                     <ul className="text-xs space-y-1">
                       {message.metadata.insights.map((insight, index) => (
                         <li key={index} className="flex items-start gap-2">
-                          <span className="text-teal-500 mt-1">•</span>
-                          <span>{insight}</span>
+                          <span className="text-teal-700 mt-1">•</span>
+                          <span className="text-teal-800">{insight}</span>
                         </li>
                       ))}
                     </ul>
@@ -147,7 +147,7 @@ export function Chat({ messages, onSendMessage, isLoading = false, className = '
       </div>
 
       {/* Input Form */}
-      <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200">
+      <form onSubmit={handleSubmit} className="p-4 border-t-2 border-teal-700">
         <div className="flex gap-2">
           <Input
             value={inputValue}
