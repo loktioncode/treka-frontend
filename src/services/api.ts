@@ -337,6 +337,17 @@ export const assetAPI = {
   deleteAsset: async (assetId: string) => {
     const response = await api.delete(`/assets/${assetId}`);
     return response.data;
+  },
+
+  // Driver assignment for vehicles
+  assignDriverToVehicle: async (assetId: string, driverId: string) => {
+    const response = await api.post(`/assets/${assetId}/assign-driver`, { driver_id: driverId });
+    return response.data;
+  },
+
+  unassignDriverFromVehicle: async (assetId: string) => {
+    const response = await api.delete(`/assets/${assetId}/unassign-driver`);
+    return response.data;
   }
 };
 

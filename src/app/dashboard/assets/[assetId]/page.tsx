@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { Form, FormField, FormLabel, FormGrid, FormActions, Select, Textarea } from '@/components/ui/form';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { 
   ArrowLeft, 
   Edit, 
@@ -45,12 +46,16 @@ export default function AssetViewPage() {
   const router = useRouter();
   const [asset, setAsset] = useState<Asset | null>(null);
   const [components, setComponents] = useState<Component[]>([]);
-  const [drivers, setDrivers] = useState<{ id: string; first_name: string; last_name: string; license_number?: string }[]>([]);
+  const [drivers, setDrivers] = useState<{ id: string; first_name: string; last_name: string; license_number?: string; role?: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingDrivers, setLoadingDrivers] = useState(false);
   const [showComponentModal, setShowComponentModal] = useState(false);
   const [selectedComponent, setSelectedComponent] = useState<Component | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [showDriverAssignModal, setShowDriverAssignModal] = useState(false);
+  const [showUnassignConfirmModal, setShowUnassignConfirmModal] = useState(false);
+  const [selectedDriverId, setSelectedDriverId] = useState<string>('');
   
   // Simulated sensor data for vehicles (will come from ESP32)
   const [vehicleSensorData] = useState({
@@ -213,12 +218,29 @@ export default function AssetViewPage() {
   const loadDrivers = useCallback(async () => {
     try {
       if (asset?.client_id) {
-        const response = await clientAPI.getClientUsers(asset.client_id, { role: 'driver' });
+        setLoadingDrivers(true);
+        console.log('🔍 Loading drivers for client:', asset.client_id);
+        console.log('🔍 API params:', { role: 'driver' });
+        
+        const response = await clientAPI.getClientUsers(asset.client_id, { 
+          role: 'driver'
+        });
+        console.log('🔍 Drivers API response:', response);
+        console.log('🔍 Response type:', typeof response);
+        console.log('🔍 Response length:', Array.isArray(response) ? response.length : 'Not an array');
+        
+        if (Array.isArray(response)) {
+          console.log('🔍 First driver data:', response[0]);
+          console.log('🔍 All driver roles:', response.map(d => ({ id: d.id, name: `${d.first_name} ${d.last_name}`, role: d.role })));
+        }
+        
         setDrivers(response || []);
       }
     } catch (error) {
       console.error('Error loading drivers:', error);
       setDrivers([]);
+    } finally {
+      setLoadingDrivers(false);
     }
   }, [asset?.client_id]);
 
@@ -234,6 +256,8 @@ export default function AssetViewPage() {
       loadDrivers();
     }
   }, [asset, loadDrivers]);
+
+
 
   const handleComponentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -311,6 +335,86 @@ export default function AssetViewPage() {
       maintenance_interval_days: component.maintenance_interval_days || 30
     });
     setShowComponentModal(true);
+  };
+
+  // Driver assignment handlers
+  const handleUnassignDriver = () => {
+    setShowUnassignConfirmModal(true);
+  };
+
+  const handleConfirmUnassign = async () => {
+    if (!asset?.vehicle_details?.driver_id) return;
+    
+    setIsSubmitting(true);
+    try {
+      // Call API to unassign driver from vehicle
+      await assetAPI.unassignDriverFromVehicle(asset.id);
+      
+      // Reload asset data
+      await loadAsset();
+      await loadDrivers();
+      
+      toast.success('Driver successfully unassigned from vehicle');
+      setShowUnassignConfirmModal(false);
+    } catch (error) {
+      toast.error('Failed to unassign driver from vehicle');
+      console.error('Error unassigning driver:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAssignDriver = async () => {
+    if (!selectedDriverId) {
+      toast.error('Please select a driver');
+      return;
+    }
+
+    // Check if driver is already assigned to another vehicle
+    const selectedDriver = drivers.find(d => d.id === selectedDriverId);
+    if (!selectedDriver) {
+      toast.error('Selected driver not found');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Call API to assign driver to vehicle
+      await assetAPI.assignDriverToVehicle(asset!.id, selectedDriverId);
+      
+      // Reload asset data
+      await loadAsset();
+      await loadDrivers();
+      
+      toast.success(`Driver ${selectedDriver.first_name} ${selectedDriver.last_name} successfully assigned to vehicle`);
+      setShowDriverAssignModal(false);
+      setSelectedDriverId('');
+    } catch (error: unknown) {
+      const errorMessage = error && typeof error === 'object' && 'response' in error 
+        ? (error as { response?: { data?: { detail?: string } } }).response?.data?.detail || 'Failed to assign driver to vehicle'
+        : 'Failed to assign driver to vehicle';
+      toast.error(errorMessage);
+      console.error('Error assigning driver:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Get available drivers (not assigned to any vehicle)
+  const getAvailableDrivers = () => {
+    console.log('🔍 All drivers:', drivers);
+    console.log('🔍 Current asset driver ID:', asset?.vehicle_details?.driver_id);
+    console.log('🔍 Drivers with role filter:', drivers.filter(d => d.role === 'driver'));
+    
+    const availableDrivers = drivers.filter(driver => {
+      // Don't show the currently assigned driver as available
+      const isAvailable = driver.id !== asset?.vehicle_details?.driver_id;
+      console.log(`🔍 Driver ${driver.first_name} ${driver.last_name} (role: ${driver.role}): available=${isAvailable}`);
+      return isAvailable;
+    });
+    
+    console.log('🔍 Available drivers:', availableDrivers);
+    return availableDrivers;
   };
 
   const getStatusColor = (status: string) => {
@@ -583,13 +687,58 @@ export default function AssetViewPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">Fuel Type</label>
                       <p className="text-gray-900">{asset.vehicle_details.fuel_type || 'Not specified'}</p>
                     </div>
-                    {asset.vehicle_details?.driver_id && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Assigned Driver</label>
-                        <p className="text-gray-900">
-                          {drivers.find(d => d.id === asset.vehicle_details?.driver_id)?.first_name} {drivers.find(d => d.id === asset.vehicle_details?.driver_id)?.last_name}
-                          {drivers.find(d => d.id === asset.vehicle_details?.driver_id)?.license_number && ` (${drivers.find(d => d.id === asset.vehicle_details?.driver_id)?.license_number})`}
-                        </p>
+
+                  </div>
+                </div>
+              )}
+
+              {/* Driver Assignment Section for Vehicles */}
+              {asset.asset_type === 'vehicle' && (
+                <div className="md:col-span-2 mt-6">
+                  <h4 className="font-semibold mb-4">Driver Assignment</h4>
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    {asset.vehicle_details?.driver_id ? (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <Car className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {drivers.find(d => d.id === asset.vehicle_details?.driver_id)?.first_name} {drivers.find(d => d.id === asset.vehicle_details?.driver_id)?.last_name}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              License: {drivers.find(d => d.id === asset.vehicle_details?.driver_id)?.license_number || 'Not specified'}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                          onClick={() => handleUnassignDriver()}
+                        >
+                          Remove Driver
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="text-center py-4">
+                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <Car className="w-6 h-6 text-gray-400" />
+                        </div>
+                        <p className="text-gray-500 mb-3">No driver assigned to this vehicle</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
+                          onClick={() => setShowDriverAssignModal(true)}
+                          disabled={drivers.length === 0}
+                        >
+                          {drivers.length === 0 ? 'No Available Drivers' : 'Assign Driver'}
+                        </Button>
+                        {drivers.length === 0 && (
+                          <p className="text-xs text-gray-400 mt-2">Create driver users first to assign them to vehicles</p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1278,6 +1427,127 @@ export default function AssetViewPage() {
             </Button>
           </FormActions>
         </Form>
+      </Modal>
+
+      {/* Driver Assignment Modal */}
+      <Modal
+        isOpen={showDriverAssignModal}
+        onClose={() => {
+          setShowDriverAssignModal(false);
+          setSelectedDriverId('');
+        }}
+        title="Assign Driver to Vehicle"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600">
+            Select a driver to assign to <strong>{asset?.name}</strong>. 
+            Only unassigned drivers are shown.
+          </p>
+          
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Available Drivers
+            </label>
+            
+            {/* Driver count info */}
+            <div className="text-sm text-gray-600">
+              {loadingDrivers ? (
+                <span className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-600"></div>
+                  Loading drivers...
+                </span>
+              ) : (
+                `Available drivers: ${getAvailableDrivers().length}`
+              )}
+            </div>
+            
+            <SearchableSelect
+              value={selectedDriverId}
+              onChange={setSelectedDriverId}
+              options={[
+                { value: '', label: 'Select a driver...' },
+                ...getAvailableDrivers().map(driver => ({
+                  value: driver.id,
+                  label: `${driver.first_name} ${driver.last_name}${driver.license_number ? ` (${driver.license_number})` : ''}`
+                }))
+              ]}
+              placeholder="Choose driver"
+              searchPlaceholder="Type to search drivers by name or email..."
+            />
+          </div>
+
+          {getAvailableDrivers().length === 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 text-amber-800">
+                <AlertTriangle className="w-5 h-5" />
+                <p className="font-medium">
+                  No Available Drivers
+                </p>
+              </div>
+              <p className="text-amber-700 text-sm mt-1">
+                All drivers are currently assigned to other vehicles, or no drivers exist for this client.
+              </p>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDriverAssignModal(false);
+                setSelectedDriverId('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAssignDriver}
+              disabled={!selectedDriverId || isSubmitting}
+              className="bg-teal-600 hover:bg-teal-700 text-white"
+            >
+              {isSubmitting ? 'Assigning...' : 'Assign Driver'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Unassign Driver Confirmation Modal */}
+      <Modal
+        isOpen={showUnassignConfirmModal}
+        onClose={() => setShowUnassignConfirmModal(false)}
+        title="Remove Driver Assignment"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-red-800">Confirm Driver Removal</p>
+              <p className="text-red-700 text-sm mt-1">
+                Are you sure you want to remove {drivers.find(d => d.id === asset?.vehicle_details?.driver_id)?.first_name} {drivers.find(d => d.id === asset?.vehicle_details?.driver_id)?.last_name} from <strong>{asset?.name}</strong>?
+              </p>
+            </div>
+          </div>
+
+          <p className="text-gray-600 text-sm">
+            This action will unassign the driver from the vehicle. The driver will become available for assignment to other vehicles.
+          </p>
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={() => setShowUnassignConfirmModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmUnassign}
+              disabled={isSubmitting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isSubmitting ? 'Removing...' : 'Remove Driver'}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

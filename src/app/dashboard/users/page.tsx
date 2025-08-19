@@ -1341,12 +1341,24 @@ export default function UsersPage() {
                     onChange={(e) => setFormData({ ...formData, license_type: e.target.value || undefined })}
                     options={[
                       { value: '', label: 'Select license type' },
-                      { value: 'Class A', label: 'Class A - Commercial' },
-                      { value: 'Class B', label: 'Class B - Commercial' },
-                      { value: 'Class C', label: 'Class C - Regular' },
-                      { value: 'Class D', label: 'Class D - Regular' },
-                      { value: 'CDL', label: 'Commercial Driver License' },
-                      { value: 'Motorcycle', label: 'Motorcycle' },
+                      // South African License Types
+                      { value: 'Code A', label: 'Code A - Motorcycles (SA)' },
+                      { value: 'Code A1', label: 'Code A1 - Light Motorcycles (SA)' },
+                      { value: 'Code B', label: 'Code B - Light Motor Vehicles (SA)' },
+                      { value: 'Code C', label: 'Code C - Heavy Motor Vehicles (SA)' },
+                      { value: 'Code C1', label: 'Code C1 - Medium Heavy Vehicles (SA)' },
+                      { value: 'Code EB', label: 'Code EB - Light Vehicle + Trailer (SA)' },
+                      { value: 'Code EC', label: 'Code EC - Heavy Vehicle + Trailer (SA)' },
+                      { value: 'Code EC1', label: 'Code EC1 - Medium Heavy + Trailer (SA)' },
+                      { value: 'PrDP', label: 'Professional Driving Permit (SA)' },
+                      { value: 'DDP', label: 'Dangerous Goods Permit (SA)' },
+                      // Zimbabwean License Types
+                      { value: 'Class 1', label: 'Class 1 - Light Motor Vehicles (ZW)' },
+                      { value: 'Class 2', label: 'Class 2 - Heavy Motor Vehicles (ZW)' },
+                      { value: 'Class 3', label: 'Class 3 - Extra Heavy Vehicles (ZW)' },
+                      { value: 'Class 4', label: 'Class 4 - Motorcycles (ZW)' },
+                      { value: 'PSV', label: 'Public Service Vehicle (ZW)' },
+                      // General
                       { value: 'Other', label: 'Other' }
                     ]}
                     disabled={isSubmitting}
