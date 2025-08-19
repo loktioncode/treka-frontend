@@ -395,3 +395,81 @@ export interface UserFilters extends PaginationParams {
   is_active?: boolean;
   search?: string;
 }
+
+// Logistics Analytics Types
+export interface DriverEarnings {
+  uuid: string;
+  first_name: string;
+  surname: string;
+  full_name: string;
+  total_earnings: number;
+  period_earnings: {
+    '7d': number;
+    '30d': number;
+    '1y': number;
+    '5y': number;
+  };
+  payment_count: number;
+}
+
+export interface LogisticsEarningsSummary {
+  total_drivers: number;
+  total_earnings: number;
+  periods: {
+    '7d': number;
+    '30d': number;
+    '1y': number;
+    '5y': number;
+  };
+  last_upload?: string;
+  filename?: string;
+}
+
+export interface LogisticsEarningsData {
+  drivers: DriverEarnings[];
+  raw_data: Record<string, any>;
+}
+
+export interface LogisticsEarningsResponse {
+  message: string;
+  data: LogisticsEarningsData;
+  summary: LogisticsEarningsSummary;
+}
+
+export interface FleetMetrics {
+  total_vehicles: number;
+  active_vehicles: number;
+  assigned_vehicles: number;
+  utilization_rate: number;
+}
+
+export interface DriverMetrics {
+  total_drivers: number;
+  available_drivers: number;
+  assignment_rate: number;
+}
+
+export interface EarningsMetrics {
+  data_points: number;
+  trend_percentage: number;
+  last_upload?: string;
+}
+
+export interface LogisticsPerformanceMetrics {
+  fleet: FleetMetrics;
+  drivers: DriverMetrics;
+  earnings: EarningsMetrics;
+}
+
+export interface LogisticsPerformanceResponse {
+  message: string;
+  metrics: LogisticsPerformanceMetrics;
+}
+
+export interface UploadEarningsResponse {
+  message: string;
+  upload_id: string;
+  total_drivers: number;
+  total_payments: number;
+  filename: string;
+}

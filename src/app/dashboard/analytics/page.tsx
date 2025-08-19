@@ -7,12 +7,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ChatMessage } from '@/components/ui/chat';
 import { FloatingChatButton } from '@/components/ui/floating-chat-button';
 import { AnalyticsFilters, AnalyticsFilters as AnalyticsFiltersType } from '@/components/ui/analytics-filters';
+import { Modal } from '@/components/ui/modal';
 import { 
   SimpleBarChart, 
   SimplePieChart, 
   MultiLineChart,
   MetricCard 
 } from '@/components/ui/charts';
+import { Input } from '@/components/ui/input';
 import { 
   BarChart3, 
   Package, 
@@ -23,12 +25,25 @@ import {
   Activity,
   Settings,
   RefreshCw,
-  Clock
+  Clock,
+  Upload,
+  Users,
+  Car,
+  TrendingUp,
+  DollarSign
 } from 'lucide-react';
 import { analyticsAPI, assetAPI, componentAPI, clientAPI, notificationAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import toast from 'react-hot-toast';
-import type { AssetStatus, AssetType } from '@/types/api';
+import { useDriverEarnings, useLogisticsPerformance, useUploadEarnings } from '@/hooks/useLogisticsAnalytics';
+import type { 
+  AssetStatus, 
+  AssetType, 
+  Client,
+  DriverEarnings,
+  LogisticsEarningsSummary,
+  LogisticsPerformanceMetrics 
+} from '@/types/api';
 
 interface DashboardStats {
   assets: {
@@ -132,7 +147,23 @@ export default function AnalyticsPage() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
   
+  // Logistics analytics state
+  const [currentClient, setCurrentClient] = useState<Client | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [driverFilter, setDriverFilter] = useState<string>('');
 
+  // React Query hooks for logistics analytics
+  const { data: earningsData, isLoading: earningsLoading } = useDriverEarnings(
+    driverFilter || undefined,
+    !!currentClient && currentClient.client_type === 'logistics'
+  );
+  
+  const { data: performanceData, isLoading: performanceLoading } = useLogisticsPerformance(
+    !!currentClient && currentClient.client_type === 'logistics'
+  );
+  
+  const uploadEarningsMutation = useUploadEarnings();
 
   // Load data
   const loadData = useCallback(async () => {
@@ -280,9 +311,22 @@ export default function AnalyticsPage() {
     }
   }, [user, filters]);
 
+  // Load current client info for logistics analytics
+  const loadClientInfo = useCallback(async () => {
+    try {
+      if (user?.client_id) {
+        const clientData = await clientAPI.getClient(user.client_id);
+        setCurrentClient(clientData);
+      }
+    } catch (error) {
+      console.error('Error loading client info:', error);
+    }
+  }, [user]);
+
   useEffect(() => {
     loadData();
-  }, [loadData]);
+    loadClientInfo();
+  }, [loadData, loadClientInfo]);
 
   // Handle chat message
   const handleChatMessage = async (message: string) => {
@@ -985,40 +1029,166 @@ export default function AnalyticsPage() {
       />
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard
-          title="Total Assets"
-          value={(stats?.assets?.total || assets.length).toString()}
-          change={calculateAssetGrowth()}
-          trend={calculateAssetTrend()}
-          icon={<Package className="h-6 w-6" />}
-          color="text-blue-600"
-        />
-        <MetricCard
-          title="Response Time Average"
-          value={`${calculateResponseTimeAverage()} days`}
-          change={calculateResponseTimeChange()}
-          trend={calculateResponseTimeTrend()}
-          icon={<Clock className="h-6 w-6" />}
-          color="text-green-600"
-        />
-        <MetricCard
-          title="Critical Components"
-          value={calculateCriticalComponents()}
-          change={calculateCriticalChange()}
-          trend={calculateCriticalTrend()}
-          icon={<AlertTriangle className="h-6 w-6" />}
-          color="text-red-600"
-        />
-        <MetricCard
-          title="Components Due Soon"
-          value={calculateComponentsDueSoon()}
-          change={calculateComponentsDueChange()}
-          trend={calculateComponentsDueTrend()}
-          icon={<Calendar className="h-6 w-6" />}
-          color="text-purple-600"
-        />
-      </div>
+      {currentClient?.client_type === 'logistics' ? (
+        // Logistics Analytics Dashboard
+        <div className="space-y-6">
+          {/* Logistics Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Logistics Analytics Dashboard</h2>
+              <p className="text-sm text-gray-600">Track driver performance and earnings from Uber Fleet</p>
+            </div>
+            <Button onClick={() => setShowUploadModal(true)} className="bg-teal-600 hover:bg-teal-700 text-white">
+              <Upload className="h-4 w-4 mr-2" />
+              Upload Earnings CSV
+            </Button>
+          </div>
+
+          {/* Logistics Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <MetricCard
+              title="Total Drivers"
+              value={earningsData?.summary?.total_drivers?.toString() || '0'}
+              change="+0.0%"
+              trend="up"
+              icon={<Users className="h-6 w-6" />}
+              color="text-blue-600"
+            />
+            <MetricCard
+              title="Total Earnings"
+              value={`$${(earningsData?.summary?.total_earnings || 0).toLocaleString()}`}
+              change="+0.0%"
+              trend="up"
+              icon={<DollarSign className="h-6 w-6" />}
+              color="text-green-600"
+            />
+            <MetricCard
+              title="Active Vehicles"
+              value={performanceData?.fleet?.active_vehicles?.toString() || '0'}
+              change="+0.0%"
+              trend="up"
+              icon={<Car className="h-6 w-6" />}
+              color="text-purple-600"
+            />
+            <MetricCard
+              title="Utilization Rate"
+              value={`${performanceData?.fleet?.utilization_rate?.toFixed(1) || 0}%`}
+              change="+0.0%"
+              trend="up"
+              icon={<TrendingUp className="h-6 w-6" />}
+              color="text-teal-600"
+            />
+          </div>
+
+          {/* Driver Performance Table */}
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Driver Performance</h3>
+              <Input
+                placeholder="Filter by driver name..."
+                value={driverFilter}
+                onChange={(e) => setDriverFilter(e.target.value)}
+                className="w-64"
+              />
+            </div>
+            
+            {earningsLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
+                <p className="mt-2 text-gray-600">Loading driver data...</p>
+              </div>
+            ) : earningsData?.data?.drivers && earningsData.data.drivers.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 font-medium text-gray-900">Driver</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-900">Total Earnings</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-900">Last 7 Days</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-900">Last 30 Days</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-900">Payments</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                                         {earningsData.data.drivers.map((driver: DriverEarnings) => (
+                       <tr key={driver.uuid} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-3 px-4">
+                          <div>
+                            <div className="font-medium text-gray-900">{driver.full_name}</div>
+                            <div className="text-sm text-gray-500">ID: {driver.uuid}</div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 font-medium text-green-600">
+                          ${driver.total_earnings.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 text-gray-700">
+                          ${driver.period_earnings['7d'].toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 text-gray-700">
+                          ${driver.period_earnings['30d'].toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 text-gray-700">
+                          {driver.payment_count}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Earnings Data</h3>
+                <p className="text-gray-600 mb-4">
+                  Upload a CSV file from Uber Fleet to start tracking driver earnings and performance.
+                </p>
+                <Button onClick={() => setShowUploadModal(true)} className="bg-teal-600 hover:bg-teal-700 text-white">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload First CSV
+                </Button>
+              </div>
+            )}
+          </Card>
+        </div>
+      ) : (
+        // Industrial Analytics Dashboard (existing content)
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <MetricCard
+              title="Total Assets"
+              value={(stats?.assets?.total || assets.length).toString()}
+              change={calculateAssetGrowth()}
+              trend={calculateAssetTrend()}
+              icon={<Package className="h-6 w-6" />}
+              color="text-blue-600"
+            />
+            <MetricCard
+              title="Response Time Average"
+              value={`${calculateResponseTimeAverage()} days`}
+              change={calculateResponseTimeChange()}
+              trend={calculateResponseTimeTrend()}
+              icon={<Clock className="h-6 w-6" />}
+              color="text-green-600"
+            />
+            <MetricCard
+              title="Critical Components"
+              value={calculateCriticalComponents()}
+              change={calculateCriticalChange()}
+              trend={calculateCriticalTrend()}
+              icon={<AlertTriangle className="h-6 w-6" />}
+              color="text-red-600"
+            />
+            <MetricCard
+              title="Components Due Soon"
+              value={calculateComponentsDueSoon()}
+              change={calculateComponentsDueChange()}
+              trend={calculateComponentsDueTrend()}
+              icon={<Calendar className="h-6 w-6" />}
+              color="text-purple-600"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1146,6 +1316,102 @@ export default function AnalyticsPage() {
       </div>
 
 
+
+      {/* CSV Upload Modal */}
+      <Modal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        title="Upload Uber Fleet Earnings CSV"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="text-center">
+            <Upload className="h-12 w-12 text-teal-600 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Upload Earnings Data</h3>
+            <p className="text-gray-600 mb-4">
+              Upload a CSV file exported from Uber Fleet to track driver earnings and performance.
+            </p>
+          </div>
+          
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+            <input
+              type="file"
+              accept=".csv"
+              onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+              className="hidden"
+              id="csv-upload"
+            />
+            <label htmlFor="csv-upload" className="cursor-pointer">
+              <div className="space-y-2">
+                <Upload className="h-8 w-8 text-gray-400 mx-auto" />
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium text-teal-600 hover:text-teal-500">
+                    Click to upload
+                  </span>{' '}
+                  or drag and drop
+                </div>
+                <p className="text-xs text-gray-500">CSV files only</p>
+              </div>
+            </label>
+          </div>
+          
+          {uploadFile && (
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Package className="h-5 w-5 text-teal-600" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{uploadFile.name}</p>
+                    <p className="text-xs text-gray-500">
+                      {(uploadFile.size / 1024).toFixed(1)} KB
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setUploadFile(null)}
+                >
+                  Remove
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          <div className="flex justify-end space-x-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowUploadModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (uploadFile) {
+                  try {
+                    await uploadEarningsMutation.mutateAsync(uploadFile);
+                    setShowUploadModal(false);
+                    setUploadFile(null);
+                  } catch (error) {
+                    console.error('Upload failed:', error);
+                  }
+                }
+              }}
+              disabled={!uploadFile || uploadEarningsMutation.isPending}
+              className="bg-teal-600 hover:bg-teal-700 text-white"
+            >
+              {uploadEarningsMutation.isPending ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Uploading...
+                </>
+              ) : (
+                'Upload CSV'
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Floating Chat Button */}
       <FloatingChatButton

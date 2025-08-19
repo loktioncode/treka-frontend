@@ -458,6 +458,29 @@ export const analyticsAPI = {
     console.log('AI Insights API payload:', payload);
     const response = await api.post('/analytics/ai-insights', payload);
     return response.data;
+  },
+
+  // Logistics Analytics endpoints
+  getLogisticsDriverEarnings: async (driverName?: string) => {
+    const params = driverName ? { driver_name: driverName } : {};
+    const response = await api.get('/analytics/logistics/driver-earnings', { params });
+    return response.data;
+  },
+
+  getLogisticsPerformanceMetrics: async () => {
+    const response = await api.get('/analytics/logistics/performance-metrics');
+    return response.data;
+  },
+
+  uploadLogisticsEarnings: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/analytics/logistics/upload-earnings', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
   }
 };
 

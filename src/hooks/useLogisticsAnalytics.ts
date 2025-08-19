@@ -1,0 +1,68 @@
+/**
+ * React Query hooks for logistics analytics
+ * Provides caching, optimistic updates, and proper error handling
+ */
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { 
+  analyticsAPI, 
+  type LogisticsEarningsResponse, 
+  type LogisticsPerformanceResponse,
+  type UploadEarningsResponse 
+} from '@/services/api';
+import toast from 'react-hot-toast';
+
+// Query keys for consistency
+export const logisticsKeys = {
+  all: ['logistics'] as const,
+  earnings: () => [...logisticsKeys.all, 'earnings'] as const,
+  earningsList: (driverName?: string) => [...logisticsKeys.earnings(), driverName] as const,
+  performance: () => [...logisticsKeys.all, 'performance'] as const,
+};
+
+/**
+ * Hook to fetch driver earnings data
+ */
+export function useDriverEarnings(driverName?: string, enabled = true) {
+  return useQuery({
+    queryKey: logisticsKeys.earningsList(driverName),
+    queryFn: () => analyticsAPI.getLogisticsDriverEarnings(driverName),
+    enabled: enabled,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 10,   // 10 minutes
+  });
+}
+
+/**
+ * Hook to fetch logistics performance metrics
+ */
+export function useLogisticsPerformance(enabled = true) {
+  return useQuery({
+    queryKey: logisticsKeys.performance(),
+    queryFn: () => analyticsAPI.getLogisticsPerformanceMetrics(),
+    enabled: enabled,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 10,   // 10 minutes
+  });
+}
+
+/**
+ * Hook to upload earnings CSV file
+ */
+export function useUploadEarnings() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file: File) => analyticsAPI.uploadLogisticsEarnings(file),
+    onSuccess: (response: UploadEarningsResponse) => {
+      // Invalidate and refetch earnings data
+      queryClient.invalidateQueries({ queryKey: logisticsKeys.earnings() });
+      
+      toast.success(`Earnings data uploaded successfully! ${response.total_drivers} drivers, ${response.total_payments} payments`);
+    },
+    onError: (error: unknown) => {
+      const errorWithResponse = error as { response?: { data?: { detail?: string } } };
+      const message = errorWithResponse?.response?.data?.detail || 'Failed to upload earnings data';
+      toast.error(message);
+    },
+  });
+}
