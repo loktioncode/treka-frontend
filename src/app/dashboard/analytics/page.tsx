@@ -133,7 +133,7 @@ export default function AnalyticsPage() {
   const [recentNotifications, setRecentNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<AnalyticsFiltersType>({
-    dateRange: '30d', // Default to last 30 days for better initial data display
+    dateRange: '1y', // Default to last 1 year for better initial data display
     startDate: undefined,
     endDate: undefined,
     assetIds: undefined,
@@ -157,7 +157,7 @@ export default function AnalyticsPage() {
   const [driverFilter, setDriverFilter] = useState<string[]>([]);
 
   // React Query hooks for logistics analytics
-  const { data: earningsData, isLoading: earningsLoading } = useDriverEarnings(
+  const { data: earningsData, isLoading: earningsLoading, refetch: refetchEarnings } = useDriverEarnings(
     undefined, // Always fetch all driver data, filter on frontend
     // For logistics clients, use date range from filters; for others, use undefined
     currentClient?.client_type === 'logistics' ? filters.dateRange : undefined,
@@ -166,6 +166,37 @@ export default function AnalyticsPage() {
     currentClient?.client_type === 'logistics' ? filters.endDate : undefined,
     !!currentClient && currentClient.client_type === 'logistics'
   );
+
+  // Debug logging for filter changes and manual refetch
+  useEffect(() => {
+    if (currentClient?.client_type === 'logistics') {
+      console.log('Logistics filters changed:', {
+        dateRange: filters.dateRange,
+        startDate: filters.startDate,
+        endDate: filters.endDate
+      });
+      
+      // Manually refetch earnings data when filters change
+      if (refetchEarnings) {
+        console.log('Refetching earnings data due to filter change');
+        refetchEarnings();
+      }
+    }
+  }, [filters.dateRange, filters.startDate, filters.endDate, currentClient, refetchEarnings]);
+
+  // Debug logging for earnings data changes
+  useEffect(() => {
+    if (currentClient?.client_type === 'logistics' && earningsData) {
+      console.log('Earnings data updated:', {
+        totalDrivers: earningsData?.summary?.total_drivers,
+        totalEarnings: earningsData?.summary?.total_earnings,
+        selectedPeriodEarnings: earningsData?.summary?.selected_period_earnings,
+        dateRange: filters.dateRange,
+        startDate: filters.startDate,
+        endDate: filters.endDate
+      });
+    }
+  }, [earningsData, currentClient, filters.dateRange, filters.startDate, filters.endDate]);
   
 
   
@@ -294,7 +325,7 @@ export default function AnalyticsPage() {
     } finally {
       setLoading(false);
     }
-  }, [user, filters, currentClient]);
+  }, [user, filters.clientId, filters.status, filters.assetType, filters.searchQuery, currentClient]);
 
   // Load current client info for logistics analytics
   const loadClientInfo = useCallback(async () => {
@@ -318,9 +349,9 @@ export default function AnalyticsPage() {
     }
   }, [currentClient, loadData]);
 
-  // Initialize filters for logistics clients
+  // Initialize filters for logistics clients - only set default once when client is first loaded
   useEffect(() => {
-    if (currentClient?.client_type === 'logistics' && filters.dateRange !== '30d') {
+    if (currentClient?.client_type === 'logistics' && !filters.dateRange) {
       setFilters(prev => ({
         ...prev,
         dateRange: '30d',
@@ -328,9 +359,7 @@ export default function AnalyticsPage() {
         endDate: undefined
       }));
     }
-  }, [currentClient, filters.dateRange]);
-
-  // No need to auto-set dateRange to 'custom' anymore since we removed that option
+  }, [currentClient, filters.dateRange]); // Include filters.dateRange to satisfy the linter
 
 
 

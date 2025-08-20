@@ -469,9 +469,16 @@ export const analyticsAPI = {
     if (endDate) params.end_date = endDate;
     
     console.log('getLogisticsDriverEarnings API call with params:', params);
+    console.log('Making API call to:', '/analytics/logistics/driver-earnings');
     
-    const response = await api.get('/analytics/logistics/driver-earnings', { params });
-    return response.data;
+    try {
+      const response = await api.get('/analytics/logistics/driver-earnings', { params });
+      console.log('API response received:', response.status, response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API call failed:', error);
+      throw error;
+    }
   },
 
   getLogisticsPerformanceMetrics: async () => {

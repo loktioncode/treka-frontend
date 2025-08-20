@@ -29,8 +29,16 @@ export function useDriverEarnings(driverName?: string, dateRange?: string, start
     console.log('useDriverEarnings parameters changed:', { driverName, dateRange, startDate, endDate, enabled });
   }, [driverName, dateRange, startDate, endDate, enabled]);
   
+  // Build query key with only defined parameters
+  const queryKey = [
+    ...logisticsKeys.earningsList(driverName),
+    dateRange || 'default',
+    startDate || 'default',
+    endDate || 'default'
+  ];
+  
   return useQuery({
-    queryKey: [...logisticsKeys.earningsList(driverName), dateRange, startDate, endDate],
+    queryKey,
     queryFn: () => {
       console.log('Calling analyticsAPI.getLogisticsDriverEarnings with:', { driverName, dateRange, startDate, endDate });
       return analyticsAPI.getLogisticsDriverEarnings(driverName, dateRange, startDate, endDate);
