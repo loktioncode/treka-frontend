@@ -14,6 +14,7 @@ import {
   MultiLineChart,
   MetricCard 
 } from '@/components/ui/charts';
+import { MultiSearchableSelect } from '@/components/ui/multi-searchable-select';
 import { Input } from '@/components/ui/input';
 import { 
   BarChart3, 
@@ -153,11 +154,11 @@ export default function AnalyticsPage() {
   const [currentClient, setCurrentClient] = useState<Client | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [driverFilter, setDriverFilter] = useState<string>('');
+  const [driverFilter, setDriverFilter] = useState<string[]>([]);
 
   // React Query hooks for logistics analytics
   const { data: earningsData, isLoading: earningsLoading } = useDriverEarnings(
-    driverFilter || undefined,
+    undefined, // Always fetch all driver data, filter on frontend
     // For logistics clients, use date range from filters; for others, use undefined
     currentClient?.client_type === 'logistics' ? filters.dateRange : undefined,
     // Pass custom date parameters for logistics clients
@@ -986,6 +987,91 @@ export default function AnalyticsPage() {
     return insights.length > 0 ? <div className="space-y-2">{insights}</div> : null;
   };
 
+  // Helper function to get selected drivers' monthly earnings
+  const getSelectedDriversMonthlyEarnings = () => {
+    console.log('getSelectedDriversMonthlyEarnings called:', {
+      driverFilterLength: driverFilter.length,
+      driverFilter,
+      hasPerformanceTrends: !!earningsData?.summary?.driver_performance_trends,
+      hasDrivers: !!earningsData?.data?.drivers,
+      totalDrivers: earningsData?.data?.drivers?.length,
+      hasDateFilters: !!(filters.startDate && filters.endDate)
+    });
+    
+    if (!driverFilter.length || !earningsData?.data?.drivers) {
+      console.log('No drivers selected, returning overall monthly earnings');
+      return earningsData?.summary?.monthly_earnings || [];
+    }
+    
+    // Check if we have date filters applied
+    const hasDateFilters = !!(filters.startDate && filters.endDate);
+    
+    // If multiple drivers selected, combine their monthly earnings
+    if (driverFilter.length > 1) {
+      const selectedDrivers = earningsData.data.drivers.filter((d: DriverEarnings) => driverFilter.includes(d.uuid));
+      const combinedMonthlyData: Record<string, number> = {};
+      
+      if (hasDateFilters && earningsData?.summary?.driver_performance_trends) {
+        // Use date-filtered performance trends
+        console.log('Using date-filtered performance trends for multiple drivers');
+        selectedDrivers.forEach((driver: DriverEarnings) => {
+          const driverTrend = earningsData.summary.driver_performance_trends.find(
+            (trend: DriverPerformanceTrend) => trend.driver_name === driver.full_name
+          );
+          
+          if (driverTrend) {
+            driverTrend.monthly_earnings.forEach((month: MonthlyEarnings) => {
+              if (!combinedMonthlyData[month.month]) {
+                combinedMonthlyData[month.month] = 0;
+              }
+              combinedMonthlyData[month.month] += month.earnings;
+            });
+          }
+        });
+      } else {
+        // Use overall driver data (no date filters)
+        console.log('Using overall driver data for multiple drivers (no date filters)');
+        // For now, return overall monthly earnings since individual driver trends might not be available
+        return earningsData?.summary?.monthly_earnings || [];
+      }
+      
+      return Object.entries(combinedMonthlyData).map(([month, earnings]) => ({
+        month,
+        earnings
+      }));
+    }
+    
+    // Single driver selected
+    const selectedDriver = earningsData.data.drivers.find((d: DriverEarnings) => d.uuid === driverFilter[0]);
+    if (!selectedDriver) return earningsData.summary.monthly_earnings || [];
+    
+    if (hasDateFilters && earningsData?.summary?.driver_performance_trends) {
+      // Use date-filtered performance trends
+      console.log('Using date-filtered performance trends for single driver');
+      const driverTrend = earningsData.summary.driver_performance_trends.find(
+        (driver: DriverPerformanceTrend) => driver.driver_name === selectedDriver.full_name
+      );
+      return driverTrend?.monthly_earnings || earningsData.summary.monthly_earnings || [];
+    } else {
+      // Use overall driver data (no date filters)
+      console.log('Using overall driver data for single driver (no date filters)');
+      // For now, return overall monthly earnings since individual driver trends might not be available
+      return earningsData?.summary?.monthly_earnings || [];
+    }
+  };
+
+  // Helper function to get selected drivers data
+  const getSelectedDrivers = () => {
+    if (!driverFilter.length || !earningsData?.data?.drivers) return [];
+    return earningsData.data.drivers.filter((d: DriverEarnings) => driverFilter.includes(d.uuid));
+  };
+
+  // Helper function to get first selected driver (for backward compatibility)
+  const getSelectedDriver = () => {
+    if (!driverFilter.length || !earningsData?.data?.drivers) return null;
+    return earningsData.data.drivers.find((d: DriverEarnings) => d.uuid === driverFilter[0]) || null;
+  };
+
   // Real-time metric calculations
   const calculateTotalAssetValue = () => {
     // Skip for logistics clients
@@ -1239,6 +1325,11 @@ export default function AnalyticsPage() {
                   ) : (
                     <span className="ml-2 font-medium text-teal-600">{filters.dateRange}</span>
                   )}
+                  {driverFilter.length > 0 && (
+                    <span className="ml-2 font-medium text-blue-600">
+                      | Driver{driverFilter.length > 1 ? 's' : ''}: {driverFilter.length === 1 ? getSelectedDriver()?.full_name : `${driverFilter.length} selected`}
+                    </span>
+                  )}
                   {earningsData?.summary?.selected_period_earnings !== undefined && (
                     <span className="ml-2 text-gray-500">
                       (Total: {formatCurrency(earningsData.summary.selected_period_earnings, earningsData.summary.currency || 'ZAR')})
@@ -1246,12 +1337,16 @@ export default function AnalyticsPage() {
                   )}
                 </div>
                 <Button
-                  onClick={() => setFilters(prev => ({ 
-                    ...prev, 
-                    dateRange: '30d',
-                    startDate: undefined,
-                    endDate: undefined
-                  }))}
+                  onClick={() => {
+                    setFilters(prev => ({ 
+                      ...prev, 
+                      dateRange: '30d',
+                      startDate: undefined,
+                      endDate: undefined
+                    }));
+                    // Clear driver filter when resetting date range
+                    setDriverFilter([]);
+                  }}
                   variant="outline"
                   size="sm"
                   className="text-xs"
@@ -1274,7 +1369,9 @@ export default function AnalyticsPage() {
                         dateRange: e.target.value,
                         startDate: undefined,
                         endDate: undefined
-                      }))
+                      }));
+                      // Clear driver filter when changing to preset date range
+                      setDriverFilter([]);
                     }}
                     className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   >
@@ -1318,6 +1415,45 @@ export default function AnalyticsPage() {
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Driver Filter - Only show when date range is selected */}
+              {(filters.startDate && filters.endDate) && (
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700">Driver:</label>
+                  <MultiSearchableSelect
+                    options={earningsData?.data?.drivers?.map((driver: DriverEarnings) => ({
+                      value: driver.uuid,
+                      label: driver.full_name
+                    })) || []}
+                    value={driverFilter}
+                    onChange={(newValue) => {
+                      console.log('Driver filter changed:', { oldValue: driverFilter, newValue });
+                      setDriverFilter(newValue);
+                    }}
+                    placeholder={earningsData?.data?.drivers?.length ? "Select drivers..." : "Loading drivers..."}
+                    searchPlaceholder="Search drivers..."
+                    className="min-w-[300px]"
+                    disabled={!earningsData?.data?.drivers?.length}
+                  />
+                  {driverFilter.length > 0 && (
+                    <Button
+                      onClick={() => setDriverFilter([])}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                    >
+                      Clear All
+                    </Button>
+                  )}
+                </div>
+              )}
+              {/* Debug info */}
+              <div className="text-xs text-gray-500">
+                Available drivers: {earningsData?.data?.drivers?.length || 0} | 
+                Selected: {driverFilter.length} | 
+                Filter state: {JSON.stringify(driverFilter)} |
+                Date range selected: {!!(filters.startDate && filters.endDate)}
               </div>
             </div>
           </div>
@@ -1377,8 +1513,17 @@ export default function AnalyticsPage() {
               color="text-blue-600"
             />
             <MetricCard
-              title={`Total Earnings (${getPeriodDisplayText()})`}
-              value={formatCurrency(earningsData?.summary?.selected_period_earnings || 0, earningsData?.summary?.currency || 'ZAR')}
+              title={driverFilter.length > 0 ? `Driver Earnings (${getPeriodDisplayText()})` : `Total Earnings (${getPeriodDisplayText()})`}
+              value={
+                driverFilter.length > 0
+                  ? formatCurrency(
+                      driverFilter.length === 1
+                        ? (getSelectedDriver()?.total_earnings || 0)
+                        : getSelectedDrivers().reduce((sum: number, driver: DriverEarnings) => sum + (driver.total_earnings || 0), 0),
+                      earningsData?.summary?.currency || 'ZAR'
+                    )
+                  : formatCurrency(earningsData?.summary?.selected_period_earnings || 0, earningsData?.summary?.currency || 'ZAR')
+              }
               change={hasMeaningfulData() ? "+0.0%" : hasHistoricalData() ? "Historical Data" : "No Data"}
               trend={hasMeaningfulData() ? "up" : hasHistoricalData() ? "neutral" : "neutral"}
               icon={<DollarSign className="h-6 w-6" />}
@@ -1402,22 +1547,56 @@ export default function AnalyticsPage() {
             />
           </div>
 
-
-
-
-
-
+          {/* Selected Drivers Summary Card */}
+          {driverFilter.length > 0 && earningsData?.data?.drivers && (
+            <Card className="p-6 bg-gradient-to-r from-blue-50 to-teal-50 border border-blue-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center">
+                    <Users className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {driverFilter.length === 1 
+                        ? getSelectedDriver()?.full_name 
+                        : `${driverFilter.length} Drivers Selected`
+                      }
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {driverFilter.length === 1 
+                        ? `Driver ID: ${driverFilter[0]}`
+                        : `IDs: ${driverFilter.slice(0, 3).join(', ')}${driverFilter.length > 3 ? '...' : ''}`
+                      }
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-teal-600">
+                    {formatCurrency(
+                      driverFilter.length === 1
+                        ? (getSelectedDriver()?.total_earnings || 0)
+                        : getSelectedDrivers().reduce((sum: number, driver: DriverEarnings) => sum + (driver.total_earnings || 0), 0),
+                      earningsData?.summary?.currency || 'ZAR'
+                    )}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {filters.startDate && filters.endDate ? 'Selected Period Earnings' : 'Total Earnings'}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* Logistics Charts Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Monthly Earnings Chart */}
             {earningsData?.summary?.monthly_earnings && earningsData.summary.monthly_earnings.length > 0 && (hasMeaningfulData() || hasHistoricalData()) ? (
               <SimpleBarChart
-                data={earningsData.summary.monthly_earnings}
+                data={getSelectedDriversMonthlyEarnings()}
                 xKey="month"
                 yKey="earnings"
-                title="Monthly Earnings"
-                subtitle="Total earnings by month"
+                title={driverFilter.length > 0 ? `Monthly Earnings - ${driverFilter.length === 1 ? getSelectedDriver()?.full_name : `${driverFilter.length} Drivers`}` : "Monthly Earnings"}
+                subtitle={driverFilter.length > 0 ? `Monthly earnings for ${driverFilter.length === 1 ? 'selected driver' : 'selected drivers'}` : "Total earnings by month"}
               />
             ) : (
               <Card className="p-6">
@@ -1440,28 +1619,66 @@ export default function AnalyticsPage() {
             {/* Driver Performance Trends */}
             {earningsData?.summary?.driver_performance_trends && earningsData.summary.driver_performance_trends.length > 0 && (hasMeaningfulData() || hasHistoricalData()) ? (
               <MultiLineChart
-                data={earningsData.summary.driver_performance_trends.flatMap((driver: DriverPerformanceTrend) => 
-                  driver.monthly_earnings.map((month: MonthlyEarnings) => ({
-                    month: month.month,
-                    [driver.driver_name]: month.earnings
-                  }))
-                ).reduce((acc: Record<string, unknown>[], curr: Record<string, unknown>) => {
-                  const existing = acc.find((item: Record<string, unknown>) => item.month === curr.month);
-                  if (existing) {
-                    Object.assign(existing, curr);
-                  } else {
-                    acc.push(curr);
-                  }
-                  return acc;
-                }, [] as Record<string, unknown>[])}
+                data={
+                  driverFilter.length > 0 && earningsData?.summary?.driver_performance_trends
+                    ? earningsData.summary.driver_performance_trends
+                        .filter((driver: DriverPerformanceTrend) => {
+                          if (driverFilter.length === 1) {
+                            return driver.driver_name === getSelectedDriver()?.full_name;
+                          } else {
+                            // For multiple drivers, show all selected drivers
+                            return getSelectedDrivers().some((selectedDriver: DriverEarnings) => 
+                              selectedDriver.full_name === driver.driver_name
+                            );
+                          }
+                        })
+                        .flatMap((driver: DriverPerformanceTrend) => 
+                          driver.monthly_earnings.map((month: MonthlyEarnings) => ({
+                            month: month.month,
+                            [driver.driver_name]: month.earnings
+                          }))
+                        )
+                    : earningsData.summary.driver_performance_trends.flatMap((driver: DriverPerformanceTrend) => 
+                        driver.monthly_earnings.map((month: MonthlyEarnings) => ({
+                          month: month.month,
+                          [driver.driver_name]: month.earnings
+                        }))
+                      ).reduce((acc: Record<string, unknown>[], curr: Record<string, unknown>) => {
+                        const existing = acc.find((item: Record<string, unknown>) => item.month === curr.month);
+                        if (existing) {
+                          Object.assign(existing, curr);
+                        } else {
+                          acc.push(curr);
+                        }
+                        return acc;
+                      }, [] as Record<string, unknown>[])
+                }
                 xKey="month"
-                lines={earningsData.summary.driver_performance_trends.slice(0, 5).map((driver: DriverPerformanceTrend, index: number) => ({
-                  key: driver.driver_name,
-                  label: driver.driver_name,
-                  color: ['#0d9488', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'][index % 5]
-                }))}
-                title="Driver Performance Trends"
-                subtitle="Monthly earnings by driver"
+                lines={
+                  driverFilter.length > 0 && earningsData?.summary?.driver_performance_trends
+                    ? earningsData.summary.driver_performance_trends
+                        .filter((driver: DriverPerformanceTrend) => {
+                          if (driverFilter.length === 1) {
+                            return driver.driver_name === getSelectedDriver()?.full_name;
+                          } else {
+                            return getSelectedDrivers().some((selectedDriver: DriverEarnings) => 
+                              selectedDriver.full_name === driver.driver_name
+                            );
+                          }
+                        })
+                        .map((driver: DriverPerformanceTrend, index: number) => ({
+                          key: driver.driver_name,
+                          label: driver.driver_name,
+                          color: ['#0d9488', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'][index % 5]
+                        }))
+                    : earningsData.summary.driver_performance_trends.slice(0, 5).map((driver: DriverPerformanceTrend, index: number) => ({
+                        key: driver.driver_name,
+                        label: driver.driver_name,
+                        color: ['#0d9488', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'][index % 5]
+                      }))
+                }
+                title={driverFilter.length > 0 ? `Driver Performance - ${driverFilter.length === 1 ? getSelectedDriver()?.full_name : `${driverFilter.length} Drivers`}` : "Driver Performance Trends"}
+                subtitle={driverFilter.length > 0 ? `Monthly earnings for ${driverFilter.length === 1 ? 'selected driver' : 'selected drivers'}` : "Monthly earnings by driver"}
               />
             ) : (
               <Card className="p-6">
@@ -1515,10 +1732,9 @@ export default function AnalyticsPage() {
                 )}
               </div>
               <Input
-                placeholder="FILTER"
-                value={driverFilter}
-                onChange={(e) => setDriverFilter(e.target.value)}
+                placeholder="Search drivers in table..."
                 className="w-64"
+                disabled
               />
             </div>
             
