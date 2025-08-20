@@ -22,56 +22,56 @@ interface StatsCardProps {
 
 const colorConfigs = {
   blue: {
-    gradient: "from-teal-500 to-teal-600",
-    bg: "bg-teal-500",
-    light: "bg-teal-50",
-    text: "text-teal-600",
-    border: "border-teal-200"
+    gradient: "from-blue-50 to-teal-50",
+    bg: "bg-blue-500",
+    light: "bg-blue-50",
+    text: "text-blue-600",
+    border: "border-blue-200"
   },
   green: {
-    gradient: "from-green-500 to-green-600", 
+    gradient: "from-green-50 to-emerald-50", 
     bg: "bg-green-500",
     light: "bg-green-50",
     text: "text-green-600",
     border: "border-green-200"
   },
   yellow: {
-    gradient: "from-yellow-500 to-yellow-600",
+    gradient: "from-yellow-50 to-amber-50",
     bg: "bg-yellow-500", 
     light: "bg-yellow-50",
     text: "text-yellow-600",
     border: "border-yellow-200"
   },
   red: {
-    gradient: "from-red-500 to-red-600",
+    gradient: "from-red-50 to-pink-50",
     bg: "bg-red-500",
     light: "bg-red-50", 
     text: "text-red-600",
     border: "border-red-200"
   },
   purple: {
-    gradient: "from-purple-500 to-purple-600",
+    gradient: "from-purple-50 to-indigo-50",
     bg: "bg-purple-500",
     light: "bg-purple-50",
     text: "text-purple-600", 
     border: "border-purple-200"
   },
   indigo: {
-    gradient: "from-teal-600 to-teal-700",
-    bg: "bg-teal-600",
-    light: "bg-teal-50",
-    text: "text-teal-700",
-    border: "border-teal-200"
+    gradient: "from-indigo-50 to-blue-50",
+    bg: "bg-indigo-500",
+    light: "bg-indigo-50",
+    text: "text-indigo-700",
+    border: "border-indigo-200"
   },
   pink: {
-    gradient: "from-pink-500 to-pink-600",
+    gradient: "from-pink-50 to-rose-50",
     bg: "bg-pink-500",
     light: "bg-pink-50", 
     text: "text-pink-600",
     border: "border-pink-200"
   },
   teal: {
-    gradient: "from-teal-500 to-teal-600",
+    gradient: "from-teal-50 to-cyan-50",
     bg: "bg-teal-500",
     light: "bg-teal-50",
     text: "text-teal-600",
@@ -102,22 +102,23 @@ export function StatsCard({
       onClick={onClick}
     >
       <Card className={cn(
-        "relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300",
-        `bg-gradient-to-br ${colorConfig.gradient}`,
-        "text-white"
+        "relative overflow-hidden border shadow-lg hover:shadow-xl transition-all duration-300",
+        `bg-gradient-to-r ${colorConfig.gradient}`,
+        `border-${colorConfig.border.split('-')[1]}-200`,
+        "text-gray-900"
       )}>
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <p className="text-sm font-medium text-white/80 mb-1">{title}</p>
+              <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
               <div className="flex items-baseline gap-2 mb-2">
-                <p className="text-3xl font-bold text-white">{value}</p>
+                <p className="text-3xl font-bold text-gray-900">{value}</p>
                 {trend && (
                   <div className={cn(
                     "flex items-center gap-1 text-sm font-medium px-2 py-1 rounded-full",
                     trend.isPositive 
-                      ? "bg-white/20 text-white" 
-                      : "bg-white/20 text-white"
+                      ? "bg-green-100 text-green-700" 
+                      : "bg-red-100 text-red-700"
                   )}>
                     {trend.isPositive ? (
                       <TrendingUp className="h-3 w-3" />
@@ -129,18 +130,17 @@ export function StatsCard({
                 )}
               </div>
               {description && (
-                <p className="text-xs text-white/70">{description}</p>
+                <p className="text-xs text-gray-600">{description}</p>
               )}
               {trend?.label && (
-                <p className="text-xs text-white/60 mt-1">{trend.label}</p>
+                <p className="text-xs text-gray-500 mt-1">{trend.label}</p>
               )}
             </div>
             {Icon && (
               <div className="relative">
-                <div className="p-4 rounded-full bg-white/20 backdrop-blur-sm">
-                  <Icon className="h-8 w-8 text-white" />
+                <div className={`p-4 rounded-full ${colorConfig.light} ${colorConfig.text}`}>
+                  <Icon className="h-8 w-8" />
                 </div>
-                <div className="absolute inset-0 p-4 rounded-full bg-white/10 animate-pulse" />
               </div>
             )}
           </div>

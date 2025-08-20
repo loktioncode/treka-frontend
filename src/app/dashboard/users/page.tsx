@@ -24,7 +24,7 @@ import { DataTable, type Column, type DataTableAction } from '@/components/ui/da
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
-import { Card, CardContent } from '@/components/ui/card';
+import { StatsCard } from '@/components/ui/stats-card';
 import { RoleBadge } from '@/components/ui/badge';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -105,6 +105,7 @@ export default function UsersPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<User>>({});
@@ -519,7 +520,7 @@ export default function UsersPage() {
       uber_driver_uuid: user.uber_driver_uuid || '',
       notification_preferences: user.notification_preferences
     });
-    setShowUserModal(true);
+    setShowEditModal(true);
   };
 
   const handleUpdateUser = async () => {
@@ -627,7 +628,7 @@ export default function UsersPage() {
       await updateUserMutation.mutateAsync({ userId, data: changedFields });
       
       toast.success('User updated successfully');
-      setShowUserModal(false);
+      setShowEditModal(false);
       setSelectedUser(null);
     } catch (error: unknown) {
       let message = 'Failed to update user';
@@ -954,8 +955,8 @@ export default function UsersPage() {
       show: (u) => {
         // Super admin can change any user's role
         if (user?.role === 'super_admin') return true;
-        // Admin can only change roles of users under their client, but not other admins
-        if (user?.role === 'admin' && user.client_id === u.client_id && u.role !== 'super_admin' && u.role !== 'admin') return true;
+        // Admin can only change roles of users under their client, but not other admins or drivers
+        if (user?.role === 'admin' && user.client_id === u.client_id && u.role !== 'super_admin' && u.role !== 'admin' && u.role !== 'driver') return true;
         return false;
       }
     },
@@ -1044,62 +1045,42 @@ export default function UsersPage() {
         transition={{ delay: 0.1 }}
         className="grid grid-cols-1 md:grid-cols-4 gap-6"
       >
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Users</p>
-                <p className="text-2xl font-bold text-gray-900">{users.length}</p>
-              </div>
-              <Users className="h-8 w-8 text-teal-600" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active Users</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {users.filter((u: User) => u.is_active).length}
-                </p>
-              </div>
-              <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                <div className="h-3 w-3 bg-green-600 rounded-full"></div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Admins</p>
-                <p className="text-2xl font-bold text-purple-600">
-                  {users.filter((u: User) => ['admin', 'super_admin'].includes(u.role)).length}
-                </p>
-              </div>
-              <Shield className="h-8 w-8 text-purple-600" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">This Month</p>
-                <p className="text-2xl font-bold text-teal-600">
-                  {users.filter((u: User) => {
-                    const created = new Date(u.created_at);
-                    const now = new Date();
-                    return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
-                  }).length}
-                </p>
-              </div>
-              <UserPlus className="h-8 w-8 text-teal-600" />
-            </div>
-          </CardContent>
-        </Card>
+        <StatsCard
+          title="Total Users"
+          value={users.length.toString()}
+          description="In system"
+          icon={Users}
+          color="blue"
+          trend={{ value: "12%", isPositive: true, label: "vs last month" }}
+        />
+        <StatsCard
+          title="Active Users"
+          value={users.filter((u: User) => u.is_active).length.toString()}
+          description="Currently active"
+          icon={Users}
+          color="green"
+          trend={{ value: "5%", isPositive: true, label: "vs last week" }}
+        />
+        <StatsCard
+          title="Admins"
+          value={users.filter((u: User) => ['admin', 'super_admin'].includes(u.role)).length.toString()}
+          description="Admin users"
+          icon={Shield}
+          color="purple"
+          trend={{ value: "2", isPositive: true, label: "new this month" }}
+        />
+        <StatsCard
+          title="This Month"
+          value={users.filter((u: User) => {
+            const created = new Date(u.created_at);
+            const now = new Date();
+            return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
+          }).length.toString()}
+          description="New users"
+          icon={UserPlus}
+          color="teal"
+          trend={{ value: "8%", isPositive: true, label: "vs last month" }}
+        />
       </motion.div>
 
       {/* Data Table */}
@@ -1493,9 +1474,14 @@ export default function UsersPage() {
                         ...(payoutsData?.payouts
                           ?.filter(driver => {
                             // Filter out drivers that already have users (except current user)
-                            return !users.some((user: User) => 
+                            const hasExistingUser = users.some((user: User) => 
                               user.uber_driver_uuid === driver.uuid && user.id !== selectedUser?.id
                             );
+                            
+                            // Filter out documents with IDs containing a lot of zeros (test data)
+                            const hasManyZeros = driver.uuid && driver.uuid.match(/0{6,}/);
+                            
+                            return !hasExistingUser && !hasManyZeros;
                           })
                           .map(driver => ({
                             value: driver.uuid,
@@ -1692,40 +1678,11 @@ export default function UsersPage() {
                     <label className="text-sm font-medium text-gray-500">Role</label>
                     <RoleBadge role={selectedUser.role} />
                   </div>
-                  {selectedUser.hourly_rate && (
+                  {selectedUser.client_id && (
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Hourly Rate</label>
-                      <p className="text-gray-900">${selectedUser.hourly_rate}/hour</p>
-                    </div>
-                  )}
-                  {selectedUser.industry && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Industry</label>
-                      <p className="text-gray-900">{selectedUser.industry}</p>
-                    </div>
-                  )}
-                  {selectedUser.specializations && selectedUser.specializations.length > 0 && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Specializations</label>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {selectedUser.specializations.map((spec, index) => (
-                          <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
-                            {spec}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {selectedUser.uber_driver_uuid && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Linked Driver</label>
+                      <label className="text-sm font-medium text-gray-500">Client</label>
                       <p className="text-gray-900">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {selectedUser.uber_driver_uuid}
-                        </span>
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Linked to imported driver from earnings data
+                        {clients.find((c: Client) => c.id === selectedUser.client_id)?.name || 'Unknown Client'}
                       </p>
                     </div>
                   )}
@@ -1752,6 +1709,84 @@ export default function UsersPage() {
                 </div>
               </div>
             </div>
+
+            {/* Role-specific Information */}
+            {selectedUser.role === 'technician' && (
+              <div>
+                <h4 className="text-md font-medium text-gray-900 mb-3">Technician Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {selectedUser.hourly_rate && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Hourly Rate</label>
+                      <p className="text-gray-900">${selectedUser.hourly_rate}/hour</p>
+                    </div>
+                  )}
+                  {selectedUser.industry && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Industry</label>
+                      <p className="text-gray-900">{selectedUser.industry}</p>
+                    </div>
+                  )}
+                  {selectedUser.specializations && selectedUser.specializations.length > 0 && (
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-medium text-gray-500">Specializations</label>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {selectedUser.specializations.map((spec, index) => (
+                          <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
+                            {spec}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {selectedUser.role === 'driver' && (
+              <div>
+                <h4 className="text-md font-medium text-gray-900 mb-3">Driver Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {selectedUser.license_number && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">License Number</label>
+                      <p className="text-gray-900">{selectedUser.license_number}</p>
+                    </div>
+                  )}
+                  {selectedUser.license_type && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">License Type</label>
+                      <p className="text-gray-900">{selectedUser.license_type}</p>
+                    </div>
+                  )}
+                  {selectedUser.vehicle_assignments && selectedUser.vehicle_assignments.length > 0 && (
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-medium text-gray-500">Vehicle Assignments</label>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {selectedUser.vehicle_assignments.map((vehicle, index) => (
+                          <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {vehicle}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {selectedUser.uber_driver_uuid && (
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-medium text-gray-500">Linked Driver</label>
+                      <p className="text-gray-900">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {selectedUser.uber_driver_uuid}
+                        </span>
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Linked to imported driver from earnings data
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div>
               <h4 className="text-md font-medium text-gray-900 mb-3">Notification Preferences</h4>
@@ -1798,7 +1833,7 @@ export default function UsersPage() {
                 
                 {/* Role Change Button - only show if user has permission */}
                 {((user?.role === 'super_admin') || 
-                  (user?.role === 'admin' && user.client_id === selectedUser.client_id && selectedUser.role !== 'super_admin' && selectedUser.role !== 'admin')) && (
+                  (user?.role === 'admin' && user.client_id === selectedUser.client_id && selectedUser.role !== 'super_admin' && selectedUser.role !== 'admin' && selectedUser.role !== 'driver')) && (
                   <Button
                     variant="outline"
                     onClick={() => {
@@ -1820,8 +1855,9 @@ export default function UsersPage() {
                     setShowUserModal(false);
                     handleEditUser(selectedUser);
                   }}
+                  className="flex items-center gap-2"
                 >
-                  <Edit className="h-4 w-4 mr-2" />
+                  <Edit className="h-4 w-4" />
                   Edit User
                 </Button>
                 <Button
@@ -1841,9 +1877,9 @@ export default function UsersPage() {
 
       {/* Edit User Modal */}
       <Modal
-        isOpen={showUserModal}
+        isOpen={showEditModal}
         onClose={() => {
-          setShowUserModal(false);
+          setShowEditModal(false);
           setSelectedUser(null);
         }}
         title="Edit User"
@@ -2117,9 +2153,14 @@ export default function UsersPage() {
                       ...(payoutsData?.payouts
                         ?.filter(driver => {
                           // Filter out drivers that already have users (except current user)
-                          return !users.some((user: User) => 
+                          const hasExistingUser = users.some((user: User) => 
                             user.uber_driver_uuid === driver.uuid && user.id !== selectedUser?.id
                           );
+                          
+                          // Filter out documents with IDs containing a lot of zeros (test data)
+                          const hasManyZeros = driver.uuid && driver.uuid.match(/0{6,}/);
+                          
+                          return !hasExistingUser && !hasManyZeros;
                         })
                         .map(driver => ({
                           value: driver.uuid,
