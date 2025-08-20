@@ -132,7 +132,7 @@ export default function AnalyticsPage() {
   const [recentNotifications, setRecentNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<AnalyticsFiltersType>({
-    dateRange: '30d',
+    dateRange: '30d', // Default to last 30 days for better initial data display
     startDate: undefined,
     endDate: undefined,
     assetIds: undefined,
@@ -334,6 +334,45 @@ export default function AnalyticsPage() {
     loadData();
     loadClientInfo();
   }, [loadData, loadClientInfo]);
+
+  // Initialize filters for logistics clients
+  useEffect(() => {
+    if (currentClient?.client_type === 'logistics' && filters.dateRange !== '30d') {
+      setFilters(prev => ({
+        ...prev,
+        dateRange: '30d',
+        startDate: undefined,
+        endDate: undefined
+      }));
+    }
+  }, [currentClient, filters.dateRange]);
+
+  // Helper function to get period display text
+  const getPeriodDisplayText = () => {
+    if (filters.dateRange === 'custom' && filters.startDate && filters.endDate) {
+      return `${filters.startDate} to ${filters.endDate}`;
+    }
+    
+    const periodLabels = {
+      '7d': 'Last 7 Days',
+      '30d': 'Last 30 Days', 
+      '1y': 'Last Year',
+      '5y': 'Last 5 Years'
+    };
+    
+    return periodLabels[filters.dateRange as keyof typeof periodLabels] || 'Last 30 Days';
+  };
+
+  // Helper function to check if there's meaningful data
+  const hasMeaningfulData = () => {
+    if (!earningsData?.data?.drivers) return false;
+    
+    // Check if any driver has actual earnings (not just 0 values)
+    return earningsData.data.drivers.some((driver: DriverEarnings) => 
+      driver.total_earnings > 0 || 
+      Object.values(driver.period_earnings).some((earnings: number) => earnings > 0)
+    );
+  };
 
   // Handle chat message
   const handleChatMessage = async (message: string) => {
@@ -1015,13 +1054,8 @@ export default function AnalyticsPage() {
             <Package className="h-12 w-12 text-blue-500 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-blue-900 mb-2">No Data Available</h3>
             <p className="text-blue-700 mb-4">
-              Your analytics dashboard is currently empty. To get started, you&apos;ll need to add some assets and components to your system.
+              Your analytics dashboard is currently empty. Add assets and components to see insights.
             </p>
-            <div className="space-y-2 text-sm text-blue-600">
-              <p>• Add assets through the Assets management section</p>
-              <p>• Create components in the Components section</p>
-              <p>• Once data is added, charts and insights will automatically populate</p>
-            </div>
           </div>
         </Card>
       )}
@@ -1032,7 +1066,12 @@ export default function AnalyticsPage() {
         <Card className="p-4">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900">Date Range Filter</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-medium text-gray-900">Date Range Filter</h3>
+                <span className="text-sm font-medium text-teal-600">
+                  ({getPeriodDisplayText()})
+                </span>
+              </div>
               <div className="flex items-center gap-4">
                 <div className="text-sm text-gray-600">
                   <span className="font-medium">Dashboard filtered for:</span> 
@@ -1060,7 +1099,7 @@ export default function AnalyticsPage() {
                   size="sm"
                   className="text-xs"
                 >
-                  Reset
+                  Reset to 30 Days
                 </Button>
               </div>
             </div>
@@ -1099,13 +1138,15 @@ export default function AnalyticsPage() {
                     onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
                     className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   />
-                  <label className="text-sm font-medium text-gray-700">To:</label>
-                  <input
-                    type="date"
-                    value={filters.endDate || ''}
-                    onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  />
+                  <label className="text-center">
+                    <label className="text-sm font-medium text-gray-700">To:</label>
+                    <input
+                      type="date"
+                      value={filters.endDate || ''}
+                      onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                      className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    />
+                  </label>
                 </div>
               )}
             </div>
@@ -1116,7 +1157,19 @@ export default function AnalyticsPage() {
         <AnalyticsFilters
           filters={filters}
           onFiltersChange={setFilters}
-          onReset={() => setFilters({ dateRange: '30d' })}
+          onReset={() => setFilters({ 
+            dateRange: '30d',
+            startDate: undefined,
+            endDate: undefined,
+            assetIds: undefined,
+            componentIds: undefined,
+            userIds: undefined,
+            status: undefined,
+            assetType: undefined,
+            condition: undefined,
+            clientId: undefined,
+            searchQuery: undefined,
+          })}
           assets={assets}
           clients={clients}
         />
@@ -1140,6 +1193,8 @@ export default function AnalyticsPage() {
             </Button>
           </div>
 
+
+
           {/* Logistics Metrics */}
           {/* Note: UUID 00000000-0000-0000-0000-000000000000 represents client withdrawals and is handled separately */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1152,12 +1207,12 @@ export default function AnalyticsPage() {
               color="text-blue-600"
             />
             <MetricCard
-              title={`Total Earnings (${filters.dateRange})`}
+              title={`Total Earnings (${getPeriodDisplayText()})`}
               value={formatCurrency(earningsData?.summary?.selected_period_earnings || 0, earningsData?.summary?.currency || 'ZAR')}
-              change="+0.0%"
-              trend="up"
+              change={hasMeaningfulData() ? "+0.0%" : "No Data"}
+              trend={hasMeaningfulData() ? "up" : "neutral"}
               icon={<DollarSign className="h-6 w-6" />}
-              color="text-green-600"
+              color={hasMeaningfulData() ? "text-green-600" : "text-gray-400"}
             />
             <MetricCard
               title="Active Vehicles"
@@ -1177,10 +1232,16 @@ export default function AnalyticsPage() {
             />
           </div>
 
+
+
+
+
+
+
           {/* Logistics Charts Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Monthly Earnings Chart */}
-            {earningsData?.summary?.monthly_earnings && earningsData.summary.monthly_earnings.length > 0 ? (
+            {earningsData?.summary?.monthly_earnings && earningsData.summary.monthly_earnings.length > 0 && hasMeaningfulData() ? (
               <SimpleBarChart
                 data={earningsData.summary.monthly_earnings}
                 xKey="month"
@@ -1189,14 +1250,25 @@ export default function AnalyticsPage() {
                 subtitle="Total earnings by month"
               />
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                <p>No monthly earnings data available</p>
-              </div>
+              <Card className="p-6">
+                <div className="text-center py-8">
+                  <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Monthly Earnings Data</h3>
+                  <p className="text-gray-600 mb-4">
+                    {hasMeaningfulData() ? 'No monthly earnings data available for the selected period' : 'Upload earnings data to see monthly trends'}
+                  </p>
+                  {!hasMeaningfulData() && (
+                    <Button onClick={() => setShowUploadModal(true)} className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Earnings CSV
+                    </Button>
+                  )}
+                </div>
+              </Card>
             )}
 
             {/* Driver Performance Trends */}
-            {earningsData?.summary?.driver_performance_trends && earningsData.summary.driver_performance_trends.length > 0 ? (
+            {earningsData?.summary?.driver_performance_trends && earningsData.summary.driver_performance_trends.length > 0 && hasMeaningfulData() ? (
               <MultiLineChart
                 data={earningsData.summary.driver_performance_trends.flatMap((driver: DriverPerformanceTrend) => 
                   driver.monthly_earnings.map((month: MonthlyEarnings) => ({
@@ -1222,10 +1294,21 @@ export default function AnalyticsPage() {
                 subtitle="Monthly earnings by driver"
               />
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <TrendingUp className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                <p>No driver performance data available</p>
-              </div>
+              <Card className="p-6">
+                <div className="text-center py-8">
+                  <TrendingUp className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Driver Performance Data</h3>
+                  <p className="text-gray-600 mb-4">
+                    {hasMeaningfulData() ? 'No driver performance trends available for the selected period' : 'Upload earnings data to see driver performance trends'}
+                  </p>
+                  {!hasMeaningfulData() && (
+                    <Button onClick={() => setShowUploadModal(true)} className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Earnings CSV
+                    </Button>
+                  )}
+                </div>
+              </Card>
             )}
           </div>
 
@@ -1268,54 +1351,90 @@ export default function AnalyticsPage() {
                 <p className="mt-2 text-gray-600">Loading driver data...</p>
               </div>
             ) : earningsData?.data?.drivers && earningsData.data.drivers.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-medium text-gray-900">Driver</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-900">Total Earnings</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-900">Last 7 Days</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-900">Last 30 Days</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-900">Payments</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {earningsData.data.drivers.map((driver: DriverEarnings) => (
-                      <tr key={driver.uuid} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4">
-                          <div>
-                            <div className="font-medium text-gray-900">{driver.full_name}</div>
-                            <div className="text-sm text-gray-500">ID: {driver.uuid}</div>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 font-medium text-green-600">
-                          {formatCurrency(driver.total_earnings, earningsData?.summary?.currency || 'ZAR')}
-                        </td>
-                        <td className="py-3 px-4 text-gray-700">
-                          {formatCurrency(driver.period_earnings['7d'], earningsData?.summary?.currency || 'ZAR')}
-                        </td>
-                        <td className="py-3 px-4 text-gray-700">
-                          {formatCurrency(driver.period_earnings['30d'], earningsData?.summary?.currency || 'ZAR')}
-                        </td>
-                        <td className="py-3 px-4 text-gray-700">
-                          {driver.payment_count}
-                        </td>
+              hasMeaningfulData() ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">Driver</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">Total Earnings</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">Last 7 Days</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">Last 30 Days</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">Payments</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {earningsData.data.drivers.map((driver: DriverEarnings) => (
+                        <tr key={driver.uuid} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-4">
+                            <div>
+                              <div className="font-medium text-gray-900">{driver.full_name}</div>
+                              <div className="text-sm text-gray-500">ID: {driver.uuid}</div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 font-medium text-green-600">
+                            {formatCurrency(driver.total_earnings, earningsData?.summary?.currency || 'ZAR')}
+                          </td>
+                          <td className="py-3 px-4 text-gray-700">
+                            {formatCurrency(driver.period_earnings['7d'], earningsData?.summary?.currency || 'ZAR')}
+                          </td>
+                          <td className="py-3 px-4 text-gray-700">
+                            {formatCurrency(driver.period_earnings['30d'], earningsData?.summary?.currency || 'ZAR')}
+                          </td>
+                          <td className="py-3 px-4 text-gray-700">
+                            {driver.payment_count}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-900 mb-3">No Earnings Data Available</h3>
+                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                    Your analytics dashboard is currently showing zero earnings for the selected period. 
+                    This could mean:
+                  </p>
+                  <div className="space-y-2 text-sm text-gray-500 mb-6 max-w-md mx-auto">
+                    <p>• No CSV data has been uploaded yet</p>
+                    <p>• The selected date range has no payment records</p>
+                    <p>• All driver earnings are showing as zero</p>
+                  </div>
+                  <div className="space-y-3">
+                    <Button onClick={() => setShowUploadModal(true)} className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Earnings CSV
+                    </Button>
+                    <div className="text-xs text-gray-400">
+                      Upload a CSV file from Uber Fleet to start tracking driver earnings and performance
+                    </div>
+                  </div>
+                </div>
+              )
             ) : (
-              <div className="text-center py-8">
-                <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Earnings Data</h3>
-                <p className="text-gray-600 mb-4">
-                  Upload a CSV file from Uber Fleet to start tracking driver earnings and performance.
+              <div className="text-center py-12">
+                <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">No Drivers Found</h3>
+                <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                  No driver data is currently available in your system. 
+                  To get started with logistics analytics:
                 </p>
-                <Button onClick={() => setShowUploadModal(true)} className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload First CSV
-                </Button>
+                <div className="space-y-2 text-sm text-gray-500 mb-6 max-w-md mx-auto">
+                  <p>• Upload a CSV file from Uber Fleet</p>
+                  <p>• Ensure your CSV contains driver and payment information</p>
+                  <p>• Check that the file format matches the expected structure</p>
+                </div>
+                <div className="space-y-3">
+                  <Button onClick={() => setShowUploadModal(true)} className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload First CSV
+                  </Button>
+                  <div className="text-xs text-gray-400">
+                    This will create your first driver records and enable analytics
+                  </div>
+                </div>
               </div>
             )}
           </Card>
@@ -1504,6 +1623,8 @@ export default function AnalyticsPage() {
               Upload a CSV file exported from Uber Fleet to track driver earnings and performance.
             </p>
           </div>
+
+
           
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
             <input

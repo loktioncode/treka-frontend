@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from './card';
 import { Button } from './button';
 import { Input } from './input';
@@ -60,7 +60,23 @@ export function AnalyticsFilters({
   className = '' 
 }: AnalyticsFiltersProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [localFilters, setLocalFilters] = useState<AnalyticsFilters>(filters);
+  const [localFilters, setLocalFilters] = useState<AnalyticsFilters>({
+    dateRange: filters.dateRange || '30d', // Use passed filters or default to last 30 days
+    startDate: filters.startDate,
+    endDate: filters.endDate,
+    assetIds: filters.assetIds,
+    componentIds: filters.componentIds,
+    userIds: filters.userIds,
+    status: filters.status,
+    assetType: filters.assetType,
+    condition: filters.condition,
+    clientId: filters.clientId,
+    searchQuery: filters.searchQuery,
+  });
+
+  useEffect(() => {
+    setLocalFilters(filters);
+  }, [filters]);
 
   const handleFilterChange = (key: keyof AnalyticsFilters, value: unknown) => {
     const newFilters = { ...localFilters, [key]: value };
@@ -74,7 +90,7 @@ export function AnalyticsFilters({
 
   const handleReset = () => {
     const defaultFilters: AnalyticsFilters = {
-      dateRange: '30d',
+      dateRange: '30d', // Default to last 30 days for better initial data display
       startDate: undefined,
       endDate: undefined,
       assetIds: undefined,
