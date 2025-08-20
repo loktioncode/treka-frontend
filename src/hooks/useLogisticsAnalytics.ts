@@ -20,10 +20,10 @@ export const logisticsKeys = {
 /**
  * Hook to fetch driver earnings data
  */
-export function useDriverEarnings(driverName?: string, enabled = true) {
+export function useDriverEarnings(driverName?: string, dateRange?: string, startDate?: string, endDate?: string, enabled = true) {
   return useQuery({
-    queryKey: logisticsKeys.earningsList(driverName),
-    queryFn: () => analyticsAPI.getLogisticsDriverEarnings(driverName),
+    queryKey: [...logisticsKeys.earningsList(driverName), dateRange, startDate, endDate],
+    queryFn: () => analyticsAPI.getLogisticsDriverEarnings(driverName, dateRange, startDate, endDate),
     enabled: enabled,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 10,   // 10 minutes

@@ -413,19 +413,32 @@ export interface DriverEarnings {
   payment_count: number;
 }
 
+export interface MonthlyEarnings {
+  month: string;
+  earnings: number;
+}
+
+export interface DriverPerformanceTrend {
+  driver_id: string;
+  driver_name: string;
+  monthly_earnings: MonthlyEarnings[];
+}
+
 export interface LogisticsEarningsSummary {
   total_drivers: number;
   total_earnings: number;
+  selected_period_earnings: number;
+  selected_period: string;
   currency: string;
-  client_withdrawals: number;  // Client withdrawals (UUID: 00000000-0000-0000-0000-000000000000)
+  client_withdrawals: number;
   periods: {
     '7d': number;
     '30d': number;
     '1y': number;
     '5y': number;
   };
-  last_upload?: string;
-  filename?: string;
+  monthly_earnings: MonthlyEarnings[];
+  driver_performance_trends: DriverPerformanceTrend[];
 }
 
 export interface LogisticsEarningsData {

@@ -156,6 +156,11 @@ export default function AnalyticsPage() {
   // React Query hooks for logistics analytics
   const { data: earningsData, isLoading: earningsLoading } = useDriverEarnings(
     driverFilter || undefined,
+    // For logistics clients, use date range from filters; for others, use undefined
+    currentClient?.client_type === 'logistics' ? filters.dateRange : undefined,
+    // Pass custom date parameters for logistics clients
+    currentClient?.client_type === 'logistics' ? filters.startDate : undefined,
+    currentClient?.client_type === 'logistics' ? filters.endDate : undefined,
     !!currentClient && currentClient.client_type === 'logistics'
   );
   
@@ -1019,14 +1024,101 @@ export default function AnalyticsPage() {
         </Card>
       )}
 
-      {/* Filters */}
-      <AnalyticsFilters
-        filters={filters}
-        onFiltersChange={setFilters}
-        onReset={() => setFilters({ dateRange: '30d' })}
-        assets={assets}
-        clients={clients}
-      />
+      {/* Filters - Show different filters based on client type */}
+      {currentClient?.client_type === 'logistics' ? (
+        // Logistics Date Range Filter (moved here to replace other filters)
+        <Card className="p-4">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900">Date Range Filter</h3>
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium">Dashboard filtered for:</span> 
+                  {filters.dateRange === 'custom' && filters.startDate && filters.endDate ? (
+                    <span className="ml-2 font-medium text-teal-600">
+                      {filters.startDate} to {filters.endDate}
+                    </span>
+                  ) : (
+                    <span className="ml-2 font-medium text-teal-600">{filters.dateRange}</span>
+                  )}
+                  {earningsData?.summary?.selected_period_earnings !== undefined && (
+                    <span className="ml-2 text-gray-500">
+                      (Total: {formatCurrency(earningsData.summary.selected_period_earnings, earningsData.summary.currency || 'ZAR')})
+                    </span>
+                  )}
+                </div>
+                <Button
+                  onClick={() => setFilters(prev => ({ 
+                    ...prev, 
+                    dateRange: '30d',
+                    startDate: undefined,
+                    endDate: undefined
+                  }))}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                >
+                  Reset
+                </Button>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-6">
+              {/* Quick Date Range Selector */}
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-gray-700">Quick Select:</label>
+                <select
+                  value={filters.dateRange}
+                  onChange={(e) => {
+                    setFilters(prev => ({ 
+                      ...prev, 
+                      dateRange: e.target.value,
+                      startDate: undefined,
+                      endDate: undefined
+                    }))
+                  }}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                >
+                  <option value="7d">Last 7 Days</option>
+                  <option value="30d">Last 30 Days</option>
+                  <option value="1y">Last Year</option>
+                  <option value="5y">Last 5 Years</option>
+                  <option value="custom">Custom Range</option>
+                </select>
+              </div>
+
+              {/* Custom Date Range Picker */}
+              {filters.dateRange === 'custom' && (
+                <div className="flex items-center gap-4">
+                  <label className="text-sm font-medium text-gray-700">From:</label>
+                  <input
+                    type="date"
+                    value={filters.startDate || ''}
+                    onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  />
+                  <label className="text-sm font-medium text-gray-700">To:</label>
+                  <input
+                    type="date"
+                    value={filters.endDate || ''}
+                    onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+      ) : (
+        // Standard filters for non-logistics clients
+        <AnalyticsFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          onReset={() => setFilters({ dateRange: '30d' })}
+          assets={assets}
+          clients={clients}
+        />
+      )}
 
       {/* Key Metrics */}
       {currentClient?.client_type === 'logistics' ? (
@@ -1058,14 +1150,13 @@ export default function AnalyticsPage() {
               color="text-blue-600"
             />
             <MetricCard
-              title="Total Earnings"
-              value={formatCurrency(earningsData?.summary?.total_earnings || 0, earningsData?.summary?.currency || 'ZAR')}
+              title={`Total Earnings (${filters.dateRange})`}
+              value={formatCurrency(earningsData?.summary?.selected_period_earnings || 0, earningsData?.summary?.currency || 'ZAR')}
               change="+0.0%"
               trend="up"
               icon={<DollarSign className="h-6 w-6" />}
               color="text-green-600"
             />
-
             <MetricCard
               title="Active Vehicles"
               value={performanceData?.fleet?.active_vehicles?.toString() || '0'}
@@ -1084,7 +1175,84 @@ export default function AnalyticsPage() {
             />
           </div>
 
+          {/* Logistics Charts Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Monthly Earnings Chart */}
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Earnings Trend</h3>
+              {earningsData?.summary?.monthly_earnings && earningsData.summary.monthly_earnings.length > 0 ? (
+                <SimpleBarChart
+                  data={earningsData.summary.monthly_earnings}
+                  xKey="month"
+                  yKey="earnings"
+                  title="Monthly Earnings"
+                  subtitle="Total earnings by month"
+                />
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <p>No monthly earnings data available</p>
+                </div>
+              )}
+            </Card>
 
+            {/* Driver Performance Trends */}
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Driver Performance Trends</h3>
+              {earningsData?.summary?.driver_performance_trends && earningsData.summary.driver_performance_trends.length > 0 ? (
+                <MultiLineChart
+                  data={earningsData.summary.driver_performance_trends.flatMap(driver => 
+                    driver.monthly_earnings.map(month => ({
+                      month: month.month,
+                      [driver.driver_name]: month.earnings
+                    }))
+                  ).reduce((acc, curr) => {
+                    const existing = acc.find(item => item.month === curr.month);
+                    if (existing) {
+                      Object.assign(existing, curr);
+                    } else {
+                      acc.push(curr);
+                    }
+                    return acc;
+                  }, [] as any[])}
+                  xKey="month"
+                  lines={earningsData.summary.driver_performance_trends.slice(0, 5).map((driver, index) => ({
+                    key: driver.driver_name,
+                    label: driver.driver_name,
+                    color: ['#0d9488', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'][index % 5]
+                  }))}
+                  title="Driver Performance Trends"
+                  subtitle="Monthly earnings by driver"
+                />
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <TrendingUp className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <p>No driver performance data available</p>
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {/* Vehicle Performance Metrics */}
+          {performanceData?.fleet && (
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Vehicle Performance Overview</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-blue-600">{performanceData.fleet.total_vehicles}</div>
+                  <div className="text-sm text-gray-600">Total Vehicles</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-green-600">{performanceData.fleet.active_vehicles}</div>
+                  <div className="text-sm text-gray-600">Active Vehicles</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-purple-600">{performanceData.fleet.assigned_vehicles}</div>
+                  <div className="text-sm text-gray-600">Assigned to Drivers</div>
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* Driver Performance Table */}
           <Card className="p-6">
@@ -1116,8 +1284,8 @@ export default function AnalyticsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                                         {earningsData.data.drivers.map((driver: DriverEarnings) => (
-                       <tr key={driver.uuid} className="border-b border-gray-100 hover:bg-gray-50">
+                    {earningsData.data.drivers.map((driver: DriverEarnings) => (
+                      <tr key={driver.uuid} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-3 px-4">
                           <div>
                             <div className="font-medium text-gray-900">{driver.full_name}</div>

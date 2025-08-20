@@ -461,8 +461,12 @@ export const analyticsAPI = {
   },
 
   // Logistics Analytics endpoints
-  getLogisticsDriverEarnings: async (driverName?: string) => {
-    const params = driverName ? { driver_name: driverName } : {};
+  getLogisticsDriverEarnings: async (driverName?: string, dateRange?: string, startDate?: string, endDate?: string) => {
+    const params: Record<string, string> = {};
+    if (driverName) params.driver_name = driverName;
+    if (dateRange) params.date_range = dateRange;
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
     const response = await api.get('/analytics/logistics/driver-earnings', { params });
     return response.data;
   },
