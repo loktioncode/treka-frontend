@@ -1227,10 +1227,7 @@ export default function AnalyticsPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-medium text-gray-900">Date Range Filter</h3>
-                <span className="text-sm font-medium text-teal-600">
-                  ({getPeriodDisplayText()})
-                </span>
+                <h3 className="text-lg font-medium text-gray-900">FILTER</h3>
               </div>
               <div className="flex items-center gap-4">
                 <div className="text-sm text-gray-600">
@@ -1509,9 +1506,16 @@ export default function AnalyticsPage() {
           {/* Driver Performance Table */}
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Driver Performance</h3>
+              <div className="flex items-center gap-3">
+                <h3 className="text-lg font-semibold text-gray-900">Driver Performance</h3>
+                {filters.startDate && filters.endDate && (
+                  <span className="text-sm font-medium text-teal-600 bg-teal-50 px-3 py-1 rounded-full border border-teal-200">
+                    {filters.startDate} to {filters.endDate}
+                  </span>
+                )}
+              </div>
               <Input
-                placeholder="Filter by driver name..."
+                placeholder="FILTER"
                 value={driverFilter}
                 onChange={(e) => setDriverFilter(e.target.value)}
                 className="w-64"
