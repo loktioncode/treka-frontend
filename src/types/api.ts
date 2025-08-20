@@ -417,6 +417,7 @@ export interface LogisticsEarningsSummary {
   total_drivers: number;
   total_earnings: number;
   currency: string;
+  client_withdrawals: number;  // Client withdrawals (UUID: 00000000-0000-0000-0000-000000000000)
   periods: {
     '7d': number;
     '30d': number;

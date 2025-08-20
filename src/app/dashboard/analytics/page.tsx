@@ -30,6 +30,7 @@ import {
   Users,
   Car,
   TrendingUp,
+  TrendingDown,
   DollarSign
 } from 'lucide-react';
 import { analyticsAPI, assetAPI, componentAPI, clientAPI, notificationAPI } from '@/services/api';
@@ -1046,6 +1047,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Logistics Metrics */}
+          {/* Note: UUID 00000000-0000-0000-0000-000000000000 represents client withdrawals and is handled separately */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <MetricCard
               title="Total Drivers"
@@ -1063,6 +1065,7 @@ export default function AnalyticsPage() {
               icon={<DollarSign className="h-6 w-6" />}
               color="text-green-600"
             />
+
             <MetricCard
               title="Active Vehicles"
               value={performanceData?.fleet?.active_vehicles?.toString() || '0'}
@@ -1072,12 +1075,12 @@ export default function AnalyticsPage() {
               color="text-purple-600"
             />
             <MetricCard
-              title="Utilization Rate"
-              value={`${performanceData?.fleet?.utilization_rate?.toFixed(1) || 0}%`}
+              title="Total Withdrawals"
+              value={formatCurrency(earningsData?.summary?.client_withdrawals || 0, earningsData?.summary?.currency || 'ZAR')}
               change="+0.0%"
               trend="up"
-              icon={<TrendingUp className="h-6 w-6" />}
-              color="text-teal-600"
+              icon={<TrendingDown className="h-6 w-6" />}
+              color="text-red-600"
             />
           </div>
 
