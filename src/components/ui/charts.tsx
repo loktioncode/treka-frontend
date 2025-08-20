@@ -39,22 +39,24 @@ interface ChartCardProps {
 
 export function ChartCard({ title, subtitle, children, className = '', actions }: ChartCardProps) {
   return (
-    <Card className={`p-6 ${className}`}>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+    <Card className={`p-4 sm:p-6 ${className}`}>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-3">
+        <div className="flex-1 min-w-0">
+          <h3 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">{title}</h3>
           {subtitle && (
-            <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
+            <p className="text-sm text-gray-500 mt-1 truncate">{subtitle}</p>
           )}
         </div>
         {actions && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {actions}
           </div>
         )}
       </div>
-      <div className="h-80">
-        {children}
+      <div className="h-64 sm:h-80 w-full overflow-hidden relative">
+        <div className="absolute inset-0">
+          {children}
+        </div>
       </div>
     </Card>
   );
@@ -80,37 +82,62 @@ export function SimpleBarChart({ data, xKey, yKey, color = CHART_COLORS.primary,
     );
   }
 
+  // Custom tooltip for better formatting
+  const CustomTooltip = ({ active, payload, label }: BarChartTooltipProps) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-medium text-gray-900 mb-2">{label}</p>
+          <div className="space-y-1">
+            {payload.map((entry, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <div 
+                  className="w-3 h-3 rounded-full" 
+                  style={{ backgroundColor: entry.color }}
+                />
+                <span className="text-sm text-gray-600">Value:</span>
+                <span className="text-sm font-medium text-gray-900">
+                  {typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <ChartCard title={title || 'Data Chart'} subtitle={subtitle}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" opacity={0.5} />
           <XAxis 
             dataKey={xKey} 
             stroke="#6b7280"
-            fontSize={12}
+            fontSize={11}
             tickLine={false}
             axisLine={false}
+            tick={{ fill: '#6b7280' }}
+            interval={0}
           />
           <YAxis 
             stroke="#6b7280"
-            fontSize={12}
+            fontSize={11}
             tickLine={false}
             axisLine={false}
             tickFormatter={(value) => value.toLocaleString()}
+            tick={{ fill: '#6b7280' }}
           />
-          <Tooltip 
-            contentStyle={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #e5e7eb',
-              borderRadius: '8px',
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-            }}
-          />
+          <Tooltip content={<CustomTooltip />} />
           <Bar 
             dataKey={yKey} 
             fill={color}
             radius={[4, 4, 0, 0]}
+            opacity={0.8}
+            stroke={color}
+            strokeWidth={1}
           />
         </BarChart>
       </ResponsiveContainer>
@@ -229,7 +256,7 @@ export function SimplePieChart({ data, nameKey, valueKey, title, subtitle }: Pie
               const { name, percent } = props;
               return `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`;
             }}
-            outerRadius={80}
+            outerRadius={70}
             fill="#8884d8"
             dataKey={valueKey}
             name={nameKey}
@@ -275,44 +302,113 @@ export function MultiLineChart({ data, xKey, lines, title, subtitle }: MultiLine
     );
   }
 
+  // Function to create shortened names (initials)
+  const createShortName = (fullName: string) => {
+    if (!fullName) return 'Unknown';
+    
+    // Split the name and take first letter of each part
+    const nameParts = fullName.trim().split(/\s+/);
+    if (nameParts.length === 1) {
+      return nameParts[0].substring(0, 3).toUpperCase();
+    } else if (nameParts.length === 2) {
+      return (nameParts[0].charAt(0) + nameParts[1].charAt(0)).toUpperCase();
+    } else {
+      // For names with 3+ parts, take first letter of first and last
+      return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
+    }
+  };
+
+  // Format month labels for better readability
+  const formatMonthLabel = (monthStr: string) => {
+    if (!monthStr) return monthStr;
+    try {
+      const [year, month] = monthStr.split('-');
+      const date = new Date(parseInt(year), parseInt(month) - 1);
+      return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    } catch {
+      return monthStr;
+    }
+  };
+
+  // Custom tooltip for better formatting
+  const CustomTooltip = ({ active, payload, label }: LineChartTooltipProps) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-medium text-gray-900 mb-2">{formatMonthLabel(label || '')}</p>
+          <div className="space-y-1">
+            {payload.map((entry, index) => {
+              // Find the full name from the lines array
+              const fullName = lines.find(line => line.key === entry.dataKey)?.label || entry.dataKey;
+              return (
+                <div key={index} className="flex items-center gap-2">
+                  <div 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ backgroundColor: entry.color }}
+                  />
+                  <span className="text-sm text-gray-600">{fullName}:</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <ChartCard title={title || 'Multi-Series Chart'} subtitle={subtitle}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" opacity={0.5} />
           <XAxis 
             dataKey={xKey} 
             stroke="#6b7280"
-            fontSize={12}
+            fontSize={11}
             tickLine={false}
             axisLine={false}
+            tickFormatter={formatMonthLabel}
+            tick={{ fill: '#6b7280' }}
+            interval={0}
           />
           <YAxis 
             stroke="#6b7280"
-            fontSize={12}
+            fontSize={11}
             tickLine={false}
             axisLine={false}
             tickFormatter={(value) => value.toLocaleString()}
+            tick={{ fill: '#6b7280' }}
           />
-          <Tooltip 
-            contentStyle={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #e5e7eb',
-              borderRadius: '8px',
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-            }}
+          <Tooltip content={<CustomTooltip />} />
+          <Legend 
+            wrapperStyle={{ paddingTop: '10px' }}
+            formatter={(value) => <span className="text-gray-700">{createShortName(value)}</span>}
           />
-          <Legend />
           {lines.map((line) => (
             <Line
               key={line.key}
               type="monotone"
               dataKey={line.key}
               stroke={line.color}
-              strokeWidth={2}
-              dot={{ fill: line.color, strokeWidth: 2, r: 4 }}
-              activeDot={{ r: 6, stroke: line.color, strokeWidth: 2 }}
+              strokeWidth={3}
+              dot={{ 
+                fill: line.color, 
+                strokeWidth: 2, 
+                r: 4,
+                stroke: '#ffffff'
+              }}
+              activeDot={{ 
+                r: 6, 
+                stroke: line.color, 
+                strokeWidth: 3,
+                fill: '#ffffff'
+              }}
               name={line.label}
+              connectNulls={true}
             />
           ))}
         </LineChart>
@@ -369,4 +465,174 @@ export function MetricCard({ title, value, change, trend, icon, color = CHART_CO
       </div>
     </Card>
   );
+}
+
+interface DriverPerformanceChartProps {
+  data: Array<{
+    driver_id: string;
+    driver_name: string;
+    monthly_earnings: Array<{
+      month: string;
+      earnings: number;
+    }>;
+  }>;
+  title?: string;
+  subtitle?: string;
+}
+
+export function DriverPerformanceChart({ data, title, subtitle }: DriverPerformanceChartProps) {
+  if (!data || data.length === 0) {
+    return (
+      <ChartCard title={title || 'Driver Performance Chart'} subtitle={subtitle}>
+        <div className="flex items-center justify-center h-full text-gray-500">
+          <p>No driver performance data available</p>
+        </div>
+      </ChartCard>
+    );
+  }
+
+  // Function to create shortened names (initials)
+  const createShortName = (fullName: string) => {
+    if (!fullName) return 'Unknown';
+    
+    // Split the name and take first letter of each part
+    const nameParts = fullName.trim().split(/\s+/);
+    if (nameParts.length === 1) {
+      return nameParts[0].substring(0, 3).toUpperCase();
+    } else if (nameParts.length === 2) {
+      return (nameParts[0].charAt(0) + nameParts[1].charAt(0)).toUpperCase();
+    } else {
+      // For names with 3+ parts, take first letter of first and last
+      return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
+    }
+  };
+
+  // Transform data for the chart
+  const chartData = data.slice(0, 6).map((driver, index) => {
+    const totalEarnings = driver.monthly_earnings.reduce((sum, month) => sum + month.earnings, 0);
+    const avgMonthlyEarnings = totalEarnings / Math.max(driver.monthly_earnings.length, 1);
+    const trend = driver.monthly_earnings.length >= 2 ? 
+      (driver.monthly_earnings[driver.monthly_earnings.length - 1]?.earnings || 0) - 
+      (driver.monthly_earnings[driver.monthly_earnings.length - 2]?.earnings || 0) : 0;
+    
+    return {
+      driver: createShortName(driver.driver_name),
+      fullName: driver.driver_name, // Keep full name for tooltip
+      totalEarnings,
+      avgMonthlyEarnings,
+      trend,
+      color: ['#0d9488', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][index % 6]
+    };
+  });
+
+  // Custom tooltip
+  const CustomTooltip = ({ active, payload }: DriverChartTooltipProps) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg min-w-[200px]">
+          <p className="font-semibold text-gray-900 mb-3">{data.fullName}</p>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Total Earnings:</span>
+              <span className="text-sm font-medium text-green-600">
+                R{data.totalEarnings.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Avg/Month:</span>
+              <span className="text-sm font-medium text-blue-600">
+                R{data.avgMonthlyEarnings.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Trend:</span>
+              <span className={`text-sm font-medium ${data.trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {data.trend >= 0 ? '+' : ''}R{data.trend.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <ChartCard title={title || 'Driver Performance Overview'} subtitle={subtitle}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" opacity={0.5} />
+          <XAxis 
+            dataKey="driver" 
+            stroke="#6b7280"
+            fontSize={11}
+            tickLine={false}
+            axisLine={false}
+            tick={{ fill: '#6b7280' }}
+            angle={-45}
+            textAnchor="end"
+            height={80}
+            interval={0}
+          />
+          <YAxis 
+            stroke="#6b7280"
+            fontSize={11}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(value) => `R${(value / 1000).toFixed(0)}k`}
+            tick={{ fill: '#6b7280' }}
+          />
+          <Tooltip content={<CustomTooltip />} />
+          <Bar 
+            dataKey="totalEarnings" 
+            radius={[4, 4, 0, 0]}
+            opacity={0.8}
+            strokeWidth={1}
+          >
+            {chartData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.color} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartCard>
+  );
+}
+
+// Tooltip types for different chart types
+interface BaseTooltipProps {
+  active?: boolean;
+  label?: string;
+}
+
+interface BarChartTooltipProps extends BaseTooltipProps {
+  payload?: Array<{ 
+    color: string; 
+    name: string; 
+    value: number | string;
+  }>;
+}
+
+interface LineChartTooltipProps extends BaseTooltipProps {
+  payload?: Array<{ 
+    color: string; 
+    name: string; 
+    value: number | string;
+    dataKey: string;
+  }>;
+}
+
+interface DriverChartTooltipProps extends BaseTooltipProps {
+  payload?: Array<{ 
+    color: string; 
+    name: string; 
+    value: number | string;
+    payload: {
+      fullName: string;
+      totalEarnings: number;
+      avgMonthlyEarnings: number;
+      trend: number;
+    };
+  }>;
 }

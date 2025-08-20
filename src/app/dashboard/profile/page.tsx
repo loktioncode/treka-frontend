@@ -172,7 +172,8 @@ export default function ProfilePage() {
         notification_preferences: {
           email: user.notification_preferences?.email ?? true,
           whatsapp: user.notification_preferences?.whatsapp ?? false
-        }
+        },
+        currency: 'ZAR'
       });
     }
     setFormErrors({});

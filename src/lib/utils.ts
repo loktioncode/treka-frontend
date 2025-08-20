@@ -75,7 +75,7 @@ export function formatCurrency(amount: number, currency: string = 'ZAR'): string
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(amount);
-  } catch (error) {
+  } catch {
     // Fallback formatting if Intl fails
     return `${currency} ${amount.toLocaleString('en-ZA', {
       minimumFractionDigits: 2,

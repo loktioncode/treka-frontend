@@ -37,12 +37,14 @@ import { analyticsAPI, assetAPI, componentAPI, clientAPI, notificationAPI } from
 import { useAuth } from '@/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { useDriverEarnings, useLogisticsPerformance, useUploadEarnings } from '@/hooks/useLogisticsAnalytics';
-import { formatCurrency, getCurrencySymbol } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import type { 
   AssetStatus, 
   AssetType, 
   Client,
-  DriverEarnings
+  DriverEarnings,
+  DriverPerformanceTrend,
+  MonthlyEarnings
 } from '@/types/api';
 
 interface DashboardStats {
@@ -1178,59 +1180,53 @@ export default function AnalyticsPage() {
           {/* Logistics Charts Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Monthly Earnings Chart */}
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Earnings Trend</h3>
-              {earningsData?.summary?.monthly_earnings && earningsData.summary.monthly_earnings.length > 0 ? (
-                <SimpleBarChart
-                  data={earningsData.summary.monthly_earnings}
-                  xKey="month"
-                  yKey="earnings"
-                  title="Monthly Earnings"
-                  subtitle="Total earnings by month"
-                />
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                  <p>No monthly earnings data available</p>
-                </div>
-              )}
-            </Card>
+            {earningsData?.summary?.monthly_earnings && earningsData.summary.monthly_earnings.length > 0 ? (
+              <SimpleBarChart
+                data={earningsData.summary.monthly_earnings}
+                xKey="month"
+                yKey="earnings"
+                title="Monthly Earnings"
+                subtitle="Total earnings by month"
+              />
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <p>No monthly earnings data available</p>
+              </div>
+            )}
 
             {/* Driver Performance Trends */}
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Driver Performance Trends</h3>
-              {earningsData?.summary?.driver_performance_trends && earningsData.summary.driver_performance_trends.length > 0 ? (
-                <MultiLineChart
-                  data={earningsData.summary.driver_performance_trends.flatMap(driver => 
-                    driver.monthly_earnings.map(month => ({
-                      month: month.month,
-                      [driver.driver_name]: month.earnings
-                    }))
-                  ).reduce((acc, curr) => {
-                    const existing = acc.find(item => item.month === curr.month);
-                    if (existing) {
-                      Object.assign(existing, curr);
-                    } else {
-                      acc.push(curr);
-                    }
-                    return acc;
-                  }, [] as any[])}
-                  xKey="month"
-                  lines={earningsData.summary.driver_performance_trends.slice(0, 5).map((driver, index) => ({
-                    key: driver.driver_name,
-                    label: driver.driver_name,
-                    color: ['#0d9488', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'][index % 5]
-                  }))}
-                  title="Driver Performance Trends"
-                  subtitle="Monthly earnings by driver"
-                />
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <TrendingUp className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                  <p>No driver performance data available</p>
-                </div>
-              )}
-            </Card>
+            {earningsData?.summary?.driver_performance_trends && earningsData.summary.driver_performance_trends.length > 0 ? (
+              <MultiLineChart
+                data={earningsData.summary.driver_performance_trends.flatMap((driver: DriverPerformanceTrend) => 
+                  driver.monthly_earnings.map((month: MonthlyEarnings) => ({
+                    month: month.month,
+                    [driver.driver_name]: month.earnings
+                  }))
+                ).reduce((acc: Record<string, unknown>[], curr: Record<string, unknown>) => {
+                  const existing = acc.find((item: Record<string, unknown>) => item.month === curr.month);
+                  if (existing) {
+                    Object.assign(existing, curr);
+                  } else {
+                    acc.push(curr);
+                  }
+                  return acc;
+                }, [] as Record<string, unknown>[])}
+                xKey="month"
+                lines={earningsData.summary.driver_performance_trends.slice(0, 5).map((driver: DriverPerformanceTrend, index: number) => ({
+                  key: driver.driver_name,
+                  label: driver.driver_name,
+                  color: ['#0d9488', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'][index % 5]
+                }))}
+                title="Driver Performance Trends"
+                subtitle="Monthly earnings by driver"
+              />
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <TrendingUp className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <p>No driver performance data available</p>
+              </div>
+            )}
           </div>
 
           {/* Vehicle Performance Metrics */}
@@ -1364,130 +1360,132 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Charts Section */}
-        <div className="lg:col-span-2 space-y-6">
-          <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="performance">Performance</TabsTrigger>
-              <TabsTrigger value="trends">Trends</TabsTrigger>
-              <TabsTrigger value="distribution">Distribution</TabsTrigger>
-            </TabsList>
+      {/* Main Content - Hide for logistics clients */}
+      {currentClient?.client_type !== 'logistics' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Charts Section */}
+          <div className="lg:col-span-2 space-y-6">
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="performance">Performance</TabsTrigger>
+                <TabsTrigger value="trends">Trends</TabsTrigger>
+                <TabsTrigger value="distribution">Distribution</TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="overview" className="space-y-6">
-              {/* Asset Type Distribution */}
-              <SimplePieChart
-                data={generateAssetTypeData()}
-                nameKey="name"
-                valueKey="value"
-                title="Asset Type Distribution"
-                subtitle="Breakdown by asset category"
-              />
+              <TabsContent value="overview" className="space-y-6">
+                {/* Asset Type Distribution */}
+                <SimplePieChart
+                  data={generateAssetTypeData()}
+                  nameKey="name"
+                  valueKey="value"
+                  title="Asset Type Distribution"
+                  subtitle="Breakdown by asset category"
+                />
 
 
-            </TabsContent>
+              </TabsContent>
 
-            <TabsContent value="performance" className="space-y-6">
-              {/* Performance Metrics */}
-              <MultiLineChart
-                data={generatePerformanceData()}
-                xKey="month"
-                lines={[
-                  { key: 'uptime', label: 'Uptime %', color: '#10b981' },
-                  { key: 'efficiency', label: 'Efficiency %', color: '#3b82f6' },
-                  { key: 'maintenance', label: 'Maintenance Hours', color: '#f59e0b' },
-                ]}
-                title="Performance Metrics"
-                subtitle="Monthly performance indicators"
-              />
-            </TabsContent>
+              <TabsContent value="performance" className="space-y-6">
+                {/* Performance Metrics */}
+                <MultiLineChart
+                  data={generatePerformanceData()}
+                  xKey="month"
+                  lines={[
+                    { key: 'uptime', label: 'Uptime %', color: '#10b981' },
+                    { key: 'efficiency', label: 'Efficiency %', color: '#3b82f6' },
+                    { key: 'maintenance', label: 'Maintenance Hours', color: '#f59e0b' },
+                  ]}
+                  title="Performance Metrics"
+                  subtitle="Monthly performance indicators"
+                />
+              </TabsContent>
 
-            <TabsContent value="trends" className="space-y-6">
-              {/* Maintenance Trends */}
-              <SimpleBarChart
-                data={generateMaintenanceTrendsData()}
-                xKey="month"
-                yKey="value"
-                title="Maintenance Trends"
-                subtitle="Maintenance missed vs on-time trends"
-              />
-            </TabsContent>
+              <TabsContent value="trends" className="space-y-6">
+                {/* Maintenance Trends */}
+                <SimpleBarChart
+                  data={generateMaintenanceTrendsData()}
+                  xKey="month"
+                  yKey="value"
+                  title="Maintenance Trends"
+                  subtitle="Maintenance missed vs on-time trends"
+                />
+              </TabsContent>
 
-            <TabsContent value="distribution" className="space-y-6">
-              {/* Asset Status by Type */}
-              <SimpleBarChart
-                data={generateAssetStatusByTypeData()}
-                xKey="type"
-                yKey="active"
-                title="Asset Status by Type"
-                subtitle="Distribution of asset statuses across types"
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
+              <TabsContent value="distribution" className="space-y-6">
+                {/* Asset Status by Type */}
+                <SimpleBarChart
+                  data={generateAssetStatusByTypeData()}
+                  xKey="type"
+                  yKey="active"
+                  title="Asset Status by Type"
+                  subtitle="Distribution of asset statuses across types"
+                />
+              </TabsContent>
+            </Tabs>
+          </div>
 
-        {/* Right Sidebar */}
-        <div className="space-y-6">
-          {/* Quick Insights */}
-          <Card className="p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <Brain className="h-5 w-5 text-teal-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Real-Time Insights</h3>
-            </div>
-            <div className="space-y-3">
-              {generateMaintenanceInsights()}
-              {generateEfficiencyInsights()}
-              {generateCostInsights()}
-              {generateNotificationInsights()}
-            </div>
-          </Card>
+          {/* Right Sidebar */}
+          <div className="space-y-6">
+            {/* Quick Insights */}
+            <Card className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <Brain className="h-5 w-5 text-teal-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Real-Time Insights</h3>
+              </div>
+              <div className="space-y-3">
+                {generateMaintenanceInsights()}
+                {generateEfficiencyInsights()}
+                {generateCostInsights()}
+                {generateNotificationInsights()}
+              </div>
+            </Card>
 
-          {/* Recent Activities */}
-          <Card className="p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <Activity className="h-5 w-5 text-teal-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Recent Activities</h3>
-            </div>
-            <div className="space-y-3">
-              {stats?.recent_activities.slice(0, 5).map((activity) => (
-                <div key={activity.id} className="flex items-start gap-3">
-                  <div className={`w-2 h-2 rounded-full mt-2 ${
-                    activity.priority === 'high' ? 'bg-red-500' :
-                    activity.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
-                  }`} />
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-900">{activity.message}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {new Date(activity.time).toLocaleString()}
-                    </p>
+            {/* Recent Activities */}
+            <Card className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <Activity className="h-5 w-5 text-teal-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Recent Activities</h3>
+              </div>
+              <div className="space-y-3">
+                {stats?.recent_activities.slice(0, 5).map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-3">
+                    <div className={`w-2 h-2 rounded-full mt-2 ${
+                      activity.priority === 'high' ? 'bg-red-500' :
+                      activity.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                    }`} />
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-900">{activity.message}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {new Date(activity.time).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </Card>
+                ))}
+              </div>
+            </Card>
 
-          {/* Quick Actions */}
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-            <div className="space-y-3">
-              <Button className="w-full justify-start" variant="outline" size="sm">
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Generate Report
-              </Button>
-              <Button className="w-full justify-start" variant="outline" size="sm">
-                <AlertTriangle className="h-4 w-4 mr-2" />
-                View Alerts
-              </Button>
-              <Button className="w-full justify-start" variant="outline" size="sm">
-                <Settings className="h-4 w-4 mr-2" />
-                Configure Alerts
-              </Button>
-            </div>
-          </Card>
+            {/* Quick Actions */}
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+              <div className="space-y-3">
+                <Button className="w-full justify-start" variant="outline" size="sm">
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Generate Report
+                </Button>
+                <Button className="w-full justify-start" variant="outline" size="sm">
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  View Alerts
+                </Button>
+                <Button className="w-full justify-start" variant="outline" size="sm">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Configure Alerts
+                </Button>
+              </div>
+            </Card>
+          </div>
         </div>
-      </div>
+      )}
 
 
 
