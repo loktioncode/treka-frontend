@@ -467,6 +467,9 @@ export const analyticsAPI = {
     if (dateRange) params.date_range = dateRange;
     if (startDate) params.start_date = startDate;
     if (endDate) params.end_date = endDate;
+    
+    console.log('getLogisticsDriverEarnings API call with params:', params);
+    
     const response = await api.get('/analytics/logistics/driver-earnings', { params });
     return response.data;
   },

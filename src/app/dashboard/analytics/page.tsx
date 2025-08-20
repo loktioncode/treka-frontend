@@ -166,6 +166,37 @@ export default function AnalyticsPage() {
     !!currentClient && currentClient.client_type === 'logistics'
   );
   
+  // Debug logging for custom dates
+  useEffect(() => {
+    if (currentClient?.client_type === 'logistics') {
+      console.log('Logistics filters:', {
+        dateRange: filters.dateRange,
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+        clientType: currentClient.client_type
+      });
+      
+      // Log the actual API call parameters
+      if (filters.dateRange === 'custom' && filters.startDate && filters.endDate) {
+        console.log('Custom date range API call:', {
+          driverName: driverFilter || undefined,
+          dateRange: filters.dateRange,
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+          startDateType: typeof filters.startDate,
+          endDateType: typeof filters.endDate
+        });
+      } else {
+        console.log('Predefined date range API call:', {
+          driverName: driverFilter || undefined,
+          dateRange: filters.dateRange,
+          startDate: filters.startDate,
+          endDate: filters.endDate
+        });
+      }
+    }
+  }, [filters, currentClient, driverFilter]);
+  
   const { data: performanceData } = useLogisticsPerformance(
     !!currentClient && currentClient.client_type === 'logistics'
   );
@@ -186,60 +217,118 @@ export default function AnalyticsPage() {
       console.log('Stats data loaded:', statsData);
       setStats(statsData);
 
-      // Load comprehensive assets data with more details
-      try {
-        console.log('Loading comprehensive assets data...');
-        const assetsData = await assetAPI.getAssets({
-          client_id: user?.role === 'super_admin' ? filters.clientId : undefined,
-          status: filters.status?.[0] as AssetStatus | undefined,
-          asset_type: filters.assetType?.[0] as AssetType | undefined,
-          search: filters.searchQuery,
-          limit: 100, // Get more assets for better insights
-        });
-        console.log('Assets data loaded successfully:', assetsData);
-        if (assetsData.items && assetsData.items.length > 0) {
-          setAssets(assetsData.items);
-          console.log('Set detailed assets:', assetsData.items);
-        } else {
-          console.log('Assets API returned empty items array');
+      // Skip loading assets and components data for logistics clients
+      if (currentClient?.client_type === 'logistics') {
+        console.log('Skipping assets and components data for logistics client');
+        setAssets([]);
+        setComponents([]);
+        setMaintenanceLogs([]);
+      } else {
+        // Load comprehensive assets data with more details (only for non-logistics clients)
+        try {
+          console.log('Loading comprehensive assets data...');
+          const assetsData = await assetAPI.getAssets({
+            client_id: user?.role === 'super_admin' ? filters.clientId : undefined,
+            status: filters.status?.[0] as AssetStatus | undefined,
+            asset_type: filters.assetType?.[0] as AssetType | undefined,
+            search: filters.searchQuery,
+            limit: 100, // Get more assets for better insights
+          });
+          console.log('Assets data loaded successfully:', assetsData);
+          if (assetsData.items && assetsData.items.length > 0) {
+            setAssets(assetsData.items);
+            console.log('Set detailed assets:', assetsData.items);
+          } else {
+            console.log('Assets API returned empty items array');
+            setAssets([]);
+          }
+        } catch (error) {
+          console.error('Failed to load detailed assets:', error);
           setAssets([]);
         }
-      } catch (error) {
-        console.error('Failed to load detailed assets:', error);
-        setAssets([]);
-      }
 
-      // Load comprehensive components data with maintenance history
-      let componentsToUse: Component[] = [];
-      try {
-        console.log('Loading comprehensive components data...');
-        const componentsData = await componentAPI.getComponents({
-          client_id: user?.role === 'super_admin' ? filters.clientId : undefined,
-          search: filters.searchQuery,
-          limit: 100, // Get more components for better insights
-        });
-        console.log('Components data loaded:', componentsData);
-        console.log('Components API response structure:', {
-          hasItems: !!componentsData.items,
-          itemsLength: componentsData.items?.length || 0,
-          firstItem: componentsData.items?.[0],
-          responseKeys: Object.keys(componentsData)
-        });
-        
-        if (componentsData.items && componentsData.items.length > 0) {
-          componentsToUse = componentsData.items;
-          setComponents(componentsData.items);
-          console.log('Set detailed components:', componentsData.items);
-          console.log('Component IDs from API:', componentsData.items.map((c: Component) => ({ id: c.id, name: c.name })));
-        } else {
-          console.log('Components API returned empty items array');
+        // Load comprehensive components data with maintenance history (only for non-logistics clients)
+        let componentsToUse: Component[] = [];
+        try {
+          console.log('Loading comprehensive components data...');
+          const componentsData = await componentAPI.getComponents({
+            client_id: user?.role === 'super_admin' ? filters.clientId : undefined,
+            search: filters.searchQuery,
+            limit: 100, // Get more components for better insights
+          });
+          console.log('Components data loaded:', componentsData);
+          console.log('Components API response structure:', {
+            hasItems: !!componentsData.items,
+            itemsLength: componentsData.items?.length || 0,
+            firstItem: componentsData.items?.[0],
+            responseKeys: Object.keys(componentsData)
+          });
+          
+          if (componentsData.items && componentsData.items.length > 0) {
+            componentsToUse = componentsData.items;
+            setComponents(componentsData.items);
+            console.log('Set detailed components:', componentsData.items);
+            console.log('Component IDs from API:', componentsData.items.map((c: Component) => ({ id: c.id, name: c.name })));
+          } else {
+            console.log('Components API returned empty items array');
+            componentsToUse = [];
+            setComponents([]);
+          }
+        } catch (error) {
+          console.error('Failed to load detailed components:', error);
           componentsToUse = [];
           setComponents([]);
         }
-      } catch (error) {
-        console.error('Failed to load detailed components:', error);
-        componentsToUse = [];
-        setComponents([]);
+
+        // Load maintenance logs for better insights (only for non-logistics clients)
+        try {
+          console.log('Loading maintenance logs...');
+          
+          if (componentsToUse.length > 0) {
+            // Check if we have real component IDs or fallback ones
+            const hasRealComponentIds = componentsToUse.some(comp => !comp.id.startsWith('component-'));
+            
+            if (hasRealComponentIds) {
+              console.log(`Fetching maintenance logs from ${componentsToUse.length} components with real IDs...`);
+              
+              // Fast algorithm: Use Promise.allSettled to fetch from all components concurrently
+              // This is much faster than sequential calls and handles failures gracefully
+              const maintenancePromises = componentsToUse.map(async (component) => {
+                try {
+                  console.log(`Fetching maintenance logs for component: ${component.id} (${component.name})`);
+                  const response = await componentAPI.getMaintenanceLogs(component.id, { limit: 20 });
+                  return response.items || [];
+                } catch (error) {
+                  console.warn(`Failed to fetch maintenance logs for component ${component.id}:`, error);
+                  return []; // Return empty array for failed components
+                }
+              });
+              
+              // Execute all requests concurrently and wait for results
+              const maintenanceResults = await Promise.allSettled(maintenancePromises);
+              
+              // Combine all successful results into one array
+              const allMaintenanceLogs = maintenanceResults
+                .filter(result => result.status === 'fulfilled')
+                .flatMap(result => (result as PromiseFulfilledResult<MaintenanceLog[]>).value);
+              
+              console.log(`Successfully loaded maintenance logs from ${maintenanceResults.filter(r => r.status === 'fulfilled').length}/${componentsToUse.length} components`);
+              console.log('Total maintenance logs loaded:', allMaintenanceLogs.length);
+              setMaintenanceLogs(allMaintenanceLogs);
+            } else {
+              console.log('⚠️ Skipping maintenance logs - using fallback component IDs that will not work with API');
+              console.log('Fallback component IDs:', componentsToUse.map(c => c.id));
+              setMaintenanceLogs([]);
+            }
+          } else {
+            console.log('No components available for maintenance logs');
+            setMaintenanceLogs([]);
+          }
+        } catch (error) {
+          console.error('Failed to load maintenance logs:', error);
+          console.log('Component IDs available:', componentsToUse.map(c => ({ id: c.id, name: c.name })));
+          setMaintenanceLogs([]);
+        }
       }
 
       // Load clients (for super admin)
@@ -247,56 +336,6 @@ export default function AnalyticsPage() {
         const clientsData = await clientAPI.getClients();
         console.log('Clients data loaded:', clientsData);
         setClients(clientsData.items || []);
-      }
-
-      // Load maintenance logs for better insights
-      try {
-        console.log('Loading maintenance logs...');
-        
-        if (componentsToUse.length > 0) {
-          // Check if we have real component IDs or fallback ones
-          const hasRealComponentIds = componentsToUse.some(comp => !comp.id.startsWith('component-'));
-          
-          if (hasRealComponentIds) {
-            console.log(`Fetching maintenance logs from ${componentsToUse.length} components with real IDs...`);
-            
-            // Fast algorithm: Use Promise.allSettled to fetch from all components concurrently
-            // This is much faster than sequential calls and handles failures gracefully
-            const maintenancePromises = componentsToUse.map(async (component) => {
-              try {
-                console.log(`Fetching maintenance logs for component: ${component.id} (${component.name})`);
-                const response = await componentAPI.getMaintenanceLogs(component.id, { limit: 20 });
-                return response.items || [];
-              } catch (error) {
-                console.warn(`Failed to fetch maintenance logs for component ${component.id}:`, error);
-                return []; // Return empty array for failed components
-              }
-            });
-            
-            // Execute all requests concurrently and wait for results
-            const maintenanceResults = await Promise.allSettled(maintenancePromises);
-            
-            // Combine all successful results into one array
-            const allMaintenanceLogs = maintenanceResults
-              .filter(result => result.status === 'fulfilled')
-              .flatMap(result => (result as PromiseFulfilledResult<MaintenanceLog[]>).value);
-            
-            console.log(`Successfully loaded maintenance logs from ${maintenanceResults.filter(r => r.status === 'fulfilled').length}/${componentsToUse.length} components`);
-            console.log('Total maintenance logs loaded:', allMaintenanceLogs.length);
-            setMaintenanceLogs(allMaintenanceLogs);
-          } else {
-            console.log('⚠️ Skipping maintenance logs - using fallback component IDs that will not work with API');
-            console.log('Fallback component IDs:', componentsToUse.map(c => c.id));
-            setMaintenanceLogs([]);
-          }
-        } else {
-          console.log('No components available for maintenance logs');
-          setMaintenanceLogs([]);
-        }
-      } catch (error) {
-        console.error('Failed to load maintenance logs:', error);
-        console.log('Component IDs available:', componentsToUse.map(c => ({ id: c.id, name: c.name })));
-        setMaintenanceLogs([]);
       }
 
       // Load recent notifications for insights
@@ -316,7 +355,7 @@ export default function AnalyticsPage() {
     } finally {
       setLoading(false);
     }
-  }, [user, filters]);
+  }, [user, filters, currentClient]);
 
   // Load current client info for logistics analytics
   const loadClientInfo = useCallback(async () => {
@@ -331,9 +370,14 @@ export default function AnalyticsPage() {
   }, [user]);
 
   useEffect(() => {
-    loadData();
     loadClientInfo();
-  }, [loadData, loadClientInfo]);
+  }, [loadClientInfo]);
+
+  useEffect(() => {
+    if (currentClient) {
+      loadData();
+    }
+  }, [currentClient, loadData]);
 
   // Initialize filters for logistics clients
   useEffect(() => {
@@ -346,6 +390,29 @@ export default function AnalyticsPage() {
       }));
     }
   }, [currentClient, filters.dateRange]);
+
+  // Auto-set dateRange to 'custom' when custom dates are selected
+  useEffect(() => {
+    if (filters.startDate && filters.endDate && filters.dateRange !== 'custom') {
+      console.log('Auto-setting dateRange to custom due to custom dates');
+      setFilters(prev => ({
+        ...prev,
+        dateRange: 'custom'
+      }));
+    }
+  }, [filters.startDate, filters.endDate, filters.dateRange]);
+
+  // Log filter changes for debugging
+  useEffect(() => {
+    if (currentClient?.client_type === 'logistics') {
+      console.log('Logistics filters changed:', {
+        dateRange: filters.dateRange,
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+        driverFilter: driverFilter
+      });
+    }
+  }, [filters, currentClient, driverFilter]);
 
   // Helper function to get period display text
   const getPeriodDisplayText = () => {
@@ -368,9 +435,20 @@ export default function AnalyticsPage() {
     if (!earningsData?.data?.drivers) return false;
     
     // Check if any driver has actual earnings (not just 0 values)
+    // Include both period earnings and total earnings for better insights
     return earningsData.data.drivers.some((driver: DriverEarnings) => 
       driver.total_earnings > 0 || 
       Object.values(driver.period_earnings).some((earnings: number) => earnings > 0)
+    );
+  };
+
+  // Helper function to check if there's any historical data available
+  const hasHistoricalData = () => {
+    if (!earningsData?.data?.drivers) return false;
+    
+    // Check if we have any drivers with payment history
+    return earningsData.data.drivers.some((driver: DriverEarnings) => 
+      driver.payment_count > 0
     );
   };
 
@@ -448,6 +526,11 @@ export default function AnalyticsPage() {
 
   // Generate real chart data from database
   const generateAssetTypeData = () => {
+    // Skip for logistics clients
+    if (currentClient?.client_type === 'logistics') {
+      return [];
+    }
+
     // If we have detailed assets, use them
     if (assets && assets.length > 0) {
       const typeCounts = assets.reduce((acc, asset) => {
@@ -466,6 +549,11 @@ export default function AnalyticsPage() {
   };
 
   const generateMaintenanceTrendsData = () => {
+    // Skip for logistics clients
+    if (currentClient?.client_type === 'logistics') {
+      return [];
+    }
+
     // If we have detailed components, calculate maintenance trends
     if (components && components.length > 0) {
       const now = new Date();
@@ -511,6 +599,11 @@ export default function AnalyticsPage() {
 
 
   const generatePerformanceData = () => {
+    // Skip for logistics clients
+    if (currentClient?.client_type === 'logistics') {
+      return [];
+    }
+
     // If we have detailed components, use them
     if (components && components.length > 0) {
       // Calculate real performance metrics based on component data
@@ -571,6 +664,11 @@ export default function AnalyticsPage() {
   };
 
   const generateAssetStatusByTypeData = () => {
+    // Skip for logistics clients
+    if (currentClient?.client_type === 'logistics') {
+      return [];
+    }
+
     // If we have detailed assets, use them
     if (assets && assets.length > 0) {
       // Group assets by type and status
@@ -630,6 +728,11 @@ export default function AnalyticsPage() {
 
   // Generate real-time insights
   const generateMaintenanceInsights = () => {
+    // Skip for logistics clients
+    if (currentClient?.client_type === 'logistics') {
+      return null;
+    }
+
     if (!components || components.length === 0) {
       return null;
     }
@@ -714,6 +817,11 @@ export default function AnalyticsPage() {
   };
 
   const generateEfficiencyInsights = () => {
+    // Skip for logistics clients
+    if (currentClient?.client_type === 'logistics') {
+      return null;
+    }
+
     if (!assets || assets.length === 0) {
       return null;
     }
@@ -746,6 +854,11 @@ export default function AnalyticsPage() {
   };
 
   const generateCostInsights = () => {
+    // Skip for logistics clients
+    if (currentClient?.client_type === 'logistics') {
+      return null;
+    }
+
     if (!assets || assets.length === 0) {
       return null;
     }
@@ -821,6 +934,11 @@ export default function AnalyticsPage() {
   };
 
   const generateNotificationInsights = () => {
+    // Skip for logistics clients
+    if (currentClient?.client_type === 'logistics') {
+      return null;
+    }
+
     if (!recentNotifications || recentNotifications.length === 0) {
       return null;
     }
@@ -880,6 +998,11 @@ export default function AnalyticsPage() {
 
   // Real-time metric calculations
   const calculateTotalAssetValue = () => {
+    // Skip for logistics clients
+    if (currentClient?.client_type === 'logistics') {
+      return 0;
+    }
+
     // Use stats data if available, otherwise calculate from assets array
     if (stats?.assets?.total_value !== undefined) {
       return stats.assets.total_value;
@@ -888,6 +1011,11 @@ export default function AnalyticsPage() {
   };
 
   const calculateCriticalComponents = () => {
+    // Skip for logistics clients
+    if (currentClient?.client_type === 'logistics') {
+      return 0;
+    }
+
     // Use stats data if available, otherwise calculate from components array
     if (stats?.components?.critical !== undefined) {
       return stats.components.critical;
@@ -899,21 +1027,37 @@ export default function AnalyticsPage() {
 
   // Simplified trend calculations (in a real app, these would compare with historical data)
   const calculateAssetGrowth = () => {
+    // Skip for logistics clients
+    if (currentClient?.client_type === 'logistics') {
+      return '0.0%';
+    }
     return assets.length > 0 ? '+0.0%' : '0.0%';
   };
 
   const calculateAssetTrend = () => {
+    // Skip for logistics clients
+    if (currentClient?.client_type === 'logistics') {
+      return 'neutral' as const;
+    }
     return assets.length > 0 ? 'up' as const : 'neutral' as const;
   };
 
 
 
   const calculateCriticalChange = () => {
+    // Skip for logistics clients
+    if (currentClient?.client_type === 'logistics') {
+      return '0.0%';
+    }
     const criticalCount = calculateCriticalComponents();
     return criticalCount > 0 ? '-0.0%' : '0.0%';
   };
 
   const calculateCriticalTrend = () => {
+    // Skip for logistics clients
+    if (currentClient?.client_type === 'logistics') {
+      return 'neutral' as const;
+    }
     const criticalCount = calculateCriticalComponents();
     return criticalCount > 0 ? 'down' as const : 'neutral' as const;
   };
@@ -921,6 +1065,11 @@ export default function AnalyticsPage() {
 
 
   const calculateResponseTimeAverage = () => {
+    // Skip for logistics clients
+    if (currentClient?.client_type === 'logistics') {
+      return 0;
+    }
+
     // Calculate average response time based on maintenance logs and notifications
     if (!maintenanceLogs.length && !recentNotifications.length) {
       return 0;
@@ -976,18 +1125,31 @@ export default function AnalyticsPage() {
   };
 
   const calculateResponseTimeChange = () => {
+    // Skip for logistics clients
+    if (currentClient?.client_type === 'logistics') {
+      return '0.0%';
+    }
     const avgResponseTime = calculateResponseTimeAverage();
     // In a real app, this would compare with historical data
     return avgResponseTime > 0 ? '-0.0%' : '0.0%';
   };
 
   const calculateResponseTimeTrend = () => {
+    // Skip for logistics clients
+    if (currentClient?.client_type === 'logistics') {
+      return 'neutral' as const;
+    }
     const avgResponseTime = calculateResponseTimeAverage();
     // In a real app, this would compare with historical data
     return avgResponseTime > 0 ? 'down' as const : 'neutral' as const;
   };
 
   const calculateComponentsDueSoon = () => {
+    // Skip for logistics clients
+    if (currentClient?.client_type === 'logistics') {
+      return 0;
+    }
+
     // Count components due for maintenance in the next 5 days
     const now = new Date();
     const fiveDaysFromNow = new Date(now.getTime() + (5 * 24 * 60 * 60 * 1000));
@@ -1000,11 +1162,19 @@ export default function AnalyticsPage() {
   };
 
   const calculateComponentsDueChange = () => {
+    // Skip for logistics clients
+    if (currentClient?.client_type === 'logistics') {
+      return '0.0%';
+    }
     const dueSoon = calculateComponentsDueSoon();
     return dueSoon > 0 ? '+0.0%' : '0.0%';
   };
 
   const calculateComponentsDueTrend = () => {
+    // Skip for logistics clients
+    if (currentClient?.client_type === 'logistics') {
+      return 'neutral' as const;
+    }
     const dueSoon = calculateComponentsDueSoon();
     return dueSoon > 0 ? 'up' as const : 'neutral' as const;
   };
@@ -1047,8 +1217,8 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* No Data Message */}
-      {stats && stats.assets.total === 0 && stats.components.total === 0 && (
+      {/* No Data Message - Only show for non-logistics clients */}
+      {currentClient?.client_type !== 'logistics' && stats && stats.assets.total === 0 && stats.components.total === 0 && (
         <Card className="p-6 bg-blue-50 border border-blue-200">
           <div className="text-center">
             <Package className="h-12 w-12 text-blue-500 mx-auto mb-4" />
@@ -1124,26 +1294,46 @@ export default function AnalyticsPage() {
                   <option value="30d">Last 30 Days</option>
                   <option value="1y">Last Year</option>
                   <option value="5y">Last 5 Years</option>
-                  <option value="custom">Custom Range</option>
+                  <option value="custom">Custom range</option>
                 </select>
               </div>
 
-              {/* Custom Date Range Picker */}
+              {/* Custom Date Range Inputs */}
               {filters.dateRange === 'custom' && (
                 <div className="flex items-center gap-4">
-                  <label className="text-sm font-medium text-gray-700">From:</label>
-                  <input
-                    type="date"
-                    value={filters.startDate || ''}
-                    onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  />
+                  <label className="text-center">
+                    <label className="text-sm font-medium text-gray-700">From:</label>
+                    <input
+                      type="date"
+                      value={filters.startDate || ''}
+                      onChange={(e) => {
+                        const newStartDate = e.target.value;
+                        console.log('Setting start date:', newStartDate, 'Type:', typeof newStartDate);
+                        setFilters(prev => ({ 
+                          ...prev, 
+                          startDate: newStartDate,
+                          // Ensure dateRange is set to custom when dates are selected
+                          dateRange: 'custom'
+                        }));
+                      }}
+                      className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    />
+                  </label>
                   <label className="text-center">
                     <label className="text-sm font-medium text-gray-700">To:</label>
                     <input
                       type="date"
                       value={filters.endDate || ''}
-                      onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                      onChange={(e) => {
+                        const newEndDate = e.target.value;
+                        console.log('Setting end date:', newEndDate, 'Type:', typeof newEndDate);
+                        setFilters(prev => ({ 
+                          ...prev, 
+                          endDate: newEndDate,
+                          // Ensure dateRange is set to custom when dates are selected
+                          dateRange: 'custom'
+                        }));
+                      }}
                       className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                     />
                   </label>
@@ -1209,10 +1399,10 @@ export default function AnalyticsPage() {
             <MetricCard
               title={`Total Earnings (${getPeriodDisplayText()})`}
               value={formatCurrency(earningsData?.summary?.selected_period_earnings || 0, earningsData?.summary?.currency || 'ZAR')}
-              change={hasMeaningfulData() ? "+0.0%" : "No Data"}
-              trend={hasMeaningfulData() ? "up" : "neutral"}
+              change={hasMeaningfulData() ? "+0.0%" : hasHistoricalData() ? "Historical Data" : "No Data"}
+              trend={hasMeaningfulData() ? "up" : hasHistoricalData() ? "neutral" : "neutral"}
               icon={<DollarSign className="h-6 w-6" />}
-              color={hasMeaningfulData() ? "text-green-600" : "text-gray-400"}
+              color={hasMeaningfulData() ? "text-green-600" : hasHistoricalData() ? "text-blue-600" : "text-gray-400"}
             />
             <MetricCard
               title="Active Vehicles"
@@ -1241,7 +1431,7 @@ export default function AnalyticsPage() {
           {/* Logistics Charts Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Monthly Earnings Chart */}
-            {earningsData?.summary?.monthly_earnings && earningsData.summary.monthly_earnings.length > 0 && hasMeaningfulData() ? (
+            {earningsData?.summary?.monthly_earnings && earningsData.summary.monthly_earnings.length > 0 && (hasMeaningfulData() || hasHistoricalData()) ? (
               <SimpleBarChart
                 data={earningsData.summary.monthly_earnings}
                 xKey="month"
@@ -1255,9 +1445,9 @@ export default function AnalyticsPage() {
                   <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No Monthly Earnings Data</h3>
                   <p className="text-gray-600 mb-4">
-                    {hasMeaningfulData() ? 'No monthly earnings data available for the selected period' : 'Upload earnings data to see monthly trends'}
+                    {hasHistoricalData() ? 'No monthly earnings data available for the selected period' : 'Upload earnings data to see monthly trends'}
                   </p>
-                  {!hasMeaningfulData() && (
+                  {!hasHistoricalData() && (
                     <Button onClick={() => setShowUploadModal(true)} className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
                       <Upload className="h-4 w-4 mr-2" />
                       Upload Earnings CSV
@@ -1268,7 +1458,7 @@ export default function AnalyticsPage() {
             )}
 
             {/* Driver Performance Trends */}
-            {earningsData?.summary?.driver_performance_trends && earningsData.summary.driver_performance_trends.length > 0 && hasMeaningfulData() ? (
+            {earningsData?.summary?.driver_performance_trends && earningsData.summary.driver_performance_trends.length > 0 && (hasMeaningfulData() || hasHistoricalData()) ? (
               <MultiLineChart
                 data={earningsData.summary.driver_performance_trends.flatMap((driver: DriverPerformanceTrend) => 
                   driver.monthly_earnings.map((month: MonthlyEarnings) => ({
@@ -1299,9 +1489,9 @@ export default function AnalyticsPage() {
                   <TrendingUp className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No Driver Performance Data</h3>
                   <p className="text-gray-600 mb-4">
-                    {hasMeaningfulData() ? 'No driver performance trends available for the selected period' : 'Upload earnings data to see driver performance trends'}
+                    {hasHistoricalData() ? 'No driver performance trends available for the selected period' : 'Upload earnings data to see driver performance trends'}
                   </p>
-                  {!hasMeaningfulData() && (
+                  {!hasHistoricalData() && (
                     <Button onClick={() => setShowUploadModal(true)} className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
                       <Upload className="h-4 w-4 mr-2" />
                       Upload Earnings CSV
@@ -1351,7 +1541,7 @@ export default function AnalyticsPage() {
                 <p className="mt-2 text-gray-600">Loading driver data...</p>
               </div>
             ) : earningsData?.data?.drivers && earningsData.data.drivers.length > 0 ? (
-              hasMeaningfulData() ? (
+              (hasMeaningfulData() || hasHistoricalData()) ? (
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>

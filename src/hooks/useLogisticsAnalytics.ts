@@ -8,6 +8,7 @@ import {
 } from '@/services/api';
 import type { UploadEarningsResponse } from '@/types/api';
 import toast from 'react-hot-toast';
+import { useEffect } from 'react';
 
 // Query keys for consistency
 export const logisticsKeys = {
@@ -21,9 +22,19 @@ export const logisticsKeys = {
  * Hook to fetch driver earnings data
  */
 export function useDriverEarnings(driverName?: string, dateRange?: string, startDate?: string, endDate?: string, enabled = true) {
+  console.log('useDriverEarnings called with:', { driverName, dateRange, startDate, endDate, enabled });
+  
+  // Log when parameters change
+  useEffect(() => {
+    console.log('useDriverEarnings parameters changed:', { driverName, dateRange, startDate, endDate, enabled });
+  }, [driverName, dateRange, startDate, endDate, enabled]);
+  
   return useQuery({
     queryKey: [...logisticsKeys.earningsList(driverName), dateRange, startDate, endDate],
-    queryFn: () => analyticsAPI.getLogisticsDriverEarnings(driverName, dateRange, startDate, endDate),
+    queryFn: () => {
+      console.log('Calling analyticsAPI.getLogisticsDriverEarnings with:', { driverName, dateRange, startDate, endDate });
+      return analyticsAPI.getLogisticsDriverEarnings(driverName, dateRange, startDate, endDate);
+    },
     enabled: enabled,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 10,   // 10 minutes
