@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -156,6 +156,7 @@ export default function AnalyticsPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [driverFilter, setDriverFilter] = useState<string[]>([]);
+  const [driverSearch, setDriverSearch] = useState<string>('');
 
   // React Query hooks for logistics analytics
   const { data: earningsData, isLoading: earningsLoading, refetch: refetchEarnings } = useDriverEarnings(
@@ -198,6 +199,17 @@ export default function AnalyticsPage() {
       });
     }
   }, [earningsData, currentClient, filters.dateRange, filters.startDate, filters.endDate]);
+
+  // Clear driver search when date filters change (but not when they're both undefined)
+  useEffect(() => {
+    if (currentClient?.client_type === 'logistics') {
+      // Only clear search if we're going from having dates to not having dates
+      const hadDates = filters.startDate && filters.endDate;
+      if (!hadDates) {
+        setDriverSearch('');
+      }
+    }
+  }, [filters.startDate, filters.endDate, currentClient]);
   
 
   
@@ -1242,6 +1254,17 @@ export default function AnalyticsPage() {
     return dueSoon > 0 ? 'up' as const : 'neutral' as const;
   };
 
+  // Filter drivers based on search query
+  const filteredDrivers = useMemo(() => {
+    if (!earningsData?.data?.drivers) return [];
+    
+    if (!driverSearch.trim()) return earningsData.data.drivers;
+    
+    return earningsData.data.drivers.filter((driver: DriverEarnings) =>
+      driver.full_name.toLowerCase().includes(driverSearch.toLowerCase())
+    );
+  }, [earningsData?.data?.drivers, driverSearch]);
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -1331,8 +1354,9 @@ export default function AnalyticsPage() {
                       startDate: undefined,
                       endDate: undefined
                     }));
-                    // Clear driver filter when resetting date range
-                    setDriverFilter([]);
+                                          // Clear driver filter and search when resetting date range
+                      setDriverFilter([]);
+                      setDriverSearch('');
                   }}
                   variant="outline"
                   size="sm"
@@ -1357,8 +1381,9 @@ export default function AnalyticsPage() {
                         startDate: undefined,
                         endDate: undefined
                       }));
-                      // Clear driver filter when changing to preset date range
+                      // Clear driver filter and search when changing to preset date range
                       setDriverFilter([]);
+                      setDriverSearch('');
                     }}
                     className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   >
@@ -1729,11 +1754,25 @@ export default function AnalyticsPage() {
                   </span>
                 )}
               </div>
-              <Input
-                placeholder="Search drivers in table..."
-                className="w-64"
-                disabled
-              />
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Search drivers in table..."
+                  className="w-64"
+                  value={driverSearch}
+                  onChange={(e) => setDriverSearch(e.target.value)}
+                  disabled={!earningsData?.data?.drivers?.length}
+                />
+                {driverSearch && (
+                  <Button
+                    onClick={() => setDriverSearch('')}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
             </div>
             
             {earningsLoading ? (
@@ -1741,7 +1780,7 @@ export default function AnalyticsPage() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
                 <p className="mt-2 text-gray-600">Loading driver data...</p>
               </div>
-            ) : earningsData?.data?.drivers && earningsData.data.drivers.length > 0 ? (
+            ) : filteredDrivers && filteredDrivers.length > 0 ? (
               (hasMeaningfulData() || hasHistoricalData()) ? (
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -1761,7 +1800,7 @@ export default function AnalyticsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {earningsData.data.drivers.map((driver: DriverEarnings) => (
+                      {filteredDrivers.map((driver: DriverEarnings) => (
                         <tr key={driver.uuid} className="border-b border-gray-100 hover:bg-gray-50">
                           <td className="py-3 px-4">
                             <div>
@@ -1798,25 +1837,42 @@ export default function AnalyticsPage() {
               ) : (
                 <div className="text-center py-12">
                   <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-900 mb-3">No Earnings Data Available</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                    {driverSearch ? 'Search Not Found' : 'No Earnings Data Available'}
+                  </h3>
                   <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                    Your analytics dashboard is currently showing zero earnings for the selected period. 
-                    This could mean:
+                    {driverSearch 
+                      ? `"${driverSearch}" cannot be found in the database. Are you sure you checked the spelling and try again?`
+                      : 'Your analytics dashboard is currently showing zero earnings for the selected period. This could mean:'
+                    }
                   </p>
-                  <div className="space-y-2 text-sm text-gray-500 mb-6 max-w-md mx-auto">
-                    <p>• No CSV data has been uploaded yet</p>
-                    <p>• The selected date range has no payment records</p>
-                    <p>• All driver earnings are showing as zero</p>
-                  </div>
-                  <div className="space-y-3">
-                    <Button onClick={() => setShowUploadModal(true)} className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload Earnings CSV
+                  {!driverSearch && (
+                    <>
+                      <div className="space-y-2 text-sm text-gray-500 mb-6 max-w-md mx-auto">
+                        <p>• Upload a CSV file from Uber Fleet</p>
+                        <p>• Ensure your CSV contains driver and payment information</p>
+                        <p>• Check that the file format matches the expected structure</p>
+                      </div>
+                      <div className="space-y-3">
+                        <Button onClick={() => setShowUploadModal(true)} className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
+                          <Upload className="h-4 w-4 mr-2" />
+                          Upload Earnings CSV
+                        </Button>
+                        <div className="text-xs text-gray-400">
+                          Upload a CSV file from Fleet App to start tracking driver earnings and performance
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  {driverSearch && (
+                    <Button 
+                      onClick={() => setDriverSearch('')} 
+                      variant="outline"
+                      className="mt-4"
+                    >
+                      Clear Search
                     </Button>
-                    <div className="text-xs text-gray-400">
-                      Upload a CSV file from Fleet App to start tracking driver earnings and performance
-                    </div>
-                  </div>
+                  )}
                 </div>
               )
             ) : (
