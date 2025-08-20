@@ -1464,8 +1464,13 @@ export default function AnalyticsPage() {
               color={hasMeaningfulData() ? "text-green-600" : hasHistoricalData() ? "text-blue-600" : "text-gray-400"}
             />
             <MetricCard
-              title="Active Vehicles"
-              value={performanceData?.fleet?.active_vehicles?.toString() || '0'}
+              title="Vehicles with Drivers"
+              value={performanceData?.fleet?.assigned_vehicles?.toString() || '0'}
+              subtitle={
+                performanceData?.fleet?.active_vehicles && performanceData?.fleet?.assigned_vehicles 
+                  ? `${performanceData.fleet.active_vehicles - performanceData.fleet.assigned_vehicles} unassigned`
+                  : undefined
+              }
               change="+0.0%"
               trend="up"
               icon={<Car className="h-6 w-6" />}
@@ -1644,11 +1649,16 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="text-center">
                   <div className="text-3xl font-bold text-green-600">{performanceData.fleet.active_vehicles}</div>
-                  <div className="text-sm text-gray-600">Active Vehicles</div>
+                  <div className="text-sm text-gray-600">Available Vehicles</div>
+                  {performanceData.fleet.active_vehicles && performanceData.fleet.assigned_vehicles && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      {performanceData.fleet.active_vehicles - performanceData.fleet.assigned_vehicles} unassigned
+                    </div>
+                  )}
                 </div>
                 <div className="text-center">
                   <div className="text-3xl font-bold text-purple-600">{performanceData.fleet.assigned_vehicles}</div>
-                  <div className="text-sm text-gray-600">Assigned to Drivers</div>
+                  <div className="text-sm text-gray-600">Vehicles with Drivers</div>
                 </div>
               </div>
             </Card>
@@ -1750,7 +1760,7 @@ export default function AnalyticsPage() {
                       Upload Earnings CSV
                     </Button>
                     <div className="text-xs text-gray-400">
-                      Upload a CSV file from Uber Fleet to start tracking driver earnings and performance
+                      Upload a CSV file from Fleet App to start tracking driver earnings and performance
                     </div>
                   </div>
                 </div>

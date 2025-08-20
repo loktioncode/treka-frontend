@@ -425,9 +425,10 @@ interface MetricCardProps {
   icon?: React.ReactNode;
   color?: string;
   className?: string;
+  subtitle?: string;
 }
 
-export function MetricCard({ title, value, change, trend, icon, color = CHART_COLORS.primary, className = '' }: MetricCardProps) {
+export function MetricCard({ title, value, change, trend, icon, color = CHART_COLORS.primary, className = '', subtitle }: MetricCardProps) {
   const getTrendIcon = () => {
     if (trend === 'up') return '↗';
     if (trend === 'down') return '↘';
@@ -446,6 +447,9 @@ export function MetricCard({ title, value, change, trend, icon, color = CHART_CO
         <div>
           <p className="text-sm font-medium text-gray-600">{title}</p>
           <p className="text-2xl font-bold text-gray-900">{value}</p>
+          {subtitle && (
+            <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
+          )}
           {change && (
             <div className="mt-2 flex items-center gap-1">
               <span className={`text-sm font-medium ${getTrendColor()}`}>
