@@ -167,35 +167,7 @@ export default function AnalyticsPage() {
     !!currentClient && currentClient.client_type === 'logistics'
   );
   
-  // Debug logging for custom dates
-  useEffect(() => {
-    if (currentClient?.client_type === 'logistics') {
-      console.log('Logistics filters:', {
-        dateRange: filters.dateRange,
-        startDate: filters.startDate,
-        endDate: filters.endDate,
-        clientType: currentClient.client_type
-      });
-      
-      // Log the actual API call parameters
-      if (filters.startDate && filters.endDate) {
-        console.log('Custom date range API call:', {
-          driverName: driverFilter || undefined,
-          startDate: filters.startDate,
-          endDate: filters.endDate,
-          startDateType: typeof filters.startDate,
-          endDateType: typeof filters.endDate
-        });
-      } else {
-        console.log('Predefined date range API call:', {
-          driverName: driverFilter || undefined,
-          dateRange: filters.dateRange,
-          startDate: filters.startDate,
-          endDate: filters.endDate
-        });
-      }
-    }
-  }, [filters, currentClient, driverFilter]);
+
   
   const { data: performanceData } = useLogisticsPerformance(
     !!currentClient && currentClient.client_type === 'logistics'
@@ -208,25 +180,20 @@ export default function AnalyticsPage() {
     try {
       setLoading(true);
       
-      console.log('Loading analytics data...', { user, filters });
-      
       // Load dashboard stats
       const statsData = await analyticsAPI.getDashboardStats(
         user?.role === 'super_admin' ? filters.clientId : undefined
       );
-      console.log('Stats data loaded:', statsData);
       setStats(statsData);
 
       // Skip loading assets and components data for logistics clients
       if (currentClient?.client_type === 'logistics') {
-        console.log('Skipping assets and components data for logistics client');
         setAssets([]);
         setComponents([]);
         setMaintenanceLogs([]);
       } else {
         // Load comprehensive assets data with more details (only for non-logistics clients)
         try {
-          console.log('Loading comprehensive assets data...');
           const assetsData = await assetAPI.getAssets({
             client_id: user?.role === 'super_admin' ? filters.clientId : undefined,
             status: filters.status?.[0] as AssetStatus | undefined,
@@ -234,12 +201,9 @@ export default function AnalyticsPage() {
             search: filters.searchQuery,
             limit: 100, // Get more assets for better insights
           });
-          console.log('Assets data loaded successfully:', assetsData);
           if (assetsData.items && assetsData.items.length > 0) {
             setAssets(assetsData.items);
-            console.log('Set detailed assets:', assetsData.items);
           } else {
-            console.log('Assets API returned empty items array');
             setAssets([]);
           }
         } catch (error) {
@@ -250,27 +214,16 @@ export default function AnalyticsPage() {
         // Load comprehensive components data with maintenance history (only for non-logistics clients)
         let componentsToUse: Component[] = [];
         try {
-          console.log('Loading comprehensive components data...');
           const componentsData = await componentAPI.getComponents({
             client_id: user?.role === 'super_admin' ? filters.clientId : undefined,
             search: filters.searchQuery,
             limit: 100, // Get more components for better insights
           });
-          console.log('Components data loaded:', componentsData);
-          console.log('Components API response structure:', {
-            hasItems: !!componentsData.items,
-            itemsLength: componentsData.items?.length || 0,
-            firstItem: componentsData.items?.[0],
-            responseKeys: Object.keys(componentsData)
-          });
           
           if (componentsData.items && componentsData.items.length > 0) {
             componentsToUse = componentsData.items;
             setComponents(componentsData.items);
-            console.log('Set detailed components:', componentsData.items);
-            console.log('Component IDs from API:', componentsData.items.map((c: Component) => ({ id: c.id, name: c.name })));
           } else {
-            console.log('Components API returned empty items array');
             componentsToUse = [];
             setComponents([]);
           }
@@ -282,20 +235,15 @@ export default function AnalyticsPage() {
 
         // Load maintenance logs for better insights (only for non-logistics clients)
         try {
-          console.log('Loading maintenance logs...');
-          
           if (componentsToUse.length > 0) {
             // Check if we have real component IDs or fallback ones
             const hasRealComponentIds = componentsToUse.some(comp => !comp.id.startsWith('component-'));
             
             if (hasRealComponentIds) {
-              console.log(`Fetching maintenance logs from ${componentsToUse.length} components with real IDs...`);
-              
               // Fast algorithm: Use Promise.allSettled to fetch from all components concurrently
               // This is much faster than sequential calls and handles failures gracefully
               const maintenancePromises = componentsToUse.map(async (component) => {
                 try {
-                  console.log(`Fetching maintenance logs for component: ${component.id} (${component.name})`);
                   const response = await componentAPI.getMaintenanceLogs(component.id, { limit: 20 });
                   return response.items || [];
                 } catch (error) {
@@ -312,21 +260,15 @@ export default function AnalyticsPage() {
                 .filter(result => result.status === 'fulfilled')
                 .flatMap(result => (result as PromiseFulfilledResult<MaintenanceLog[]>).value);
               
-              console.log(`Successfully loaded maintenance logs from ${maintenanceResults.filter(r => r.status === 'fulfilled').length}/${componentsToUse.length} components`);
-              console.log('Total maintenance logs loaded:', allMaintenanceLogs.length);
               setMaintenanceLogs(allMaintenanceLogs);
             } else {
-              console.log('⚠️ Skipping maintenance logs - using fallback component IDs that will not work with API');
-              console.log('Fallback component IDs:', componentsToUse.map(c => c.id));
               setMaintenanceLogs([]);
             }
           } else {
-            console.log('No components available for maintenance logs');
             setMaintenanceLogs([]);
           }
         } catch (error) {
           console.error('Failed to load maintenance logs:', error);
-          console.log('Component IDs available:', componentsToUse.map(c => ({ id: c.id, name: c.name })));
           setMaintenanceLogs([]);
         }
       }
@@ -334,17 +276,14 @@ export default function AnalyticsPage() {
       // Load clients (for super admin)
       if (user?.role === 'super_admin') {
         const clientsData = await clientAPI.getClients();
-        console.log('Clients data loaded:', clientsData);
         setClients(clientsData.items || []);
       }
 
       // Load recent notifications for insights
       try {
-        console.log('Loading recent notifications...');
         const notificationsData = await notificationAPI.getNotifications({ 
           limit: 20
         });
-        console.log('Notifications loaded:', notificationsData);
         setRecentNotifications(notificationsData.items || []);
       } catch (error) {
         console.error('Failed to load notifications:', error);
@@ -393,17 +332,7 @@ export default function AnalyticsPage() {
 
   // No need to auto-set dateRange to 'custom' anymore since we removed that option
 
-  // Log filter changes for debugging
-  useEffect(() => {
-    if (currentClient?.client_type === 'logistics') {
-      console.log('Logistics filters changed:', {
-        dateRange: filters.dateRange,
-        startDate: filters.startDate,
-        endDate: filters.endDate,
-        driverFilter: driverFilter
-      });
-    }
-  }, [filters, currentClient, driverFilter]);
+
 
   // Helper function to get period display text
   const getPeriodDisplayText = () => {
@@ -471,7 +400,6 @@ export default function AnalyticsPage() {
         searchQuery: filters.searchQuery,
       };
       
-      console.log('Sending AI insights request with payload:', { message, filtersForAI });
       const aiResponse = await analyticsAPI.getAIInsights(message, filtersForAI);
       
       const assistantMessage: ChatMessage = {
@@ -989,17 +917,7 @@ export default function AnalyticsPage() {
 
   // Helper function to get selected drivers' monthly earnings
   const getSelectedDriversMonthlyEarnings = () => {
-    console.log('getSelectedDriversMonthlyEarnings called:', {
-      driverFilterLength: driverFilter.length,
-      driverFilter,
-      hasPerformanceTrends: !!earningsData?.summary?.driver_performance_trends,
-      hasDrivers: !!earningsData?.data?.drivers,
-      totalDrivers: earningsData?.data?.drivers?.length,
-      hasDateFilters: !!(filters.startDate && filters.endDate)
-    });
-    
     if (!driverFilter.length || !earningsData?.data?.drivers) {
-      console.log('No drivers selected, returning overall monthly earnings');
       return earningsData?.summary?.monthly_earnings || [];
     }
     
@@ -1013,7 +931,6 @@ export default function AnalyticsPage() {
       
       if (hasDateFilters && earningsData?.summary?.driver_performance_trends) {
         // Use date-filtered performance trends
-        console.log('Using date-filtered performance trends for multiple drivers');
         selectedDrivers.forEach((driver: DriverEarnings) => {
           const driverTrend = earningsData.summary.driver_performance_trends.find(
             (trend: DriverPerformanceTrend) => trend.driver_name === driver.full_name
@@ -1030,7 +947,6 @@ export default function AnalyticsPage() {
         });
       } else {
         // Use overall driver data (no date filters)
-        console.log('Using overall driver data for multiple drivers (no date filters)');
         // For now, return overall monthly earnings since individual driver trends might not be available
         return earningsData?.summary?.monthly_earnings || [];
       }
@@ -1047,14 +963,12 @@ export default function AnalyticsPage() {
     
     if (hasDateFilters && earningsData?.summary?.driver_performance_trends) {
       // Use date-filtered performance trends
-      console.log('Using date-filtered performance trends for single driver');
       const driverTrend = earningsData.summary.driver_performance_trends.find(
         (driver: DriverPerformanceTrend) => driver.driver_name === selectedDriver.full_name
       );
       return driverTrend?.monthly_earnings || earningsData.summary.monthly_earnings || [];
     } else {
       // Use overall driver data (no date filters)
-      console.log('Using overall driver data for single driver (no date filters)');
       // For now, return overall monthly earnings since individual driver trends might not be available
       return earningsData?.summary?.monthly_earnings || [];
     }
@@ -1389,7 +1303,6 @@ export default function AnalyticsPage() {
                       value={filters.startDate || ''}
                       onChange={(e) => {
                         const newStartDate = e.target.value;
-                        console.log('Setting start date:', newStartDate, 'Type:', typeof newStartDate);
                         setFilters(prev => ({ 
                           ...prev, 
                           startDate: newStartDate
@@ -1405,7 +1318,6 @@ export default function AnalyticsPage() {
                       value={filters.endDate || ''}
                       onChange={(e) => {
                         const newEndDate = e.target.value;
-                        console.log('Setting end date:', newEndDate, 'Type:', typeof newEndDate);
                         setFilters(prev => ({ 
                           ...prev, 
                           endDate: newEndDate
@@ -1427,10 +1339,9 @@ export default function AnalyticsPage() {
                       label: driver.full_name
                     })) || []}
                     value={driverFilter}
-                    onChange={(newValue) => {
-                      console.log('Driver filter changed:', { oldValue: driverFilter, newValue });
-                      setDriverFilter(newValue);
-                    }}
+                                      onChange={(newValue) => {
+                    setDriverFilter(newValue);
+                  }}
                     placeholder={earningsData?.data?.drivers?.length ? "Select drivers..." : "Loading drivers..."}
                     searchPlaceholder="Search drivers..."
                     className="min-w-[300px]"
@@ -1448,13 +1359,7 @@ export default function AnalyticsPage() {
                   )}
                 </div>
               )}
-              {/* Debug info */}
-              <div className="text-xs text-gray-500">
-                Available drivers: {earningsData?.data?.drivers?.length || 0} | 
-                Selected: {driverFilter.length} | 
-                Filter state: {JSON.stringify(driverFilter)} |
-                Date range selected: {!!(filters.startDate && filters.endDate)}
-              </div>
+
             </div>
           </div>
         </Card>

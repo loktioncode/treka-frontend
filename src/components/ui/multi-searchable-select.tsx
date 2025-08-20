@@ -90,7 +90,6 @@ export function MultiSearchableSelect({
 
   const handleSelect = (optionValue: string) => {
     const newValue = [...value, optionValue];
-    console.log('MultiSelect handleSelect:', { optionValue, oldValue: value, newValue });
     onChange(newValue);
     setSearchQuery('');
     setHighlightedIndex(-1);
