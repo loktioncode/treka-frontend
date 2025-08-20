@@ -883,9 +883,9 @@ export default function UsersPage() {
               <div className="cursor-help">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 bg-teal-500 rounded-full"></span>
-                  <span className="text-gray-600 font-medium">
-                    {user.vehicle_assignments.length} assigned
-                  </span>
+                  <Badge variant="secondary" className="text-xs font-mono">
+                    {user.vehicle_assignments.length > 1 ? `${user.vehicle_assignments.length} vehicles` : '1 vehicle'}
+                  </Badge>
                 </div>
               </div>
             </VehicleAssignmentsTooltip>
