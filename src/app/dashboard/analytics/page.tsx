@@ -36,13 +36,12 @@ import { analyticsAPI, assetAPI, componentAPI, clientAPI, notificationAPI } from
 import { useAuth } from '@/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { useDriverEarnings, useLogisticsPerformance, useUploadEarnings } from '@/hooks/useLogisticsAnalytics';
+import { formatCurrency, getCurrencySymbol } from '@/lib/utils';
 import type { 
   AssetStatus, 
   AssetType, 
   Client,
-  DriverEarnings,
-  LogisticsEarningsSummary,
-  LogisticsPerformanceMetrics 
+  DriverEarnings
 } from '@/types/api';
 
 interface DashboardStats {
@@ -159,7 +158,7 @@ export default function AnalyticsPage() {
     !!currentClient && currentClient.client_type === 'logistics'
   );
   
-  const { data: performanceData, isLoading: performanceLoading } = useLogisticsPerformance(
+  const { data: performanceData } = useLogisticsPerformance(
     !!currentClient && currentClient.client_type === 'logistics'
   );
   
@@ -1036,7 +1035,9 @@ export default function AnalyticsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Logistics Analytics Dashboard</h2>
-              <p className="text-sm text-gray-600">Track driver performance and earnings from Uber Fleet</p>
+              <p className="text-sm text-gray-600">
+                Track driver performance and earnings from Uber Fleet
+              </p>
             </div>
             <Button onClick={() => setShowUploadModal(true)} className="bg-teal-600 hover:bg-teal-700 text-white">
               <Upload className="h-4 w-4 mr-2" />
@@ -1056,7 +1057,7 @@ export default function AnalyticsPage() {
             />
             <MetricCard
               title="Total Earnings"
-              value={`$${(earningsData?.summary?.total_earnings || 0).toLocaleString()}`}
+              value={formatCurrency(earningsData?.summary?.total_earnings || 0, earningsData?.summary?.currency || 'ZAR')}
               change="+0.0%"
               trend="up"
               icon={<DollarSign className="h-6 w-6" />}
@@ -1079,6 +1080,8 @@ export default function AnalyticsPage() {
               color="text-teal-600"
             />
           </div>
+
+
 
           {/* Driver Performance Table */}
           <Card className="p-6">
@@ -1119,13 +1122,13 @@ export default function AnalyticsPage() {
                           </div>
                         </td>
                         <td className="py-3 px-4 font-medium text-green-600">
-                          ${driver.total_earnings.toLocaleString()}
+                          {formatCurrency(driver.total_earnings, earningsData?.summary?.currency || 'ZAR')}
                         </td>
                         <td className="py-3 px-4 text-gray-700">
-                          ${driver.period_earnings['7d'].toLocaleString()}
+                          {formatCurrency(driver.period_earnings['7d'], earningsData?.summary?.currency || 'ZAR')}
                         </td>
                         <td className="py-3 px-4 text-gray-700">
-                          ${driver.period_earnings['30d'].toLocaleString()}
+                          {formatCurrency(driver.period_earnings['30d'], earningsData?.summary?.currency || 'ZAR')}
                         </td>
                         <td className="py-3 px-4 text-gray-700">
                           {driver.payment_count}

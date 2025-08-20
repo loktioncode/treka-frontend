@@ -4,11 +4,9 @@
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  analyticsAPI, 
-  type LogisticsEarningsResponse, 
-  type LogisticsPerformanceResponse,
-  type UploadEarningsResponse 
+  analyticsAPI
 } from '@/services/api';
+import type { UploadEarningsResponse } from '@/types/api';
 import toast from 'react-hot-toast';
 
 // Query keys for consistency

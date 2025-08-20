@@ -18,13 +18,15 @@ import {
 import { 
   User, 
   Mail, 
-  Settings, 
   Save,
   Edit,
   X,
   MessageSquare,
   Calendar,
-  Building
+  Building,
+  Globe,
+  Database,
+  LogOut
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -38,10 +40,11 @@ interface ProfileFormData {
     email: boolean;
     whatsapp: boolean;
   };
+  currency: string;
 }
 
 export default function ProfilePage() {
-  const { user, loadUser } = useAuth();
+  const { user, loadUser, logout } = useAuth();
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<ProfileFormData>({
@@ -51,7 +54,8 @@ export default function ProfilePage() {
     notification_preferences: {
       email: true,
       whatsapp: false
-    }
+    },
+    currency: 'ZAR'
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -65,7 +69,8 @@ export default function ProfilePage() {
         notification_preferences: {
           email: user.notification_preferences?.email ?? true,
           whatsapp: user.notification_preferences?.whatsapp ?? false
-        }
+        },
+        currency: 'ZAR' // Default currency, can be updated later
       });
     }
   }, [user]);
@@ -311,7 +316,7 @@ export default function ProfilePage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
+                <User className="h-5 w-5" />
                 Profile Details
               </CardTitle>
             </CardHeader>
@@ -397,11 +402,162 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 </FormSection>
+
+                <FormSection title="Currency Settings">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Default Currency</label>
+                      <select 
+                        value={formData.currency}
+                        onChange={(e) => handleInputChange('currency', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                        disabled={!editing}
+                      >
+                        <option value="ZAR">🇿🇦 South African Rand (ZAR)</option>
+                        <option value="USD">🇺🇸 US Dollar (USD)</option>
+                        <option value="EUR">🇪🇺 Euro (EUR)</option>
+                        <option value="GBP">🇬🇧 British Pound (GBP)</option>
+                        <option value="KES">🇰🇪 Kenyan Shilling (KES)</option>
+                        <option value="NGN">🇳🇬 Nigerian Naira (NGN)</option>
+                        <option value="GHS">🇬🇭 Ghanaian Cedi (GHS)</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        This currency will be used for displaying earnings, costs, and financial data throughout the application.
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Globe className="h-5 w-5 text-blue-600" />
+                        <div>
+                          <h4 className="text-sm font-medium text-blue-900">Currency Display</h4>
+                          <p className="text-xs text-blue-700">
+                            All financial amounts will be displayed in your selected currency. 
+                            Historical data will maintain their original currency values.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </FormSection>
+
+                <FormSection title="Integration Settings">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <Globe className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-900">API Integration</h4>
+                          <p className="text-sm text-gray-500">
+                            Connect external services and manage API keys
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!editing}
+                        className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                      >
+                        Configure
+                      </Button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                          <Database className="h-5 w-5 text-green-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-900">Database Connections</h4>
+                          <p className="text-sm text-gray-500">
+                            Manage database connections and configurations
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!editing}
+                        className="text-green-600 border-green-200 hover:bg-green-50"
+                      >
+                        Configure
+                      </Button>
+                    </div>
+                  </div>
+                </FormSection>
+
+                <FormSection title="Regional Settings">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Time Zone</label>
+                      <select 
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                        disabled={!editing}
+                      >
+                        <option value="Africa/Harare">Africa/Harare (UTC+2)</option>
+                        <option value="Africa/Johannesburg">Africa/Johannesburg (UTC+2)</option>
+                        <option value="Africa/Lagos">Africa/Lagos (UTC+1)</option>
+                        <option value="Africa/Nairobi">Africa/Nairobi (UTC+3)</option>
+                        <option value="America/New_York">America/New_York (UTC-5)</option>
+                        <option value="Europe/London">Europe/London (UTC+0)</option>
+                        <option value="Europe/Paris">Europe/Paris (UTC+1)</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Date Format</label>
+                      <select 
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                        disabled={!editing}
+                      >
+                        <option value="MM/DD/YYYY">MM/DD/YYYY (US)</option>
+                        <option value="DD/MM/YYYY">DD/MM/YYYY (European)</option>
+                        <option value="YYYY-MM-DD">YYYY-MM-DD (ISO)</option>
+                      </select>
+                    </div>
+                  </div>
+                </FormSection>
               </Form>
             </CardContent>
           </Card>
         </motion.div>
       </div>
+
+      {/* Logout Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="pt-8 border-t border-gray-200"
+      >
+        <Card className="border-red-100 bg-red-50">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                  <LogOut className="h-5 w-5 text-red-600" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-medium text-red-900">Sign Out</h4>
+                  <p className="text-sm text-red-700">
+                    Sign out of your account. You will need to sign in again to access the application.
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={logout}
+                className="bg-teal-800 hover:bg-teal-900 text-white px-6 py-3 text-base font-medium"
+              >
+                <LogOut className="h-5 w-5 mr-2" />
+                Sign Out
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 }

@@ -76,6 +76,7 @@ export interface Client {
     country: string;
     zip_code: string;
   };
+  default_currency?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -415,6 +416,7 @@ export interface DriverEarnings {
 export interface LogisticsEarningsSummary {
   total_drivers: number;
   total_earnings: number;
+  currency: string;
   periods: {
     '7d': number;
     '30d': number;
@@ -427,7 +429,7 @@ export interface LogisticsEarningsSummary {
 
 export interface LogisticsEarningsData {
   drivers: DriverEarnings[];
-  raw_data: Record<string, any>;
+  raw_data: Record<string, unknown>;
 }
 
 export interface LogisticsEarningsResponse {
