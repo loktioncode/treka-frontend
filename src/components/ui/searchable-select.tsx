@@ -60,12 +60,6 @@ export function SearchableSelect({
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    if (isOpen && containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-    }
-  }, [isOpen]);
-
   const handleKeyDown = (event: React.KeyboardEvent) => {
     switch (event.key) {
       case 'ArrowDown':
