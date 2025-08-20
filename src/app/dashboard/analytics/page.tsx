@@ -1039,7 +1039,7 @@ export default function AnalyticsPage() {
                 Track driver performance and earnings from Uber Fleet
               </p>
             </div>
-            <Button onClick={() => setShowUploadModal(true)} className="bg-teal-600 hover:bg-teal-700 text-white">
+            <Button onClick={() => setShowUploadModal(true)} className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
               <Upload className="h-4 w-4 mr-2" />
               Upload Earnings CSV
             </Button>
@@ -1145,7 +1145,7 @@ export default function AnalyticsPage() {
                 <p className="text-gray-600 mb-4">
                   Upload a CSV file from Uber Fleet to start tracking driver earnings and performance.
                 </p>
-                <Button onClick={() => setShowUploadModal(true)} className="bg-teal-600 hover:bg-teal-700 text-white">
+                <Button onClick={() => setShowUploadModal(true)} className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
                   <Upload className="h-4 w-4 mr-2" />
                   Upload First CSV
                 </Button>
@@ -1401,7 +1401,7 @@ export default function AnalyticsPage() {
                 }
               }}
               disabled={!uploadFile || uploadEarningsMutation.isPending}
-              className="bg-teal-600 hover:bg-teal-700 text-white"
+              className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
             >
               {uploadEarningsMutation.isPending ? (
                 <>

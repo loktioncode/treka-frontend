@@ -58,6 +58,7 @@ export default function ProfilePage() {
     currency: 'ZAR'
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Initialize form data when user loads
   useEffect(() => {
@@ -122,6 +123,15 @@ export default function ProfilePage() {
         [field]: ''
       }));
     }
+  };
+
+  const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    logout();
+    setShowLogoutConfirm(false);
   };
 
   const handleSave = async () => {
@@ -548,7 +558,7 @@ export default function ProfilePage() {
                 </div>
               </div>
               <Button
-                onClick={logout}
+                onClick={handleLogout}
                 className="bg-teal-800 hover:bg-teal-900 text-white px-6 py-3 text-base font-medium"
               >
                 <LogOut className="h-5 w-5 mr-2" />
@@ -558,6 +568,39 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                <LogOut className="h-5 w-5 text-red-600" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900">Confirm Sign Out</h3>
+            </div>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to sign out? You will need to sign in again to access the application.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setShowLogoutConfirm(false)}
+                className="px-4 py-2"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmLogout}
+                className="bg-teal-800 hover:bg-teal-900 text-white px-4 py-2"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
