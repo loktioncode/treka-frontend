@@ -24,6 +24,8 @@ export interface User {
   license_front_image?: string;  // Path to front license image
   license_back_image?: string;   // Path to back license image
   vehicle_assignments?: string[];
+  // Uber driver linking field (only for drivers imported from payouts)
+  uber_driver_uuid?: string;
 }
 
 export interface CreateUserRequest {
@@ -47,6 +49,8 @@ export interface CreateUserRequest {
   license_front_image?: string;
   license_back_image?: string;
   vehicle_assignments?: string[];
+  // Uber driver linking field (only for drivers imported from payouts)
+  uber_driver_uuid?: string;
 }
 
 export interface CreateAdminRequest extends CreateUserRequest {

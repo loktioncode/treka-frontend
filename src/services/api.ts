@@ -429,64 +429,26 @@ export const analyticsAPI = {
     return response.data;
   },
 
-  getClientStats: async () => {
-    const response = await api.get('/analytics/client-stats');
+  getAIInsights: async (message: string, filters: Record<string, unknown>) => {
+    const response = await api.post('/analytics/ai-insights', { message, filters });
     return response.data;
   },
 
-  getSystemHealth: async () => {
-    const response = await api.get('/analytics/system-health');
-    return response.data;
-  },
-
-  getAIInsights: async (query: string, filters?: Record<string, unknown>) => {
-    // Try completely different payload structures that might be expected
-    const payload = {
-      // Try a data wrapper structure
-      data: {
-        query: query,
-        filters: filters
-      },
-      // Also try individual fields
-      user_query: query,
-      analysis_request: query,
-      context: {
-        filters: filters
-      }
-    };
-    
-    console.log('AI Insights API payload:', payload);
-    const response = await api.post('/analytics/ai-insights', payload);
-    return response.data;
-  },
-
-  // Logistics Analytics endpoints
-  getLogisticsDriverEarnings: async (driverName?: string, dateRange?: string, startDate?: string, endDate?: string) => {
-    const params: Record<string, string> = {};
-    if (driverName) params.driver_name = driverName;
-    if (dateRange) params.date_range = dateRange;
+  // Logistics analytics endpoints
+  getDriverEarnings: async (dateRange: string = '30d', startDate?: string, endDate?: string) => {
+    const params: Record<string, string> = { date_range: dateRange };
     if (startDate) params.start_date = startDate;
     if (endDate) params.end_date = endDate;
-    
-    console.log('getLogisticsDriverEarnings API call with params:', params);
-    console.log('Making API call to:', '/analytics/logistics/driver-earnings');
-    
-    try {
-      const response = await api.get('/analytics/logistics/driver-earnings', { params });
-      console.log('API response received:', response.status, response.data);
-      return response.data;
-    } catch (error) {
-      console.error('API call failed:', error);
-      throw error;
-    }
+    const response = await api.get('/analytics/logistics/driver-earnings', { params });
+    return response.data;
   },
 
-  getLogisticsPerformanceMetrics: async () => {
+  getLogisticsPerformance: async () => {
     const response = await api.get('/analytics/logistics/performance-metrics');
     return response.data;
   },
 
-  uploadLogisticsEarnings: async (file: File) => {
+  uploadEarnings: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
     const response = await api.post('/analytics/logistics/upload-earnings', formData, {
@@ -495,7 +457,13 @@ export const analyticsAPI = {
       },
     });
     return response.data;
-  }
+  },
+
+  // Get all payouts for driver selection in user creation
+  getAllPayouts: async () => {
+    const response = await api.get('/analytics/logistics/all-payouts');
+    return response.data;
+  },
 };
 
 // Chat API endpoints

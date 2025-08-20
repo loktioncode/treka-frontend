@@ -19,6 +19,7 @@ import {
   useDeleteUser 
 } from '@/hooks/useUsers';
 import { useClients } from '@/hooks/useClients';
+import { usePayouts } from '@/hooks/usePayouts';
 import { DataTable, type Column, type DataTableAction } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -93,6 +94,7 @@ export default function UsersPage() {
   // React Query hooks - backend now handles role-based filtering
   const { data: users = [], isLoading: loading } = useUsers();
   const { data: clients = [] } = useClients();
+  const { data: payoutsData } = usePayouts();
   const createUserMutation = useCreateUser();
   const createAdminMutation = useCreateAdmin();
   const updateUserMutation = useUpdateUser();
@@ -131,6 +133,7 @@ export default function UsersPage() {
     license_front_image: undefined,
     license_back_image: undefined,
     vehicle_assignments: [],
+    uber_driver_uuid: undefined,
     notification_preferences: {
       email: true,
       whatsapp: false
@@ -255,6 +258,7 @@ export default function UsersPage() {
       license_front_image: undefined,
       license_back_image: undefined,
       vehicle_assignments: [],
+      uber_driver_uuid: undefined,
       notification_preferences: {
         email: true,
         whatsapp: false
@@ -512,6 +516,7 @@ export default function UsersPage() {
       license_front_image: user.license_front_image || '',
       license_back_image: user.license_back_image || '',
       vehicle_assignments: user.vehicle_assignments || [],
+      uber_driver_uuid: user.uber_driver_uuid || '',
       notification_preferences: user.notification_preferences
     });
     setShowUserModal(true);
@@ -595,6 +600,9 @@ export default function UsersPage() {
       }
       if (JSON.stringify(editFormData.vehicle_assignments) !== JSON.stringify(selectedUser.vehicle_assignments)) {
         changedFields.vehicle_assignments = editFormData.vehicle_assignments;
+      }
+      if (editFormData.uber_driver_uuid !== selectedUser.uber_driver_uuid) {
+        changedFields.uber_driver_uuid = editFormData.uber_driver_uuid;
       }
       
       console.log('Only sending changed fields:', changedFields);
@@ -861,6 +869,21 @@ export default function UsersPage() {
             </div>
           ) : (
             <span className="text-gray-400">None</span>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'uber_driver_uuid',
+      title: 'Linked Driver',
+      render: (user) => (
+        <div className="text-sm">
+          {user.uber_driver_uuid ? (
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              {user.uber_driver_uuid.slice(0, 8)}...
+            </span>
+          ) : (
+            <span className="text-gray-400">-</span>
           )}
         </div>
       )
@@ -1442,6 +1465,67 @@ export default function UsersPage() {
                     </p>
                   )}
                 </FormField>
+
+                {/* Driver Selection from Payouts - Only show for logistics clients */}
+                {user?.role === 'admin' && user.client_id && clients.find((c: Client) => c.id === user.client_id)?.client_type === 'logistics' && (
+                  <FormField name="uber_driver_uuid">
+                    <FormLabel>Linked Imported Driver</FormLabel>
+                    <Select
+                      value={formData.uber_driver_uuid || ''}
+                      onChange={(e) => {
+                        const selectedDriverUuid = e.target.value;
+                        setFormData({ ...formData, uber_driver_uuid: selectedDriverUuid || undefined });
+                        
+                        // If a driver is selected, pre-populate first and last name
+                        if (selectedDriverUuid && payoutsData?.payouts) {
+                          const selectedDriver = payoutsData.payouts.find(driver => driver.uuid === selectedDriverUuid);
+                          if (selectedDriver) {
+                            setFormData(prev => ({
+                              ...prev,
+                              first_name: selectedDriver.first_name,
+                              last_name: selectedDriver.surname
+                            }));
+                          }
+                        }
+                      }}
+                      options={[
+                        { value: '', label: 'No driver linked' },
+                        ...(payoutsData?.payouts
+                          ?.filter(driver => {
+                            // Filter out drivers that already have users (except current user)
+                            return !users.some((user: User) => 
+                              user.uber_driver_uuid === driver.uuid && user.id !== selectedUser?.id
+                            );
+                          })
+                          .map(driver => ({
+                            value: driver.uuid,
+                            label: `${driver.full_name} (${driver.payment_count} payments, ${driver.total_earnings.toLocaleString('en-ZA', { style: 'currency', currency: 'ZAR' })})`
+                          })) || [])
+                      ]}
+                      disabled={isSubmitting || !payoutsData?.payouts}
+                      className={formData.uber_driver_uuid ? 'border-teal-600' : ''}
+                    />
+                    <p className="text-sm text-gray-500 mt-1">
+                      {payoutsData?.payouts ? (
+                        <>
+                          Link this user to an imported driver from your earnings data. 
+                          This will automatically populate the first and last name fields.
+                          {formData.uber_driver_uuid ? (
+                            <span className="text-teal-600 font-medium">
+                              {' '}Currently linked to: {payoutsData.payouts.find(driver => driver.uuid === formData.uber_driver_uuid)?.full_name}
+                            </span>
+                          ) : (
+                            <span className="text-gray-600">
+                              {' '}No driver currently linked.
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        'Loading available drivers...'
+                      )}
+                    </p>
+                  </FormField>
+                )}
               </>
             )}
           </FormSection>
@@ -1630,6 +1714,19 @@ export default function UsersPage() {
                           </span>
                         ))}
                       </div>
+                    </div>
+                  )}
+                  {selectedUser.uber_driver_uuid && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Linked Driver</label>
+                      <p className="text-gray-900">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {selectedUser.uber_driver_uuid}
+                        </span>
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Linked to imported driver from earnings data
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1992,6 +2089,67 @@ export default function UsersPage() {
                   )}
                 </FormField>
               </FormGrid>
+
+              {/* Driver Selection from Payouts - Only show for logistics clients */}
+              {user?.role === 'admin' && user.client_id && clients.find((c: Client) => c.id === user.client_id)?.client_type === 'logistics' && (
+                <FormField name="uber_driver_uuid">
+                  <FormLabel>Linked Imported Driver</FormLabel>
+                  <Select
+                    value={editFormData.uber_driver_uuid || ''}
+                    onChange={(e) => {
+                      const selectedDriverUuid = e.target.value;
+                      setEditFormData({ ...editFormData, uber_driver_uuid: selectedDriverUuid || undefined });
+                      
+                      // If a driver is selected, pre-populate first and last name
+                      if (selectedDriverUuid && payoutsData?.payouts) {
+                        const selectedDriver = payoutsData.payouts.find(driver => driver.uuid === selectedDriverUuid);
+                        if (selectedDriver) {
+                          setEditFormData(prev => ({
+                            ...prev,
+                            first_name: selectedDriver.first_name,
+                            last_name: selectedDriver.surname
+                          }));
+                        }
+                      }
+                    }}
+                    options={[
+                      { value: '', label: 'No driver linked' },
+                      ...(payoutsData?.payouts
+                        ?.filter(driver => {
+                          // Filter out drivers that already have users (except current user)
+                          return !users.some((user: User) => 
+                            user.uber_driver_uuid === driver.uuid && user.id !== selectedUser?.id
+                          );
+                        })
+                        .map(driver => ({
+                          value: driver.uuid,
+                          label: `${driver.full_name} (${driver.payment_count} payments, ${driver.total_earnings.toLocaleString('en-ZA', { style: 'currency', currency: 'ZAR' })})`
+                        })) || [])
+                    ]}
+                    disabled={isSubmitting || !payoutsData?.payouts}
+                    className={editFormData.uber_driver_uuid ? 'border-teal-600' : ''}
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    {payoutsData?.payouts ? (
+                      <>
+                        Link this user to an imported driver from your earnings data. 
+                        This will automatically populate the first and last name fields.
+                        {editFormData.uber_driver_uuid ? (
+                          <span className="text-teal-600 font-medium">
+                            {' '}Currently linked to: {payoutsData.payouts.find(driver => driver.uuid === editFormData.uber_driver_uuid)?.full_name}
+                          </span>
+                        ) : (
+                          <span className="text-gray-600">
+                            {' '}No driver currently linked.
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      'Loading available drivers...'
+                    )}
+                  </p>
+                </FormField>
+              )}
 
               {/* License Images */}
               <FormGrid cols={2}>

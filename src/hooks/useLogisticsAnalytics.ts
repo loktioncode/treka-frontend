@@ -3,83 +3,74 @@
  * Provides caching, optimistic updates, and proper error handling
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  analyticsAPI
-} from '@/services/api';
-import type { UploadEarningsResponse } from '@/types/api';
+import { analyticsAPI } from '@/services/api';
 import toast from 'react-hot-toast';
-import { useEffect } from 'react';
-
-// Query keys for consistency
-export const logisticsKeys = {
-  all: ['logistics'] as const,
-  earnings: () => [...logisticsKeys.all, 'earnings'] as const,
-  earningsList: (driverName?: string) => [...logisticsKeys.earnings(), driverName] as const,
-  performance: () => [...logisticsKeys.all, 'performance'] as const,
-};
 
 /**
- * Hook to fetch driver earnings data
+ * Hook to fetch logistics driver earnings data
  */
-export function useDriverEarnings(driverName?: string, dateRange?: string, startDate?: string, endDate?: string, enabled = true) {
-  console.log('useDriverEarnings called with:', { driverName, dateRange, startDate, endDate, enabled });
-  
-  // Log when parameters change
-  useEffect(() => {
-    console.log('useDriverEarnings parameters changed:', { driverName, dateRange, startDate, endDate, enabled });
-  }, [driverName, dateRange, startDate, endDate, enabled]);
-  
-  // Build query key with only defined parameters
-  const queryKey = [
-    ...logisticsKeys.earningsList(driverName),
-    dateRange || 'default',
-    startDate || 'default',
-    endDate || 'default'
-  ];
-  
+export const useDriverEarnings = (
+  driverName?: string,
+  dateRange: string = '30d',
+  startDate?: string,
+  endDate?: string,
+  enabled: boolean = true
+) => {
   return useQuery({
-    queryKey,
+    queryKey: ['logistics-driver-earnings', driverName, dateRange, startDate, endDate],
     queryFn: () => {
-      console.log('Calling analyticsAPI.getLogisticsDriverEarnings with:', { driverName, dateRange, startDate, endDate });
-      return analyticsAPI.getLogisticsDriverEarnings(driverName, dateRange, startDate, endDate);
+      console.log('Calling analyticsAPI.getDriverEarnings with:', { driverName, dateRange, startDate, endDate });
+      return analyticsAPI.getDriverEarnings(dateRange, startDate, endDate);
     },
     enabled: enabled,
     staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 10,   // 10 minutes
+    gcTime: 1000 * 60 * 10, // 10 minutes
+    retry: 2,
+    retryDelay: 1000,
   });
-}
+};
 
 /**
  * Hook to fetch logistics performance metrics
  */
-export function useLogisticsPerformance(enabled = true) {
+export const useLogisticsPerformance = (enabled: boolean = true) => {
   return useQuery({
-    queryKey: logisticsKeys.performance(),
-    queryFn: () => analyticsAPI.getLogisticsPerformanceMetrics(),
+    queryKey: ['logistics-performance'],
+    queryFn: () => {
+      console.log('Calling analyticsAPI.getLogisticsPerformance');
+      return analyticsAPI.getLogisticsPerformance();
+    },
     enabled: enabled,
     staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 10,   // 10 minutes
+    gcTime: 1000 * 60 * 10, // 10 minutes
+    retry: 2,
+    retryDelay: 1000,
   });
-}
+};
 
 /**
  * Hook to upload earnings CSV file
  */
-export function useUploadEarnings() {
+export const useUploadEarnings = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (file: File) => analyticsAPI.uploadLogisticsEarnings(file),
-    onSuccess: (response: UploadEarningsResponse) => {
-      // Invalidate and refetch earnings data
-      queryClient.invalidateQueries({ queryKey: logisticsKeys.earnings() });
-      
-      toast.success(`Earnings data uploaded successfully! ${response.total_drivers} drivers, ${response.total_payments} payments`);
+    mutationFn: (file: File) => {
+      console.log('Calling analyticsAPI.uploadEarnings with file:', file.name);
+      return analyticsAPI.uploadEarnings(file);
     },
-    onError: (error: unknown) => {
-      const errorWithResponse = error as { response?: { data?: { detail?: string } } };
-      const message = errorWithResponse?.response?.data?.detail || 'Failed to upload earnings data';
-      toast.error(message);
+    onSuccess: (data) => {
+      console.log('Earnings upload successful:', data);
+      toast.success(`Successfully uploaded earnings data for ${data.total_drivers} drivers`);
+      
+      // Invalidate related queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['logistics-driver-earnings'] });
+      queryClient.invalidateQueries({ queryKey: ['logistics-performance'] });
+      queryClient.invalidateQueries({ queryKey: ['payouts'] });
+    },
+    onError: (error: Error) => {
+      console.error('Earnings upload failed:', error);
+      toast.error('Failed to upload earnings data. Please try again.');
     },
   });
-}
+};

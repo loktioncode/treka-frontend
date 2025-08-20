@@ -62,8 +62,13 @@ export function useCreateUser() {
   return useMutation({
     mutationFn: (userData: CreateUserRequest) => userAPI.createUser(userData),
     onSuccess: (newUser) => {
-      // Invalidate and refetch users list
-      queryClient.invalidateQueries({ queryKey: userKeys.lists() });
+      // Invalidate all user queries to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: userKeys.all });
+      
+      // If a driver was created with uber_driver_uuid, invalidate payouts to update available drivers
+      if (newUser.role === 'driver' && newUser.uber_driver_uuid) {
+        queryClient.invalidateQueries({ queryKey: ['payouts'] });
+      }
       
       // Add the new user to the cache
       queryClient.setQueryData(userKeys.detail(newUser.id), newUser);
@@ -87,8 +92,13 @@ export function useCreateAdmin() {
   return useMutation({
     mutationFn: (adminData: CreateAdminRequest) => userAPI.createAdmin(adminData),
     onSuccess: (newAdmin) => {
-      // Invalidate and refetch users list
-      queryClient.invalidateQueries({ queryKey: userKeys.lists() });
+      // Invalidate all user queries to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: userKeys.all });
+      
+      // If a driver was created with uber_driver_uuid, invalidate payouts to update available drivers
+      if (newAdmin.role === 'driver' && newAdmin.uber_driver_uuid) {
+        queryClient.invalidateQueries({ queryKey: ['payouts'] });
+      }
       
       // Add the new admin to the cache
       queryClient.setQueryData(userKeys.detail(newAdmin.id), newAdmin);
@@ -115,11 +125,11 @@ export function useUpdateUser() {
     onMutate: async ({ userId, data }) => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: userKeys.detail(userId) });
-      await queryClient.cancelQueries({ queryKey: userKeys.lists() });
+      await queryClient.cancelQueries({ queryKey: userKeys.all });
 
       // Snapshot previous values
       const previousUser = queryClient.getQueryData<User>(userKeys.detail(userId));
-      const previousUsers = queryClient.getQueryData<User[]>(userKeys.lists());
+      const previousUsers = queryClient.getQueryData<User[]>(userKeys.all);
 
       // Optimistically update user detail
       if (previousUser) {
@@ -132,7 +142,7 @@ export function useUpdateUser() {
 
       // Optimistically update users list
       if (previousUsers) {
-        queryClient.setQueryData(userKeys.lists(), 
+        queryClient.setQueryData(userKeys.all, 
           previousUsers.map(user => 
             user.id === userId 
               ? { ...user, ...data, updated_at: new Date().toISOString() }
@@ -149,7 +159,7 @@ export function useUpdateUser() {
         queryClient.setQueryData(userKeys.detail(variables.userId), context.previousUser);
       }
       if (context?.previousUsers) {
-        queryClient.setQueryData(userKeys.lists(), context.previousUsers);
+        queryClient.setQueryData(userKeys.all, context.previousUsers);
       }
       
       const errorWithResponse = error as { response?: { data?: { detail?: string } } };
@@ -159,7 +169,7 @@ export function useUpdateUser() {
     onSettled: (data, error, variables) => {
       // Always refetch after error or success to ensure consistency
       queryClient.invalidateQueries({ queryKey: userKeys.detail(variables.userId) });
-      queryClient.invalidateQueries({ queryKey: userKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: userKeys.all });
     },
   });
 }
@@ -176,11 +186,11 @@ export function useUpdateUserRole() {
     onMutate: async ({ userId, role, clientId }) => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: userKeys.detail(userId) });
-      await queryClient.cancelQueries({ queryKey: userKeys.lists() });
+      await queryClient.cancelQueries({ queryKey: userKeys.all });
 
       // Snapshot previous values
       const previousUser = queryClient.getQueryData<User>(userKeys.detail(userId));
-      const previousUsers = queryClient.getQueryData<User[]>(userKeys.lists());
+      const previousUsers = queryClient.getQueryData<User[]>(userKeys.all);
 
       // Optimistically update user detail
       if (previousUser) {
@@ -194,7 +204,7 @@ export function useUpdateUserRole() {
 
       // Optimistically update users list
       if (previousUsers) {
-        queryClient.setQueryData(userKeys.lists(), 
+        queryClient.setQueryData(userKeys.all, 
           previousUsers.map(user => 
             user.id === userId 
               ? { ...user, role: role as User['role'], client_id: clientId, updated_at: new Date().toISOString() }
@@ -211,7 +221,7 @@ export function useUpdateUserRole() {
         queryClient.setQueryData(userKeys.detail(variables.userId), context.previousUser);
       }
       if (context?.previousUsers) {
-        queryClient.setQueryData(userKeys.lists(), context.previousUsers);
+        queryClient.setQueryData(userKeys.all, context.previousUsers);
       }
       
       const errorWithResponse = error as { response?: { data?: { detail?: string } } };
@@ -224,7 +234,7 @@ export function useUpdateUserRole() {
     onSettled: (data, error, variables) => {
       // Always refetch after error or success to ensure consistency
       queryClient.invalidateQueries({ queryKey: userKeys.detail(variables.userId) });
-      queryClient.invalidateQueries({ queryKey: userKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: userKeys.all });
     },
   });
 }
@@ -241,11 +251,11 @@ export function useToggleUserActivation() {
     onMutate: async ({ userId, activate }) => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: userKeys.detail(userId) });
-      await queryClient.cancelQueries({ queryKey: userKeys.lists() });
+      await queryClient.cancelQueries({ queryKey: userKeys.all });
 
       // Snapshot previous values
       const previousUser = queryClient.getQueryData<User>(userKeys.detail(userId));
-      const previousUsers = queryClient.getQueryData<User[]>(userKeys.lists());
+      const previousUsers = queryClient.getQueryData<User[]>(userKeys.all);
 
       // Optimistically update user detail
       if (previousUser) {
@@ -258,7 +268,7 @@ export function useToggleUserActivation() {
 
       // Optimistically update users list
       if (previousUsers) {
-        queryClient.setQueryData(userKeys.lists(), 
+        queryClient.setQueryData(userKeys.all, 
           previousUsers.map(user => 
             user.id === userId 
               ? { ...user, is_active: activate, updated_at: new Date().toISOString() }
@@ -275,7 +285,7 @@ export function useToggleUserActivation() {
         queryClient.setQueryData(userKeys.detail(variables.userId), context.previousUser);
       }
       if (context?.previousUsers) {
-        queryClient.setQueryData(userKeys.lists(), context.previousUsers);
+        queryClient.setQueryData(userKeys.all, context.previousUsers);
       }
       
       toast.error('Failed to update user status');
@@ -286,7 +296,7 @@ export function useToggleUserActivation() {
     onSettled: (data, error, variables) => {
       // Always refetch after error or success to ensure consistency
       queryClient.invalidateQueries({ queryKey: userKeys.detail(variables.userId) });
-      queryClient.invalidateQueries({ queryKey: userKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: userKeys.all });
     },
   });
 }
@@ -302,15 +312,15 @@ export function useDeleteUser() {
     onMutate: async (userId) => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: userKeys.detail(userId) });
-      await queryClient.cancelQueries({ queryKey: userKeys.lists() });
+      await queryClient.cancelQueries({ queryKey: userKeys.all });
 
       // Snapshot previous values
       const previousUser = queryClient.getQueryData<User>(userKeys.detail(userId));
-      const previousUsers = queryClient.getQueryData<User[]>(userKeys.lists());
+      const previousUsers = queryClient.getQueryData<User[]>(userKeys.all);
 
       // Optimistically remove user from list
       if (previousUsers) {
-        queryClient.setQueryData(userKeys.lists(), 
+        queryClient.setQueryData(userKeys.all, 
           previousUsers.filter(user => user.id !== userId)
         );
       }
@@ -323,7 +333,7 @@ export function useDeleteUser() {
     onError: (error, userId, context) => {
       // Rollback on error
       if (context?.previousUsers) {
-        queryClient.setQueryData(userKeys.lists(), context.previousUsers);
+        queryClient.setQueryData(userKeys.all, context.previousUsers);
       }
       if (context?.previousUser) {
         queryClient.setQueryData(userKeys.detail(userId), context.previousUser);
@@ -336,7 +346,7 @@ export function useDeleteUser() {
     },
     onSettled: () => {
       // Always refetch after error or success to ensure consistency
-      queryClient.invalidateQueries({ queryKey: userKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: userKeys.all });
     },
   });
 }
