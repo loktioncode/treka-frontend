@@ -354,7 +354,7 @@ export default function AnalyticsPage() {
     if (currentClient?.client_type === 'logistics' && !filters.dateRange) {
       setFilters(prev => ({
         ...prev,
-        dateRange: '30d',
+        dateRange: '1y',
         startDate: undefined,
         endDate: undefined
       }));
@@ -376,7 +376,7 @@ export default function AnalyticsPage() {
       '5y': 'Last 5 Years'
     };
     
-    return periodLabels[filters.dateRange as keyof typeof periodLabels] || 'Last 30 Days';
+    return periodLabels[filters.dateRange as keyof typeof periodLabels] || 'Last Year';
   };
 
   // Helper function to check if there's meaningful data
@@ -1283,7 +1283,7 @@ export default function AnalyticsPage() {
                   onClick={() => {
                     setFilters(prev => ({ 
                       ...prev, 
-                      dateRange: '30d',
+                      dateRange: '1y',
                       startDate: undefined,
                       endDate: undefined
                     }));
@@ -1294,7 +1294,7 @@ export default function AnalyticsPage() {
                   size="sm"
                   className="text-xs"
                 >
-                  Reset to 30 Days
+                  Reset to 1 Year
                 </Button>
               </div>
             </div>
@@ -1398,7 +1398,7 @@ export default function AnalyticsPage() {
           filters={filters}
           onFiltersChange={setFilters}
           onReset={() => setFilters({ 
-            dateRange: '30d',
+            dateRange: '1y',
             startDate: undefined,
             endDate: undefined,
             assetIds: undefined,

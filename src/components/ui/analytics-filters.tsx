@@ -60,7 +60,7 @@ export function AnalyticsFilters({
 }: AnalyticsFiltersProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [localFilters, setLocalFilters] = useState<AnalyticsFilters>({
-    dateRange: filters.dateRange || '30d', // Use passed filters or default to last 30 days
+    dateRange: filters.dateRange || '1y', // Use passed filters or default to last 1 year
     startDate: filters.startDate,
     endDate: filters.endDate,
     assetIds: filters.assetIds,
@@ -89,7 +89,7 @@ export function AnalyticsFilters({
 
   const handleReset = () => {
     const defaultFilters: AnalyticsFilters = {
-      dateRange: '30d', // Default to last 30 days for better initial data display
+      dateRange: '1y', // Default to last 1 year for better initial data display
       startDate: undefined,
       endDate: undefined,
       assetIds: undefined,
