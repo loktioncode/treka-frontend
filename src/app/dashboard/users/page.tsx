@@ -47,7 +47,8 @@ import {
   ToggleRight,
   Eye,
   Edit,
-  Phone
+  Phone,
+  Building2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -844,7 +845,9 @@ export default function UsersPage() {
       title: 'Industry',
       render: (user) => (
         <div className="text-sm">
-          {user.industry ? (
+          {user.role === 'driver' ? (
+            <span className="text-blue-600 font-medium">logistics/trans</span>
+          ) : user.industry ? (
             <span className="text-blue-600 font-medium">{user.industry}</span>
           ) : (
             <span className="text-gray-400">Not set</span>
@@ -852,28 +855,7 @@ export default function UsersPage() {
         </div>
       )
     },
-    {
-      key: 'specializations',
-      title: 'Specializations',
-      render: (user) => (
-        <div className="text-sm">
-          {user.specializations && user.specializations.length > 0 ? (
-            <div className="flex flex-wrap gap-1">
-              {user.specializations.slice(0, 2).map((spec, index) => (
-                <span key={index} className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
-                  {spec}
-                </span>
-              ))}
-              {user.specializations.length > 2 && (
-                <span className="text-xs text-gray-500">+{user.specializations.length - 2} more</span>
-              )}
-            </div>
-          ) : (
-            <span className="text-gray-400">None</span>
-          )}
-        </div>
-      )
-    },
+
     {
       key: 'uber_driver_uuid',
       title: 'Linked Driver',
@@ -1711,23 +1693,27 @@ export default function UsersPage() {
             </div>
 
             {/* Role-specific Information */}
-            {selectedUser.role === 'technician' && (
+            {(selectedUser.role === 'technician' || selectedUser.role === 'driver') && (
               <div>
-                <h4 className="text-md font-medium text-gray-900 mb-3">Technician Information</h4>
+                <h4 className="text-md font-medium text-gray-900 mb-3">
+                  {selectedUser.role === 'technician' ? 'Technician' : 'Driver'} Information
+                </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {selectedUser.hourly_rate && (
+                  {selectedUser.role === 'technician' && selectedUser.hourly_rate && (
                     <div>
                       <label className="text-sm font-medium text-gray-500">Hourly Rate</label>
                       <p className="text-gray-900">${selectedUser.hourly_rate}/hour</p>
                     </div>
                   )}
-                  {selectedUser.industry && (
+                  {(selectedUser.industry || selectedUser.role === 'driver') && (
                     <div>
                       <label className="text-sm font-medium text-gray-500">Industry</label>
-                      <p className="text-gray-900">{selectedUser.industry}</p>
+                      <p className="text-gray-900">
+                        {selectedUser.role === 'driver' ? 'logistics/trans' : selectedUser.industry}
+                      </p>
                     </div>
                   )}
-                  {selectedUser.specializations && selectedUser.specializations.length > 0 && (
+                  {selectedUser.role === 'technician' && selectedUser.specializations && selectedUser.specializations.length > 0 && (
                     <div className="md:col-span-2">
                       <label className="text-sm font-medium text-gray-500">Specializations</label>
                       <div className="flex flex-wrap gap-1 mt-1">
@@ -1743,7 +1729,7 @@ export default function UsersPage() {
               </div>
             )}
 
-            {selectedUser.role === 'driver' && (
+            {(selectedUser.role && selectedUser.role === 'driver') && (
               <div>
                 <h4 className="text-md font-medium text-gray-900 mb-3">Driver Information</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1909,8 +1895,8 @@ export default function UsersPage() {
               </FormField>
             </FormGrid>
 
-            {/* Technician-specific fields - only show if user is NOT a driver */}
-            {editFormData.role !== 'driver' && (
+            {/* Role-specific fields */}
+            {editFormData.role === 'technician' && (
               <>
                 <FormField name="hourly_rate">
                   <FormLabel>Hourly Rate (Optional)</FormLabel>
@@ -2009,6 +1995,21 @@ export default function UsersPage() {
                   </FormField>
                 )}
               </>
+            )}
+
+            {editFormData.role === 'driver' && (
+              <FormField name="industry">
+                <FormLabel>Industry</FormLabel>
+                <div className="p-3 bg-gray-50 rounded-lg border">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-900">logistics/trans</span>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  Industry is automatically set for drivers
+                </p>
+              </FormField>
             )}
 
             <FormField name="email">
