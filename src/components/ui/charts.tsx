@@ -53,7 +53,7 @@ export function ChartCard({ title, subtitle, children, className = '', actions }
           </div>
         )}
       </div>
-      <div className="h-64 sm:h-80 w-full overflow-hidden relative">
+      <div className="h-80 sm:h-96 w-full overflow-hidden relative">
         <div className="absolute inset-0">
           {children}
         </div>
@@ -111,7 +111,7 @@ export function SimpleBarChart({ data, xKey, yKey, color = CHART_COLORS.primary,
   return (
     <ChartCard title={title || 'Data Chart'} subtitle={subtitle}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+        <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" opacity={0.5} />
           <XAxis 
             dataKey={xKey} 
@@ -127,7 +127,13 @@ export function SimpleBarChart({ data, xKey, yKey, color = CHART_COLORS.primary,
             fontSize={11}
             tickLine={false}
             axisLine={false}
-            tickFormatter={(value) => value.toLocaleString()}
+            tickFormatter={(value) => {
+              // Check if the value looks like currency (large numbers)
+              if (typeof value === 'number' && value > 1000) {
+                return `R${(value / 1000).toFixed(0)}k`;
+              }
+              return value.toLocaleString();
+            }}
             tick={{ fill: '#6b7280' }}
           />
           <Tooltip content={<CustomTooltip />} />
@@ -615,6 +621,7 @@ interface BarChartTooltipProps extends BaseTooltipProps {
     color: string; 
     name: string; 
     value: number | string;
+    dataKey: string;
   }>;
 }
 
@@ -639,4 +646,159 @@ interface DriverChartTooltipProps extends BaseTooltipProps {
       trend: number;
     };
   }>;
+}
+
+interface GroupedMonthlyEarningsChartProps {
+  data: Array<{
+    month: string;
+    [key: string]: string | number;
+  }>;
+  driverNames: string[];
+  title?: string;
+  subtitle?: string;
+}
+
+export function GroupedMonthlyEarningsChart({ data, driverNames, title, subtitle }: GroupedMonthlyEarningsChartProps) {
+  if (!data || data.length === 0 || !driverNames || driverNames.length === 0) {
+    return (
+      <ChartCard title={title || 'Monthly Earnings Chart'} subtitle={subtitle}>
+        <div className="flex items-center justify-center h-full text-gray-500">
+          <p>No monthly earnings data available</p>
+        </div>
+      </ChartCard>
+    );
+  }
+
+  // Helper function to get driver initials
+  const getDriverInitials = (fullName: string) => {
+    return fullName
+      .split(' ')
+      .map(name => name.charAt(0).toUpperCase())
+      .join('')
+      .substring(0, 3); // Limit to 3 characters max
+  };
+
+  // Custom tooltip for grouped bars
+  const CustomTooltip = ({ active, payload, label }: BarChartTooltipProps) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-medium text-gray-900 mb-2">{label}</p>
+          <div className="space-y-1">
+            {payload.map((entry, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <div 
+                  className="w-3 h-3 rounded-full" 
+                  style={{ backgroundColor: entry.color }}
+                />
+                <span className="text-sm text-gray-600">
+                  {entry.dataKey === 'total' ? 'Total' : entry.dataKey}:
+                </span>
+                <span className="text-sm font-medium text-gray-900">
+                  R{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Use provided driver names
+  const colors = ['#0d9488', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
+  
+  // Validate that data has the expected structure
+  const validData = data.filter(item => 
+    item.month && 
+    driverNames.every(name => typeof item[name] === 'number') && 
+    typeof item.total === 'number'
+  );
+  
+  if (validData.length === 0) {
+    return (
+      <ChartCard title={title || 'Monthly Earnings Chart'} subtitle={subtitle}>
+        <div className="flex items-center justify-center h-full text-gray-500">
+          <p>Invalid data structure for grouped chart</p>
+        </div>
+      </ChartCard>
+    );
+  }
+
+  return (
+    <ChartCard title={title || 'Monthly Earnings Chart'} subtitle={subtitle}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={validData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" opacity={0.5} />
+          <XAxis 
+            dataKey="month" 
+            stroke="#6b7280"
+            fontSize={11}
+            tickLine={false}
+            axisLine={false}
+            tick={{ fill: '#6b7280' }}
+            angle={-45}
+            textAnchor="end"
+            height={60}
+            interval={0}
+          />
+          <YAxis 
+            stroke="#6b7280"
+            fontSize={11}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(value) => `R${(value / 1000).toFixed(0)}k`}
+            tick={{ fill: '#6b7280' }}
+          />
+          <Tooltip content={<CustomTooltip />} />
+          <Legend 
+            verticalAlign="bottom" 
+            height={60}
+            wrapperStyle={{ paddingTop: '15px' }}
+            formatter={(value) => {
+              // Show initials for driver names, full name for total
+              if (value === 'total') {
+                return <span className="text-gray-700 font-medium">{value}</span>;
+              }
+              // Find the full driver name and show only initials
+              const fullName = driverNames.find(name => name === value);
+              if (fullName) {
+                return (
+                  <span className="text-gray-700">
+                    {getDriverInitials(fullName)}
+                  </span>
+                );
+              }
+              return <span className="text-gray-700">{value}</span>;
+            }}
+          />
+          
+          {/* Individual driver bars */}
+          {driverNames.map((driverName: string, index: number) => (
+            <Bar
+              key={driverName}
+              dataKey={driverName}
+              fill={colors[index % colors.length]}
+              radius={[4, 4, 0, 0]}
+              opacity={0.7}
+              strokeWidth={1}
+              name={driverName}
+            />
+          ))}
+          
+          {/* Total bar (dark teal) */}
+          <Bar
+            dataKey="total"
+            fill="#0d9488"
+            radius={[4, 4, 0, 0]}
+            opacity={0.9}
+            strokeWidth={2}
+            stroke="#0d9488"
+            name="total"
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartCard>
+  );
 }

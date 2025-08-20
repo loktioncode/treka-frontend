@@ -12,7 +12,8 @@ import {
   SimpleBarChart, 
   SimplePieChart, 
   MultiLineChart,
-  MetricCard 
+  MetricCard,
+  GroupedMonthlyEarningsChart
 } from '@/components/ui/charts';
 import { MultiSearchableSelect } from '@/components/ui/multi-searchable-select';
 import { Input } from '@/components/ui/input';
@@ -944,6 +945,49 @@ export default function AnalyticsPage() {
     return insights.length > 0 ? <div className="space-y-2">{insights}</div> : null;
   };
 
+  // Helper function to get grouped monthly earnings data for multiple drivers
+  const getGroupedMonthlyEarningsData = () => {
+    if (!driverFilter.length || driverFilter.length < 2 || !earningsData?.data?.drivers || !earningsData?.summary?.driver_performance_trends) {
+      return null;
+    }
+
+    // Check if we have date filters applied
+    const hasDateFilters = !!(filters.startDate && filters.endDate);
+    
+    if (!hasDateFilters) {
+      return null; // Only show grouped chart when date filters are applied
+    }
+
+    const selectedDrivers = earningsData.data.drivers.filter((d: DriverEarnings) => driverFilter.includes(d.uuid));
+    const monthlyData: Record<string, Record<string, number>> = {};
+    
+    // Initialize monthly data structure
+    selectedDrivers.forEach((driver: DriverEarnings) => {
+      const driverTrend = earningsData.summary.driver_performance_trends.find(
+        (trend: DriverPerformanceTrend) => trend.driver_name === driver.full_name
+      );
+      
+      if (driverTrend) {
+        driverTrend.monthly_earnings.forEach((month: MonthlyEarnings) => {
+          if (!monthlyData[month.month]) {
+            monthlyData[month.month] = {};
+          }
+          monthlyData[month.month][driver.full_name] = month.earnings;
+        });
+      }
+    });
+
+    // Convert to array format and add totals
+    return Object.entries(monthlyData).map(([month, driverEarnings]) => {
+      const total = Object.values(driverEarnings).reduce((sum, earnings) => sum + earnings, 0);
+      return {
+        month,
+        ...driverEarnings,
+        total
+      };
+    });
+  };
+
   // Helper function to get selected drivers' monthly earnings
   const getSelectedDriversMonthlyEarnings = () => {
     if (!driverFilter.length || !earningsData?.data?.drivers) {
@@ -1504,7 +1548,7 @@ export default function AnalyticsPage() {
                     <p className="text-sm text-gray-600">
                       {driverFilter.length === 1 
                         ? `Driver ID: ${driverFilter[0]}`
-                        : `IDs: ${driverFilter.slice(0, 3).join(', ')}${driverFilter.length > 3 ? '...' : ''}`
+                        : getSelectedDrivers().slice(0, 3).map((driver: DriverEarnings) => driver.full_name).join(', ') + (driverFilter.length > 3 ? '...' : '')
                       }
                     </p>
                   </div>
@@ -1530,13 +1574,23 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Monthly Earnings Chart */}
             {earningsData?.summary?.monthly_earnings && earningsData.summary.monthly_earnings.length > 0 && (hasMeaningfulData() || hasHistoricalData()) ? (
-              <SimpleBarChart
-                data={getSelectedDriversMonthlyEarnings()}
-                xKey="month"
-                yKey="earnings"
-                title={driverFilter.length > 0 ? `Monthly Earnings - ${driverFilter.length === 1 ? getSelectedDriver()?.full_name : `${driverFilter.length} Drivers`}` : "Monthly Earnings"}
-                subtitle={driverFilter.length > 0 ? `Monthly earnings for ${driverFilter.length === 1 ? 'selected driver' : 'selected drivers'}` : "Total earnings by month"}
-              />
+              // Show grouped chart for multiple drivers with date filters, otherwise show simple chart
+              driverFilter.length > 1 && getGroupedMonthlyEarningsData() ? (
+                <GroupedMonthlyEarningsChart
+                  data={getGroupedMonthlyEarningsData()!}
+                  driverNames={getSelectedDrivers().map((d: DriverEarnings) => d.full_name)}
+                  title={`Monthly Earnings - ${driverFilter.length} Drivers`}
+                  subtitle="Individual driver earnings and total by month"
+                />
+              ) : (
+                <SimpleBarChart
+                  data={getSelectedDriversMonthlyEarnings()}
+                  xKey="month"
+                  yKey="earnings"
+                  title={driverFilter.length > 0 ? `Monthly Earnings - ${driverFilter.length === 1 ? getSelectedDriver()?.full_name : `${driverFilter.length} Drivers`}` : "Monthly Earnings"}
+                  subtitle={driverFilter.length > 0 ? `Monthly earnings for ${driverFilter.length === 1 ? 'selected driver' : 'selected drivers'}` : "Total earnings by month"}
+                />
+              )
             ) : (
               <Card className="p-6">
                 <div className="text-center py-8">
