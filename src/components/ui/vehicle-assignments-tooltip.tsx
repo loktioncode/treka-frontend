@@ -1,8 +1,8 @@
 'use client';
 
 import { useAssetsByIds } from '@/hooks/useAssets';
-import { Badge } from './badge';
 import { Car, Truck, Bus } from 'lucide-react';
+import type { Asset } from '@/types/api';
 
 interface VehicleAssignmentsTooltipProps {
   assetIds: string[];
@@ -26,7 +26,7 @@ const getVehicleIcon = (assetType: string) => {
 };
 
 // Helper function to format vehicle display name
-const formatVehicleName = (asset: any) => {
+const formatVehicleName = (asset: Asset) => {
   if (asset.vehicle_details) {
     const { make, model, year, license_plate } = asset.vehicle_details;
     const vehicleInfo = [make, model, year].filter(Boolean).join(' ');

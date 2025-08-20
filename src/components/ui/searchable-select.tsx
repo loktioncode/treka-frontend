@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, ChevronDown, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { createPortal } from 'react-dom';
 
 interface SearchableSelectOption {
   value: string;
