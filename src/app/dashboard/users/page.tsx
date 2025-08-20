@@ -37,6 +37,8 @@ import {
   Select, 
   Checkbox 
 } from '@/components/ui/form';
+import { VehicleAssignments } from '@/components/ui/vehicle-assignments';
+import { VehicleAssignmentsTooltip } from '@/components/ui/vehicle-assignments-tooltip';
 import { 
   Users, 
   Trash2, 
@@ -872,6 +874,30 @@ export default function UsersPage() {
       )
     },
     {
+      key: 'vehicle_assignments',
+      title: 'Vehicle Assignments',
+      render: (user) => (
+        <div className="text-sm">
+          {user.role === 'driver' && user.vehicle_assignments && user.vehicle_assignments.length > 0 ? (
+            <VehicleAssignmentsTooltip assetIds={user.vehicle_assignments}>
+              <div className="cursor-help">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-teal-500 rounded-full"></span>
+                  <span className="text-gray-600 font-medium">
+                    {user.vehicle_assignments.length} assigned
+                  </span>
+                </div>
+              </div>
+            </VehicleAssignmentsTooltip>
+          ) : user.role === 'driver' ? (
+            <span className="text-gray-400 text-xs">No vehicles assigned</span>
+          ) : (
+            <span className="text-gray-400">-</span>
+          )}
+        </div>
+      )
+    },
+    {
       key: 'is_active',
       title: 'Status',
       render: (user) => (
@@ -898,7 +924,7 @@ export default function UsersPage() {
 
   // Add client column for super admin view
   if (user?.role === 'super_admin') {
-    columns.splice(5, 0, {
+    columns.splice(6, 0, {
       key: 'client_id',
       title: 'Client',
       render: (user) => {
@@ -1748,12 +1774,11 @@ export default function UsersPage() {
                   {selectedUser.vehicle_assignments && selectedUser.vehicle_assignments.length > 0 && (
                     <div className="md:col-span-2">
                       <label className="text-sm font-medium text-gray-500">Vehicle Assignments</label>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {selectedUser.vehicle_assignments.map((vehicle, index) => (
-                          <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {vehicle}
-                          </span>
-                        ))}
+                      <div className="mt-2">
+                        <VehicleAssignments 
+                          assetIds={selectedUser.vehicle_assignments} 
+                          className="border-teal-600"
+                        />
                       </div>
                     </div>
                   )}
@@ -2292,34 +2317,15 @@ export default function UsersPage() {
 
               <FormField name="vehicle_assignments">
                 <FormLabel>Current Vehicle Assignments</FormLabel>
-                <div className={`p-3 bg-gray-50 rounded-lg border ${editFormData.vehicle_assignments && editFormData.vehicle_assignments.length > 0 ? 'border-teal-600' : ''}`}>
-                  {editFormData.vehicle_assignments && editFormData.vehicle_assignments.length > 0 ? (
-                    <div className="space-y-2">
-                      {editFormData.vehicle_assignments.map((vehicleId, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
-                          <div className="flex items-center gap-2">
-                            <span className="w-2 h-2 bg-teal-500 rounded-full"></span>
-                            <span className="text-sm text-gray-700">Vehicle ID: {vehicleId}</span>
-                          </div>
-                          <Badge variant="secondary" className="text-xs">
-                            Assigned
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-4">
-                      <div className="w-8 h-8 bg-gray-200 rounded-full mx-auto mb-2 flex items-center justify-center">
-                        <span className="text-gray-400 text-xs">🚗</span>
-                      </div>
-                      <p className="text-sm text-gray-500">No vehicles currently assigned</p>
-                      <p className="text-xs text-gray-400 mt-1">This driver is available for assignment</p>
-                    </div>
-                  )}
+                <div className="mt-2">
+                  <VehicleAssignments 
+                    assetIds={editFormData.vehicle_assignments || []} 
+                    className="border-teal-600"
+                  />
                 </div>
-                                  <p className="text-sm text-gray-500 mt-1">
-                    This driver&apos;s current vehicle assignments (read-only)
-                  </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  This driver&apos;s current vehicle assignments (read-only)
+                </p>
               </FormField>
             </FormSection>
           )}

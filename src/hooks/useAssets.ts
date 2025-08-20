@@ -191,3 +191,22 @@ export function useDeleteAsset() {
     },
   });
 }
+
+/**
+ * Hook to fetch multiple assets by IDs
+ */
+export function useAssetsByIds(assetIds: string[], enabled = true) {
+  return useQuery({
+    queryKey: [...assetKeys.all, 'byIds', assetIds.sort()],
+    queryFn: async () => {
+      // Fetch assets one by one since there's no bulk endpoint
+      const assets = await Promise.all(
+        assetIds.map(id => assetAPI.getAsset(id))
+      );
+      return assets;
+    },
+    enabled: enabled && assetIds.length > 0,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 10,   // 10 minutes
+  });
+}
