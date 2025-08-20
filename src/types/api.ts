@@ -410,6 +410,7 @@ export interface DriverEarnings {
     '1y': number;
     '5y': number;
   };
+  selected_period_earnings?: number;  // Earnings for the selected custom date range
   payment_count: number;
 }
 
@@ -429,6 +430,12 @@ export interface LogisticsEarningsSummary {
   total_earnings: number;
   selected_period_earnings: number;
   selected_period: string;
+  selected_period_dates?: {
+    start_date?: string;
+    end_date?: string;
+    start_datetime?: string;
+    end_datetime?: string;
+  };
   currency: string;
   client_withdrawals: number;
   periods: {

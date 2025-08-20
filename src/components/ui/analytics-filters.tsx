@@ -44,7 +44,6 @@ const DATE_RANGES = [
   { value: '30d', label: 'Last 30 days' },
   { value: '90d', label: 'Last 90 days' },
   { value: '1y', label: 'Last year' },
-  { value: 'custom', label: 'Custom range' },
 ];
 
 const COMPONENT_STATUSES = ['operational', 'warning', 'critical', 'maintenance'];
@@ -241,42 +240,38 @@ export function AnalyticsFilters({
                 <Calendar className="h-4 w-4 text-teal-600" />
                 Date Range
               </label>
-              <select
-                value={localFilters.dateRange}
-                onChange={(e) => handleFilterChange('dateRange', e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200 bg-white shadow-sm"
-              >
-                {DATE_RANGES.map((range) => (
-                  <option key={range.value} value={range.value}>
-                    {range.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Custom Date Range */}
-            {localFilters.dateRange === 'custom' && (
-              <>
-                <div className="space-y-3">
-                  <label className="text-sm font-semibold text-gray-700">Start Date</label>
+              <div className="flex gap-3">
+                <select
+                  value={localFilters.dateRange}
+                  onChange={(e) => handleFilterChange('dateRange', e.target.value)}
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200 bg-white shadow-sm"
+                >
+                  {DATE_RANGES.map((range) => (
+                    <option key={range.value} value={range.value}>
+                      {range.label}
+                    </option>
+                  ))}
+                </select>
+                
+                {/* Custom Date Range Inputs - Always visible */}
+                <div className="flex gap-2">
                   <Input
                     type="date"
+                    placeholder="Start"
                     value={localFilters.startDate || ''}
                     onChange={(e) => handleFilterChange('startDate', e.target.value)}
-                    className="px-4 py-3 border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+                    className="px-3 py-3 border-gray-300 focus:border-teal-500 focus:ring-teal-500 min-w-[130px]"
                   />
-                </div>
-                <div className="space-y-3">
-                  <label className="text-sm font-semibold text-gray-700">End Date</label>
                   <Input
                     type="date"
+                    placeholder="End"
                     value={localFilters.endDate || ''}
                     onChange={(e) => handleFilterChange('endDate', e.target.value)}
-                    className="px-4 py-3 border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+                    className="px-3 py-3 border-gray-300 focus:border-teal-500 focus:ring-teal-500 min-w-[130px]"
                   />
                 </div>
-              </>
-            )}
+              </div>
+            </div>
 
             {/* Search Query */}
             <div className="space-y-3">

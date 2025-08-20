@@ -177,10 +177,9 @@ export default function AnalyticsPage() {
       });
       
       // Log the actual API call parameters
-      if (filters.dateRange === 'custom' && filters.startDate && filters.endDate) {
+      if (filters.startDate && filters.endDate) {
         console.log('Custom date range API call:', {
           driverName: driverFilter || undefined,
-          dateRange: filters.dateRange,
           startDate: filters.startDate,
           endDate: filters.endDate,
           startDateType: typeof filters.startDate,
@@ -391,16 +390,7 @@ export default function AnalyticsPage() {
     }
   }, [currentClient, filters.dateRange]);
 
-  // Auto-set dateRange to 'custom' when custom dates are selected
-  useEffect(() => {
-    if (filters.startDate && filters.endDate && filters.dateRange !== 'custom') {
-      console.log('Auto-setting dateRange to custom due to custom dates');
-      setFilters(prev => ({
-        ...prev,
-        dateRange: 'custom'
-      }));
-    }
-  }, [filters.startDate, filters.endDate, filters.dateRange]);
+  // No need to auto-set dateRange to 'custom' anymore since we removed that option
 
   // Log filter changes for debugging
   useEffect(() => {
@@ -416,7 +406,7 @@ export default function AnalyticsPage() {
 
   // Helper function to get period display text
   const getPeriodDisplayText = () => {
-    if (filters.dateRange === 'custom' && filters.startDate && filters.endDate) {
+    if (filters.startDate && filters.endDate) {
       return `${filters.startDate} to ${filters.endDate}`;
     }
     
@@ -1245,7 +1235,7 @@ export default function AnalyticsPage() {
               <div className="flex items-center gap-4">
                 <div className="text-sm text-gray-600">
                   <span className="font-medium">Dashboard filtered for:</span> 
-                  {filters.dateRange === 'custom' && filters.startDate && filters.endDate ? (
+                  {filters.startDate && filters.endDate ? (
                     <span className="ml-2 font-medium text-teal-600">
                       {filters.startDate} to {filters.endDate}
                     </span>
@@ -1278,30 +1268,27 @@ export default function AnalyticsPage() {
               {/* Quick Date Range Selector */}
               <div className="flex items-center gap-4">
                 <label className="text-sm font-medium text-gray-700">Quick Select:</label>
-                <select
-                  value={filters.dateRange}
-                  onChange={(e) => {
-                    setFilters(prev => ({ 
-                      ...prev, 
-                      dateRange: e.target.value,
-                      startDate: undefined,
-                      endDate: undefined
-                    }))
-                  }}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                >
-                  <option value="7d">Last 7 Days</option>
-                  <option value="30d">Last 30 Days</option>
-                  <option value="1y">Last Year</option>
-                  <option value="5y">Last 5 Years</option>
-                  <option value="custom">Custom range</option>
-                </select>
-              </div>
-
-              {/* Custom Date Range Inputs */}
-              {filters.dateRange === 'custom' && (
-                <div className="flex items-center gap-4">
-                  <label className="text-center">
+                <div className="flex gap-3">
+                  <select
+                    value={filters.dateRange}
+                    onChange={(e) => {
+                      setFilters(prev => ({ 
+                        ...prev, 
+                        dateRange: e.target.value,
+                        startDate: undefined,
+                        endDate: undefined
+                      }))
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  >
+                    <option value="7d">Last 7 Days</option>
+                    <option value="30d">Last 30 Days</option>
+                    <option value="1y">Last Year</option>
+                    <option value="5y">Last 5 Years</option>
+                  </select>
+                  
+                  {/* Custom Date Range Inputs - Always visible */}
+                  <div className="flex items-center gap-2">
                     <label className="text-sm font-medium text-gray-700">From:</label>
                     <input
                       type="date"
@@ -1311,15 +1298,13 @@ export default function AnalyticsPage() {
                         console.log('Setting start date:', newStartDate, 'Type:', typeof newStartDate);
                         setFilters(prev => ({ 
                           ...prev, 
-                          startDate: newStartDate,
-                          // Ensure dateRange is set to custom when dates are selected
-                          dateRange: 'custom'
+                          startDate: newStartDate
                         }));
                       }}
                       className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                     />
-                  </label>
-                  <label className="text-center">
+                  </div>
+                  <div className="flex items-center gap-2">
                     <label className="text-sm font-medium text-gray-700">To:</label>
                     <input
                       type="date"
@@ -1329,16 +1314,14 @@ export default function AnalyticsPage() {
                         console.log('Setting end date:', newEndDate, 'Type:', typeof newEndDate);
                         setFilters(prev => ({ 
                           ...prev, 
-                          endDate: newEndDate,
-                          // Ensure dateRange is set to custom when dates are selected
-                          dateRange: 'custom'
+                          endDate: newEndDate
                         }));
                       }}
                       className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                     />
-                  </label>
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </Card>
@@ -1547,9 +1530,15 @@ export default function AnalyticsPage() {
                     <thead>
                       <tr className="border-b border-gray-200">
                         <th className="text-left py-3 px-4 font-medium text-gray-900">Driver</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-900">Total Earnings</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-900">Last 7 Days</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-900">Last 30 Days</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">
+                          {filters.startDate && filters.endDate ? 'Selected Period' : 'Total Earnings'}
+                        </th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">
+                          {filters.startDate && filters.endDate ? 'Period Earnings' : 'Last 7 Days'}
+                        </th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">
+                          {filters.startDate && filters.endDate ? 'Period Payments' : 'Last 30 Days'}
+                        </th>
                         <th className="text-left py-3 px-4 font-medium text-gray-900">Payments</th>
                       </tr>
                     </thead>
@@ -1563,13 +1552,22 @@ export default function AnalyticsPage() {
                             </div>
                           </td>
                           <td className="py-3 px-4 font-medium text-green-600">
-                            {formatCurrency(driver.total_earnings, earningsData?.summary?.currency || 'ZAR')}
+                            {filters.startDate && filters.endDate 
+                              ? formatCurrency(driver.selected_period_earnings || driver.total_earnings, earningsData?.summary?.currency || 'ZAR')
+                              : formatCurrency(driver.total_earnings, earningsData?.summary?.currency || 'ZAR')
+                            }
                           </td>
                           <td className="py-3 px-4 text-gray-700">
-                            {formatCurrency(driver.period_earnings['7d'], earningsData?.summary?.currency || 'ZAR')}
+                            {filters.startDate && filters.endDate 
+                              ? formatCurrency(driver.selected_period_earnings || 0, earningsData?.summary?.currency || 'ZAR')
+                              : formatCurrency(driver.period_earnings['7d'], earningsData?.summary?.currency || 'ZAR')
+                            }
                           </td>
                           <td className="py-3 px-4 text-gray-700">
-                            {formatCurrency(driver.period_earnings['30d'], earningsData?.summary?.currency || 'ZAR')}
+                            {filters.startDate && filters.endDate 
+                              ? formatCurrency(driver.selected_period_earnings || 0, earningsData?.summary?.currency || 'ZAR')
+                              : formatCurrency(driver.period_earnings['30d'], earningsData?.summary?.currency || 'ZAR')
+                            }
                           </td>
                           <td className="py-3 px-4 text-gray-700">
                             {driver.payment_count}
