@@ -36,10 +36,10 @@ export function SearchableSelect({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const selectedOption = options.find(option => option.value === value);
-  const filteredOptions = options.filter(option =>
+  const selectedOption = options?.find(option => option.value === value);
+  const filteredOptions = options?.filter(option =>
     option.label.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  ) || [];
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -57,6 +57,12 @@ export function SearchableSelect({
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
     }
   }, [isOpen]);
 
@@ -148,15 +154,9 @@ export function SearchableSelect({
         </div>
       </div>
 
-      {isOpen && createPortal(
+      {isOpen && (
         <div 
-          className="fixed z-[9999] bg-white border border-gray-300 rounded-md shadow-xl max-h-60 overflow-hidden"
-          style={{
-            top: containerRef.current ? containerRef.current.getBoundingClientRect().bottom + 4 : 0,
-            left: containerRef.current ? containerRef.current.getBoundingClientRect().left : 0,
-            width: containerRef.current ? containerRef.current.getBoundingClientRect().width : 'auto',
-            minWidth: containerRef.current ? containerRef.current.getBoundingClientRect().width : 'auto'
-          }}
+          className="absolute z-[99999] top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-xl max-h-60 overflow-hidden"
         >
           <div className="p-2 border-b border-gray-200 bg-gray-50">
             <div className="relative">
@@ -179,7 +179,11 @@ export function SearchableSelect({
           </div>
           
           <div className="max-h-48 overflow-y-auto">
-            {filteredOptions.length === 0 ? (
+            {!options || options.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-gray-500 text-center bg-gray-50">
+                No options available
+              </div>
+            ) : filteredOptions.length === 0 ? (
               <div className="px-3 py-2 text-sm text-gray-500 text-center bg-gray-50">
                 {searchQuery ? `No results found for "${searchQuery}"` : 'No options available'}
               </div>
@@ -193,15 +197,20 @@ export function SearchableSelect({
                     option.value === value && "bg-teal-100 border-l-teal-600 text-teal-900 font-medium",
                     option.disabled && "opacity-50 cursor-not-allowed bg-gray-50"
                   )}
-                  onClick={() => !option.disabled && handleSelect(option.value)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!option.disabled) {
+                      handleSelect(option.value);
+                    }
+                  }}
                 >
                   {option.label}
                 </div>
               ))
             )}
           </div>
-        </div>,
-        document.body
+        </div>
       )}
     </div>
   );

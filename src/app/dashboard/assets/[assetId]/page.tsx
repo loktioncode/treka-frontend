@@ -219,22 +219,24 @@ export default function AssetViewPage() {
     try {
       if (asset?.client_id) {
         setLoadingDrivers(true);
-        console.log('🔍 Loading drivers for client:', asset.client_id);
-        console.log('🔍 API params:', { role: 'driver' });
         
         const response = await clientAPI.getClientUsers(asset.client_id, { 
           role: 'driver'
         });
-        console.log('🔍 Drivers API response:', response);
-        console.log('🔍 Response type:', typeof response);
-        console.log('🔍 Response length:', Array.isArray(response) ? response.length : 'Not an array');
         
         if (Array.isArray(response)) {
-          console.log('🔍 First driver data:', response[0]);
-          console.log('🔍 All driver roles:', response.map(d => ({ id: d.id, name: `${d.first_name} ${d.last_name}`, role: d.role })));
+          // Ensure all drivers have the required fields
+          const validDrivers = response.filter(driver => 
+            driver.id && 
+            driver.first_name && 
+            driver.last_name && 
+            driver.role === 'driver'
+          );
+          
+          setDrivers(validDrivers);
+        } else {
+          setDrivers([]);
         }
-        
-        setDrivers(response || []);
       }
     } catch (error) {
       console.error('Error loading drivers:', error);
@@ -256,7 +258,6 @@ export default function AssetViewPage() {
       loadDrivers();
     }
   }, [asset, loadDrivers]);
-
 
 
   const handleComponentSubmit = async (e: React.FormEvent) => {
@@ -402,18 +403,22 @@ export default function AssetViewPage() {
 
   // Get available drivers (not assigned to any vehicle)
   const getAvailableDrivers = () => {
-    console.log('🔍 All drivers:', drivers);
-    console.log('🔍 Current asset driver ID:', asset?.vehicle_details?.driver_id);
-    console.log('🔍 Drivers with role filter:', drivers.filter(d => d.role === 'driver'));
     
-    const availableDrivers = drivers.filter(driver => {
-      // Don't show the currently assigned driver as available
+    // First ensure we have valid drivers with the correct role
+    const validDrivers = drivers.filter(driver => 
+      driver.id && 
+      driver.first_name && 
+      driver.last_name && 
+      driver.role === 'driver'
+    );
+    
+    
+    // Then filter out currently assigned drivers
+    const availableDrivers = validDrivers.filter(driver => {
       const isAvailable = driver.id !== asset?.vehicle_details?.driver_id;
-      console.log(`🔍 Driver ${driver.first_name} ${driver.last_name} (role: ${driver.role}): available=${isAvailable}`);
       return isAvailable;
     });
     
-    console.log('🔍 Available drivers:', availableDrivers);
     return availableDrivers;
   };
 
@@ -1463,7 +1468,9 @@ export default function AssetViewPage() {
             
             <SearchableSelect
               value={selectedDriverId}
-              onChange={setSelectedDriverId}
+              onChange={(value) => {
+                setSelectedDriverId(value);
+              }}
               options={[
                 { value: '', label: 'Select a driver...' },
                 ...getAvailableDrivers().map(driver => ({
@@ -1474,6 +1481,7 @@ export default function AssetViewPage() {
               placeholder="Choose driver"
               searchPlaceholder="Type to search drivers by name or email..."
             />
+            
           </div>
 
           {getAvailableDrivers().length === 0 && (
