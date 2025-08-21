@@ -24,10 +24,9 @@ import { cn } from '@/lib/utils';
 import { SkeletonProfile } from '@/components/ui/skeleton';
 import { SmartLink } from '@/components/SmartLink';
 import { useNavigation } from '@/contexts/NavigationContext';
+import { useNotifications } from '@/contexts/NotificationContext';
 import { useRoutePrefetch } from '@/hooks/useRoutePrefetch';
 import { Tooltip } from '@/components/ui/tooltip';
-import { notificationAPI } from '@/services/api';
-import { Notification } from '@/types/api';
 import { getCurrencySymbol } from '@/lib/utils';
 import { DollarSign } from 'lucide-react';
 
@@ -104,9 +103,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return true;
   });
   
-  // Notification state
-  const [notificationCount, setNotificationCount] = useState(0);
-  const [hasCriticalAlerts, setHasCriticalAlerts] = useState(false);
+  // Get notification state from context
+  const { unreadCount: notificationCount, hasCriticalAlerts } = useNotifications();
   
   // Enable automatic route prefetching
   useRoutePrefetch();
@@ -134,31 +132,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [user, isLoading, router]);
 
-  // Fetch notification count and check for critical alerts
-  useEffect(() => {
-    if (user) {
-      const fetchNotificationCount = async () => {
-        try {
-          const notifications = await notificationAPI.getNotifications();
-          const unreadCount = notifications.filter((n: Notification) => !n.read_status).length;
-          const criticalAlerts = notifications.some((n: Notification) => 
-            !n.read_status && (n.urgency === 'critical' || n.urgency === 'OVERDUE')
-          );
-          
-          setNotificationCount(unreadCount);
-          setHasCriticalAlerts(criticalAlerts);
-        } catch (error) {
-          console.error('Failed to fetch notification count:', error);
-        }
-      };
-      
-      fetchNotificationCount();
-      
-      // Refresh every 30 seconds
-      const interval = setInterval(fetchNotificationCount, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [user]);
+
 
   const handleLogout = () => {
     logout();

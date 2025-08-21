@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { notificationAPI } from '@/services/api';
+import { useNotifications } from '@/contexts/NotificationContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,8 +23,12 @@ import type { Notification } from '@/types/api';
 
 export default function NotificationsPage() {
   const { user, isLoading } = useAuth();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { 
+    notifications, 
+    loading, 
+    markAsRead, 
+    markAllAsRead 
+  } = useNotifications();
   const [markingAllRead, setMarkingAllRead] = useState(false);
   // Date range filter: 'today' | '7' | '14' | '30'
   const [dateRange, setDateRange] = useState<'today' | '7' | '14' | '30'>('14');
@@ -39,43 +43,11 @@ export default function NotificationsPage() {
     }
   }, [user, isLoading]);
 
-  const loadNotifications = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await notificationAPI.getNotifications();
-      setNotifications(response);
-    } catch (error) {
-      console.error('Error loading notifications:', error);
-      const axiosError = error as { response?: { status?: number; data?: { detail?: string } }; message?: string };
-      const status = axiosError.response?.status;
-      const detail = axiosError.response?.data?.detail || axiosError.message || 'Unknown error';
-      toast.error(`Failed to load notifications${status ? ` (${status})` : ''}: ${detail}`);
-      // If unauthorized, redirect to login (in case interceptor didn't yet)
-      if (status === 401) {
-        window.location.href = '/login?expired=true';
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
-  // Load notifications only after user is ready
-  useEffect(() => {
-    if (isLoading) return;
-    if (!user) return;
-    loadNotifications();
-  }, [isLoading, user, loadNotifications]);
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
-      await notificationAPI.markAsRead(notificationId);
-      setNotifications(prev => 
-        prev.map(notif => 
-          notif.id === notificationId 
-            ? { ...notif, read_status: true }
-            : notif
-        )
-      );
+      await markAsRead(notificationId);
       toast.success('Notification marked as read');
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -86,10 +58,7 @@ export default function NotificationsPage() {
   const handleMarkAllAsRead = async () => {
     try {
       setMarkingAllRead(true);
-      await notificationAPI.markAllAsRead();
-      setNotifications(prev => 
-        prev.map(notif => ({ ...notif, read_status: true }))
-      );
+      await markAllAsRead();
       toast.success('All notifications marked as read');
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
