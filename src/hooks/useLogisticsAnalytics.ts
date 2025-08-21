@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
  */
 export const useDriverEarnings = (
   driverName?: string,
-  dateRange: string = '30d',
+  dateRange: string = '1y', // Default to last 1 year instead of 30 days
   startDate?: string,
   endDate?: string,
   enabled: boolean = true

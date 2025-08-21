@@ -3,7 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { QuickStats } from '@/components/ui/stats-card';
-import { StatusBadge, RoleBadge } from '@/components/ui/badge';
+import { RoleBadge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { useState, useEffect, useCallback } from 'react';
 import { analyticsAPI } from '@/services/api';
@@ -17,12 +17,18 @@ import {
   Users,
   Building2,
   BarChart3,
-  Activity,
   Zap,
   Shield,
   RefreshCw
 } from 'lucide-react';
 import { SmartLink } from '@/components/SmartLink';
+import { 
+  OverallEarningsChart, 
+  DriverLeaderboardChart, 
+  PaymentDistributionChart, 
+  PerformanceTrendsChart 
+} from '@/components/ui/dashboard-charts';
+import { useDashboardAnalytics, DateRangeFilter } from '@/hooks/useDashboardAnalytics';
 
 
 interface DashboardStats {
@@ -59,6 +65,18 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedDateRange, setSelectedDateRange] = useState<DateRangeFilter>('30d');
+  const [showDemoData, setShowDemoData] = useState<boolean>(() => {
+    // Load demo data preference from localStorage on component mount
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dashboard-show-demo-data');
+      return saved ? JSON.parse(saved) : false;
+    }
+    return false;
+  });
+  
+  // Fetch analytics data for charts
+  const { data: analyticsData, isLoading: analyticsLoading, isError: analyticsError, refetch: refetchAnalytics } = useDashboardAnalytics(selectedDateRange, showDemoData);
 
   const loadDashboardStats = useCallback(async (isRefresh = false) => {
     try {
@@ -104,6 +122,12 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-32 w-full" />
+          ))}
+        </div>
+        {/* Analytics charts loading state */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={`chart-${i}`} className="h-64 w-full" />
           ))}
         </div>
       </div>
@@ -218,37 +242,28 @@ export default function Dashboard() {
 
   const allStats = [...superAdminStats, ...baseStats];
 
-  // Map real activities with proper icons
-  const recentActivities = dashboardStats.recent_activities.map(activity => {
-    let icon = Activity;
-    if (activity.type === 'maintenance') icon = Wrench;
-    else if (activity.type === 'alert') icon = AlertTriangle;
-    else if (activity.type === 'update') icon = Activity;
-    
-    return {
-      ...activity,
-      icon,
-      time: formatTimeAgo(activity.time)
-    };
-  });
+  // Note: recentActivities functionality has been replaced with analytics charts
 
-  // Helper function to format time ago
-  function formatTimeAgo(isoString: string): string {
-    const now = new Date();
-    const past = new Date(isoString);
-    const diffInMinutes = Math.floor((now.getTime() - past.getTime()) / (1000 * 60));
-    
-    if (diffInMinutes < 1) return 'Just now';
-    if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`;
-    
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `${diffInHours} hours ago`;
-    
-    const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return `${diffInDays} days ago`;
-    
-    return past.toLocaleDateString();
-  }
+  // Note: formatTimeAgo function removed as it's no longer needed
+
+  // Helper function to get date range label
+  const getDateRangeLabel = (range: DateRangeFilter): string => {
+    const labels = {
+      '7d': '7 Days',
+      '30d': '30 Days',
+      '1y': '1 Year',
+      '5y': '5 Years'
+    };
+    return labels[range] || '1 Month';
+  };
+
+  // Handle demo data checkbox change and persist to localStorage
+  const handleDemoDataChange = (checked: boolean) => {
+    setShowDemoData(checked);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('dashboard-show-demo-data', JSON.stringify(checked));
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -287,79 +302,160 @@ export default function Dashboard() {
       {/* Stats Grid */}
       <QuickStats stats={allStats} />
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Recent Activity - Only show for non-super-admin users */}
-        {user?.role !== 'super_admin' && (
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.6 }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
-                  Recent Activity
-                </CardTitle>
-                <CardDescription>
-                  Latest updates from your assets and components
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {recentActivities.map((activity, index) => (
-                  <motion.div
-                    key={activity.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className={`flex items-start gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${
-                      activity.priority === 'high' 
-                        ? 'border-red-200 bg-red-50 hover:bg-red-100' 
-                        : activity.priority === 'medium'
-                        ? 'border-yellow-200 bg-yellow-50 hover:bg-yellow-100'
-                        : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
-                    }`}
-                  >
-                    <div className={`p-2 rounded-full ${
-                      activity.priority === 'high' 
-                        ? 'bg-red-100' 
-                        : activity.priority === 'medium'
-                        ? 'bg-yellow-100'
-                        : 'bg-teal-100'
-                    }`}>
-                      <activity.icon className={`h-4 w-4 ${
-                        activity.priority === 'high' 
-                          ? 'text-red-600' 
-                          : activity.priority === 'medium'
-                          ? 'text-yellow-600'
-                          : 'text-teal-600'
-                      }`} />
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-start justify-between">
-                        <p className="text-sm font-medium text-gray-900">{activity.message}</p>
-                        <StatusBadge status={activity.status as 'operational' | 'warning' | 'critical' | 'maintenance' | 'inactive'} size="sm" />
-                      </div>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {activity.time}
-                      </p>
-                    </div>
-                  </motion.div>
-                ))}
-                {recentActivities.length === 0 && (
-                  <div className="text-center py-8">
-                    <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground text-sm">
-                      No recent activity to display.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
+      {/* Analytics Charts Section - Replace Recent Activity for logistics clients */}
+      {user?.role !== 'super_admin' && (
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.6 }}
+          className="lg:col-span-2"
+        >
+          {/* Analytics Header */}
+          <div className="space-y-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Analytics Overview</h2>
+                <p className="text-gray-600">Key insights from your logistics operations</p>
+              </div>
+              <button
+                onClick={refetchAnalytics}
+                disabled={analyticsLoading}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <RefreshCw className={`h-4 w-4 ${analyticsLoading ? 'animate-spin' : ''}`} />
+                {analyticsLoading ? 'Refreshing...' : 'Refresh Analytics'}
+              </button>
+            </div>
+            
+            {/* Date Range Filter Pills */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium text-gray-700 mr-2">Time Period:</span>
+              {[
+                { value: '7d' as DateRangeFilter, label: '7 Days' },
+                { value: '30d' as DateRangeFilter, label: '30 Days' },
+                { value: '1y' as DateRangeFilter, label: '1 Year' },
+                { value: '5y' as DateRangeFilter, label: '5 Years' }
+              ].map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setSelectedDateRange(value)}
+                  className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${
+                    selectedDateRange === value
+                      ? 'bg-teal-600 text-white shadow-md hover:bg-teal-700'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            
+            {/* Demo Data Toggle */}
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showDemoData}
+                  onChange={(e) => handleDemoDataChange(e.target.checked)}
+                  className="w-4 h-4 text-teal-600 bg-gray-100 border-gray-300 rounded focus:ring-teal-500 focus:ring-2"
+                />
+                <span>Show Demo Data (for presentations)</span>
+              </label>
+              {showDemoData && (
+                <span className="px-2 py-1 text-xs font-medium text-orange-800 bg-orange-100 rounded-full">
+                  Demo Mode
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Overall Earnings Chart */}
+            {analyticsLoading ? (
+              <Skeleton className="h-64 w-full" />
+            ) : analyticsError ? (
+              <Card className="h-64 w-full flex items-center justify-center">
+                <div className="text-center">
+                  <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+                  <p className="text-gray-600">Failed to load earnings data</p>
+                </div>
+              </Card>
+            ) : analyticsData?.overallEarnings?.length === 0 ? (
+              <Card className="h-64 w-full flex items-center justify-center">
+                <div className="text-center">
+                  <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No earnings data available</p>
+                  <p className="text-sm text-gray-500">Upload earnings data to see charts</p>
+                </div>
+              </Card>
+            ) : (
+              <OverallEarningsChart 
+                data={analyticsData?.overallEarnings || []}
+                title={`Overall Earnings - ${getDateRangeLabel(selectedDateRange)}`}
+                subtitle="Earnings trend for selected period"
+              />
+            )}
+            
+            {/* Driver Leaderboard Chart */}
+            {analyticsLoading ? (
+              <Skeleton className="h-64 w-full" />
+            ) : (
+              <DriverLeaderboardChart 
+                data={analyticsData?.driverLeaderboard || []}
+                title={`Driver Leaderboard - ${getDateRangeLabel(selectedDateRange)}`}
+                subtitle="Top performing drivers"
+              />
+            )}
+            
+            {/* Payment Distribution Chart */}
+            {analyticsLoading ? (
+              <Skeleton className="h-64 w-full" />
+            ) : (
+              <PaymentDistributionChart 
+                data={analyticsData?.paymentDistribution || []}
+                title={`Top Drivers by Earnings - ${getDateRangeLabel(selectedDateRange)}`}
+                subtitle="Earnings breakdown by driver"
+              />
+            )}
+            
+            {/* Performance Trends Chart */}
+            {analyticsLoading ? (
+              <Skeleton className="h-64 w-full" />
+            ) : (
+              <PerformanceTrendsChart 
+                data={analyticsData?.performanceTrends || []}
+                title={`Performance Trends - ${getDateRangeLabel(selectedDateRange)}`}
+                subtitle="Drivers vs Earnings correlation"
+              />
+            )}
+          </div>
+          
+          {/* Help message for users without data */}
+          {!analyticsLoading && !analyticsError && 
+           (!analyticsData?.overallEarnings?.length && 
+            !analyticsData?.driverLeaderboard?.length && 
+            !analyticsData?.paymentDistribution?.length && 
+            !analyticsData?.performanceTrends?.length) && (
+            <div className="mt-6 p-6 bg-gradient-to-r from-teal-50 to-blue-50 border border-teal-200 rounded-xl">
+              <div className="text-center">
+                <BarChart3 className="h-16 w-16 text-teal-600 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-teal-900 mb-2">Get Started with Analytics</h3>
+                <p className="text-teal-700 mb-4">
+                  Upload your first earnings CSV file to start seeing insights about your logistics operations.
+                </p>
+                <SmartLink 
+                  href="/dashboard/analytics"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 transition-colors"
+                >
+                  <TrendingUp className="h-5 w-5" />
+                  Go to Analytics
+                </SmartLink>
+              </div>
+            </div>
+          )}
+        </motion.div>
+      )}
 
+      <div className="grid gap-6 lg:grid-cols-2">
         {/* Quick Actions - Show for all users with role-appropriate actions */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}

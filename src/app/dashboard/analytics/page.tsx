@@ -517,9 +517,11 @@ export default function AnalyticsPage() {
 
     // If we have detailed components, calculate maintenance trends
     if (components && components.length > 0) {
-      const now = new Date();
+      // Use 2024 as the base year instead of current system year
+      const baseYear = 2024;
+      const now = new Date(baseYear, new Date().getMonth(), new Date().getDate());
       const currentMonth = now.toLocaleDateString('en-US', { month: 'short' });
-      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleDateString('en-US', { month: 'short' });
+      const lastMonth = new Date(baseYear, now.getMonth() - 1, 1).toLocaleDateString('en-US', { month: 'short' });
       
       // Count components by maintenance status
       let onTimeCount = 0;
@@ -544,8 +546,10 @@ export default function AnalyticsPage() {
 
     // If we have stats data, use that for trends
     if (stats?.components?.total) {
-      const currentMonth = new Date().toLocaleDateString('en-US', { month: 'short' });
-      const lastMonth = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toLocaleDateString('en-US', { month: 'short' });
+      // Use 2024 as the base year
+      const baseYear = 2024;
+      const currentMonth = new Date(baseYear, new Date().getMonth(), 1).toLocaleDateString('en-US', { month: 'short' });
+      const lastMonth = new Date(baseYear, new Date().getMonth() - 1, 1).toLocaleDateString('en-US', { month: 'short' });
       
       return [
         { month: lastMonth, value: stats.components.operational || 0, type: 'On Time' },
@@ -571,7 +575,9 @@ export default function AnalyticsPage() {
       const monthlyData: Record<string, { uptime: number; efficiency: number; maintenance: number }> = {};
       
       components.forEach(component => {
-        const date = component.created_at ? new Date(component.created_at) : new Date();
+        // Use 2024 as the base year instead of current system year
+        const baseYear = 2024;
+        const date = component.created_at ? new Date(component.created_at) : new Date(baseYear, new Date().getMonth(), 1);
         const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
         
         if (!monthlyData[monthKey]) {
@@ -607,7 +613,9 @@ export default function AnalyticsPage() {
 
     // If we only have stats data, create basic performance metrics
     if (stats?.components?.total) {
-      const currentMonth = new Date().toLocaleDateString('en-US', { month: 'short' });
+      // Use 2024 as the base year
+      const baseYear = 2024;
+      const currentMonth = new Date(baseYear, new Date().getMonth(), 1).toLocaleDateString('en-US', { month: 'short' });
       const uptime = stats.components.total > 0 ? 
         Math.round((stats.components.operational / stats.components.total) * 100) : 100;
       
@@ -698,7 +706,9 @@ export default function AnalyticsPage() {
       return null;
     }
 
-    const now = new Date();
+    // Use 2024 as the base year instead of current system year
+    const baseYear = 2024;
+    const now = new Date(baseYear, new Date().getMonth(), new Date().getDate());
     const fourteenDaysFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
     
     const componentsNeedingMaintenance = components.filter(component => {
@@ -911,7 +921,9 @@ export default function AnalyticsPage() {
     const overdueNotifications = recentNotifications.filter(notification => {
       if (!notification.created_at) return false;
       const createdDate = new Date(notification.created_at);
-      const now = new Date();
+      // Use 2024 as base year instead of current system year
+      const baseYear = 2024;
+      const now = new Date(baseYear, new Date().getMonth(), new Date().getDate());
       const daysSinceCreated = (now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
       return daysSinceCreated > 7; // Notifications older than 7 days
     });
@@ -1184,7 +1196,9 @@ export default function AnalyticsPage() {
       
       if (pendingItems.length > 0) {
         // Estimate based on average age of pending items
-        const now = new Date();
+        // Use 2024 as base year instead of current system year
+        const baseYear = 2024;
+        const now = new Date(baseYear, new Date().getMonth(), new Date().getDate());
         const totalAge = pendingItems.reduce((sum, item) => {
           if (item.created_at) {
             const age = Math.ceil((now.getTime() - new Date(item.created_at).getTime()) / (1000 * 60 * 60 * 24));
@@ -1226,7 +1240,9 @@ export default function AnalyticsPage() {
     }
 
     // Count components due for maintenance in the next 5 days
-    const now = new Date();
+    // Use 2024 as base year instead of current system year
+    const baseYear = 2024;
+    const now = new Date(baseYear, new Date().getMonth(), new Date().getDate());
     const fiveDaysFromNow = new Date(now.getTime() + (5 * 24 * 60 * 60 * 1000));
     
     return components.filter(component => {
@@ -1354,9 +1370,9 @@ export default function AnalyticsPage() {
                       startDate: undefined,
                       endDate: undefined
                     }));
-                                          // Clear driver filter and search when resetting date range
-                      setDriverFilter([]);
-                      setDriverSearch('');
+                    // Clear driver filter and search when resetting date range
+                    setDriverFilter([]);
+                    setDriverSearch('');
                   }}
                   variant="outline"
                   size="sm"
@@ -1391,6 +1407,7 @@ export default function AnalyticsPage() {
                     <option value="30d">Last 30 Days</option>
                     <option value="1y">Last Year</option>
                     <option value="5y">Last 5 Years</option>
+                    <option value="custom">Custom Range</option>
                   </select>
                   
                   {/* Custom Date Range Inputs - Always visible */}
@@ -1403,7 +1420,8 @@ export default function AnalyticsPage() {
                         const newStartDate = e.target.value;
                         setFilters(prev => ({ 
                           ...prev, 
-                          startDate: newStartDate
+                          startDate: newStartDate,
+                          dateRange: 'custom' // Mark as custom date range
                         }));
                       }}
                       className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
@@ -1418,7 +1436,8 @@ export default function AnalyticsPage() {
                         const newEndDate = e.target.value;
                         setFilters(prev => ({ 
                           ...prev, 
-                          endDate: newEndDate
+                          endDate: newEndDate,
+                          dateRange: 'custom' // Mark as custom date range
                         }));
                       }}
                       className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"

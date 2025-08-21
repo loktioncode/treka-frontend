@@ -42,8 +42,9 @@ interface AnalyticsFiltersProps {
 const DATE_RANGES = [
   { value: '7d', label: 'Last 7 days' },
   { value: '30d', label: 'Last 30 days' },
-  { value: '90d', label: 'Last 90 days' },
   { value: '1y', label: 'Last year' },
+  { value: '5y', label: 'Last 5 years' },
+  { value: 'custom', label: 'Custom range' },
 ];
 
 const COMPONENT_STATUSES = ['operational', 'warning', 'critical', 'maintenance'];
@@ -78,7 +79,40 @@ export function AnalyticsFilters({
   }, [filters]);
 
   const handleFilterChange = (key: keyof AnalyticsFilters, value: unknown) => {
-    const newFilters = { ...localFilters, [key]: value };
+    let newFilters = { ...localFilters, [key]: value };
+    
+    // Handle date range selection - automatically populate custom dates
+    if (key === 'dateRange' && value !== 'custom') {
+      const today = new Date();
+      let startDate: string | undefined;
+      let endDate: string | undefined;
+      
+      switch (value) {
+        case '7d':
+          startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          endDate = today.toISOString().split('T')[0];
+          break;
+        case '30d':
+          startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          endDate = today.toISOString().split('T')[0];
+          break;
+        case '1y':
+          startDate = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          endDate = today.toISOString().split('T')[0];
+          break;
+        case '5y':
+          startDate = new Date(today.getTime() - 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          endDate = today.toISOString().split('T')[0];
+          break;
+      }
+      
+      newFilters = {
+        ...newFilters,
+        startDate,
+        endDate
+      };
+    }
+    
     setLocalFilters(newFilters);
   };
 
