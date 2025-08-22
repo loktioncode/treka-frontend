@@ -25,6 +25,9 @@ interface ExtendedAxiosRequestConfig extends AxiosRequestConfig {
 // API is running on port 8000
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
+// Flag to prevent multiple redirects to login
+let isRedirectingToLogin = false;
+
 // Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,

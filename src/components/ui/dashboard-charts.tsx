@@ -22,6 +22,7 @@ import {
 import { Eye } from 'lucide-react';
 import { useState } from 'react';
 import { Modal } from './modal';
+import { Pagination, usePagination } from './pagination';
 
 // Note: Using Recharts built-in types for tooltip formatters
 
@@ -37,8 +38,18 @@ const CHART_COLORS = {
   orange: '#f97316', // orange-500
 };
 
+// Interface for custom dot component props
+interface CustomDotProps {
+  cx?: number;
+  cy?: number;
+  payload?: {
+    earnings: number;
+    [key: string]: string | number | boolean;
+  };
+}
+
 // Custom dot component that only shows for non-zero values
-const CustomDot = (props: any) => {
+const CustomDot = (props: CustomDotProps) => {
   const { cx, cy, payload } = props;
   if (payload && payload.earnings > 0) {
     return (
@@ -56,7 +67,7 @@ const CustomDot = (props: any) => {
 };
 
 // Custom dot component for modal (larger)
-const CustomDotModal = (props: any) => {
+const CustomDotModal = (props: CustomDotProps) => {
   const { cx, cy, payload } = props;
   if (payload && payload.earnings > 0) {
     return (
@@ -135,7 +146,7 @@ export function OverallEarningsChart({ data, title = 'Overall Earnings', subtitl
   // Always render chart, even with no data
   if (!data || data.length === 0) {
     // Return empty chart instead of "no data" message
-    const chartData = [];
+    const chartData: Array<{ month: string; earnings: number }> = [];
     return (
       <DashboardChartCard title={title} subtitle="No earnings data available" onViewDetails={() => setShowModal(true)}>
         <ResponsiveContainer width="100%" height="100%">
@@ -518,6 +529,7 @@ interface PaymentDistributionChartProps {
 
 export function PaymentDistributionChart({ data, title = 'Payment Distribution', subtitle = 'Earnings by category' }: PaymentDistributionChartProps) {
   const [showModal, setShowModal] = useState(false);
+  const { visibleItems: visibleDrivers, handleShowMore, handleShowLess } = usePagination(data.length, 5);
 
   if (!data || data.length === 0) {
     return (
@@ -533,6 +545,10 @@ export function PaymentDistributionChart({ data, title = 'Payment Distribution',
     ...item,
     color: [CHART_COLORS.primary, CHART_COLORS.secondary, CHART_COLORS.success, CHART_COLORS.warning, CHART_COLORS.danger, CHART_COLORS.info][index % 6]
   }));
+
+  // Get visible drivers for the chart (show all for pie chart, but limit for breakdown)
+  const visibleChartData = chartData.slice(0, Math.max(5, visibleDrivers));
+  const visibleBreakdownData = chartData.slice(0, visibleDrivers);
 
   return (
     <>
@@ -572,7 +588,7 @@ export function PaymentDistributionChart({ data, title = 'Payment Distribution',
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={chartData}
+                  data={visibleChartData}
                   cx="50%"
                   cy="50%"
                   innerRadius={40}
@@ -583,7 +599,7 @@ export function PaymentDistributionChart({ data, title = 'Payment Distribution',
                   label={({ name, percent }) => `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`}
                   labelLine={true}
                 >
-                  {chartData.map((entry, index) => (
+                  {visibleChartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
@@ -602,8 +618,14 @@ export function PaymentDistributionChart({ data, title = 'Payment Distribution',
           </div>
           
           <div className="space-y-3">
-            <h4 className="font-semibold text-gray-900">Category Breakdown</h4>
-            {chartData.map((item) => (
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold text-gray-900">Driver Breakdown</h4>
+              <div className="text-sm text-gray-500">
+                Showing {visibleDrivers} of {data.length} drivers
+              </div>
+            </div>
+            
+            {visibleBreakdownData.map((item) => (
               <div key={item.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <div 
@@ -620,6 +642,15 @@ export function PaymentDistributionChart({ data, title = 'Payment Distribution',
                 </div>
               </div>
             ))}
+            
+            {/* Pagination Controls */}
+            <Pagination
+              totalItems={data.length}
+              visibleItems={visibleDrivers}
+              onShowMore={handleShowMore}
+              onShowLess={handleShowLess}
+              pageSize={5}
+            />
           </div>
         </div>
       </Modal>

@@ -34,7 +34,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
           refetchOnWindowFocus: false, // Prevent unnecessary refetches
           refetchOnReconnect: true,    // Refetch when connection restored
           // Don't run queries when not authenticated
-          enabled: (query) => {
+          enabled: () => {
             // Check if we have an auth token before running any queries
             if (typeof window !== 'undefined') {
               const token = localStorage.getItem('auth_token');
