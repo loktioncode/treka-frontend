@@ -1024,60 +1024,264 @@ export default function AnalyticsPage() {
 
   // Helper function to get selected drivers' monthly earnings
   const getSelectedDriversMonthlyEarnings = () => {
-    if (!driverFilter.length || !earningsData?.data?.drivers) {
-      return earningsData?.summary?.monthly_earnings || [];
+    if (!earningsData?.summary?.monthly_earnings) {
+      return [];
     }
     
     // Check if we have date filters applied
     const hasDateFilters = !!(filters.startDate && filters.endDate);
     
-    // If multiple drivers selected, combine their monthly earnings
-    if (driverFilter.length > 1) {
-      const selectedDrivers = earningsData.data.drivers.filter((d: DriverEarnings) => driverFilter.includes(d.uuid));
-      const combinedMonthlyData: Record<string, number> = {};
-      
-      if (hasDateFilters && earningsData?.summary?.driver_performance_trends) {
-        // Use date-filtered performance trends
-        selectedDrivers.forEach((driver: DriverEarnings) => {
+    if (driverFilter.length > 0) {
+      // If multiple drivers selected, combine their monthly earnings
+      if (driverFilter.length > 1) {
+        const selectedDrivers = earningsData.data.drivers.filter((d: DriverEarnings) => driverFilter.includes(d.uuid));
+        
+        if (hasDateFilters && earningsData?.summary?.driver_performance_trends) {
+          // Use date-filtered performance trends with zero values for missing months
+          const allMonths = getMonthsInRange(filters.startDate!, filters.endDate!);
+          const combinedMonthlyData: Record<string, number> = {};
+          
+          // Initialize all months with 0
+          allMonths.forEach((month: string) => {
+            combinedMonthlyData[month] = 0;
+          });
+          
+          // Fill in actual earnings data
+          selectedDrivers.forEach((driver: DriverEarnings) => {
+            const driverTrend = earningsData.summary.driver_performance_trends.find(
+              (trend: DriverPerformanceTrend) => trend.driver_name === driver.full_name
+            );
+            
+            if (driverTrend) {
+              driverTrend.monthly_earnings.forEach((month: MonthlyEarnings) => {
+                if (combinedMonthlyData[month.month] !== undefined) {
+                  combinedMonthlyData[month.month] += month.earnings;
+                }
+              });
+            }
+          });
+          
+          const result = Object.entries(combinedMonthlyData).map(([month, earnings]) => ({
+            month,
+            earnings
+          }));
+          
+          // Debug logging for Monthly Earnings chart
+          console.log('Monthly Earnings (Multiple Drivers) - Combined data:', result);
+          console.log('Monthly Earnings (Multiple Drivers) - All months from range:', allMonths);
+          
+          return result;
+        } else {
+          // Use predefined date range (1y, 5y, etc.) with driver performance trends
+          if (earningsData?.summary?.driver_performance_trends) {
+            const allMonths = getMonthsForPredefinedRange(filters.dateRange);
+            const combinedMonthlyData: Record<string, number> = {};
+            
+            // Initialize all months with 0
+            allMonths.forEach((month: string) => {
+              combinedMonthlyData[month] = 0;
+            });
+            
+            // Fill in actual earnings data
+            selectedDrivers.forEach((driver: DriverEarnings) => {
+              const driverTrend = earningsData.summary.driver_performance_trends.find(
+                (trend: DriverPerformanceTrend) => trend.driver_name === driver.full_name
+              );
+              
+              if (driverTrend) {
+                driverTrend.monthly_earnings.forEach((month: MonthlyEarnings) => {
+                  if (combinedMonthlyData[month.month] !== undefined) {
+                    combinedMonthlyData[month.month] += month.earnings;
+                  }
+                });
+              }
+            });
+            
+            const result = Object.entries(combinedMonthlyData).map(([month, earnings]) => ({
+              month,
+              earnings
+            }));
+            
+            // Debug logging for predefined range
+            console.log('Monthly Earnings (Multiple Drivers - Predefined Range) - Combined data:', result);
+            console.log('Monthly Earnings (Multiple Drivers - Predefined Range) - All months from range:', allMonths);
+            
+            return result;
+          }
+          
+          // Fallback to overall monthly earnings
+          return earningsData.summary.monthly_earnings;
+        }
+      } else {
+        // Single driver selected
+        const selectedDriver = earningsData.data.drivers.find((d: DriverEarnings) => d.uuid === driverFilter[0]);
+        if (!selectedDriver) return earningsData.summary.monthly_earnings;
+        
+        if (hasDateFilters && earningsData?.summary?.driver_performance_trends) {
+          // Use date-filtered performance trends with zero values for missing months
+          const allMonths = getMonthsInRange(filters.startDate!, filters.endDate!);
+          const driverMonthlyData: Record<string, number> = {};
+          
+          // Initialize all months with 0
+          allMonths.forEach((month: string) => {
+            driverMonthlyData[month] = 0;
+          });
+          
+          // Fill in actual earnings data
           const driverTrend = earningsData.summary.driver_performance_trends.find(
-            (trend: DriverPerformanceTrend) => trend.driver_name === driver.full_name
+            (trend: DriverPerformanceTrend) => trend.driver_name === selectedDriver.full_name
           );
           
           if (driverTrend) {
             driverTrend.monthly_earnings.forEach((month: MonthlyEarnings) => {
-              if (!combinedMonthlyData[month.month]) {
-                combinedMonthlyData[month.month] = 0;
+              if (driverMonthlyData[month.month] !== undefined) {
+                driverMonthlyData[month.month] = month.earnings;
               }
-              combinedMonthlyData[month.month] += month.earnings;
             });
           }
-        });
-      } else {
-        // Use overall driver data (no date filters)
-        // For now, return overall monthly earnings since individual driver trends might not be available
-        return earningsData?.summary?.monthly_earnings || [];
+          
+          return Object.entries(driverMonthlyData).map(([month, earnings]) => ({
+            month,
+            earnings
+          }));
+        } else {
+          // Use predefined date range (1y, 5y, etc.) with driver performance trends
+          if (earningsData?.summary?.driver_performance_trends) {
+            const allMonths = getMonthsForPredefinedRange(filters.dateRange);
+            const driverMonthlyData: Record<string, number> = {};
+            
+            // Initialize all months with 0
+            allMonths.forEach((month: string) => {
+              driverMonthlyData[month] = 0;
+            });
+            
+            // Fill in actual earnings data
+            const driverTrend = earningsData.summary.driver_performance_trends.find(
+              (trend: DriverPerformanceTrend) => trend.driver_name === selectedDriver.full_name
+            );
+            
+            if (driverTrend) {
+              driverTrend.monthly_earnings.forEach((month: MonthlyEarnings) => {
+                if (driverMonthlyData[month.month] !== undefined) {
+                  driverMonthlyData[month.month] = month.earnings;
+                }
+              });
+            }
+            
+            const result = Object.entries(driverMonthlyData).map(([month, earnings]) => ({
+              month,
+              earnings
+            }));
+            
+            // Debug logging for predefined range
+            console.log('Monthly Earnings (Single Driver - Predefined Range) - Combined data:', result);
+            console.log('Monthly Earnings (Single Driver - Predefined Range) - All months from range:', allMonths);
+            
+            return result;
+          }
+          
+          // Fallback to overall monthly earnings
+          return earningsData.summary.monthly_earnings;
+        }
       }
+    }
+    
+    // No driver filter - handle predefined date ranges
+    if (earningsData?.summary?.driver_performance_trends) {
+      const allMonths = getMonthsForPredefinedRange(filters.dateRange);
+      const overallMonthlyData: Record<string, number> = {};
       
-      return Object.entries(combinedMonthlyData).map(([month, earnings]) => ({
+      // Initialize all months with 0
+      allMonths.forEach((month: string) => {
+        overallMonthlyData[month] = 0;
+      });
+      
+      // Fill in actual earnings data from overall monthly earnings
+      earningsData.summary.monthly_earnings.forEach((month: MonthlyEarnings) => {
+        if (overallMonthlyData[month.month] !== undefined) {
+          overallMonthlyData[month.month] = month.earnings;
+        }
+      });
+      
+      const result = Object.entries(overallMonthlyData).map(([month, earnings]) => ({
         month,
         earnings
       }));
+      
+      // Debug logging for no filter case
+      console.log('Monthly Earnings (No Filter - Predefined Range) - Combined data:', result);
+      console.log('Monthly Earnings (No Filter - Predefined Range) - All months from range:', allMonths);
+      
+      return result;
     }
     
-    // Single driver selected
-    const selectedDriver = earningsData.data.drivers.find((d: DriverEarnings) => d.uuid === driverFilter[0]);
-    if (!selectedDriver) return earningsData.summary.monthly_earnings || [];
-    
-    if (hasDateFilters && earningsData?.summary?.driver_performance_trends) {
-      // Use date-filtered performance trends
-      const driverTrend = earningsData.summary.driver_performance_trends.find(
-        (driver: DriverPerformanceTrend) => driver.driver_name === selectedDriver.full_name
-      );
-      return driverTrend?.monthly_earnings || earningsData.summary.monthly_earnings || [];
-    } else {
-      // Use overall driver data (no date filters)
-      // For now, return overall monthly earnings since individual driver trends might not be available
-      return earningsData?.summary?.monthly_earnings || [];
+    // Fallback to overall monthly earnings
+    return earningsData.summary.monthly_earnings;
+  };
+
+  // Helper function to get months in a date range
+  const getMonthsInRange = (startDate: string, endDate: string): string[] => {
+    try {
+      const months: string[] = [];
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        console.warn('Invalid date range provided:', { startDate, endDate });
+        return [];
+      }
+      
+      let current = new Date(start.getFullYear(), start.getMonth(), 1);
+      
+      while (current <= end) {
+        months.push(current.toISOString().slice(0, 7)); // YYYY-MM format
+        current.setMonth(current.getMonth() + 1);
+      }
+      
+      console.log('Generated months in range:', { startDate, endDate, months });
+      return months;
+    } catch (error) {
+      console.error('Error generating months in range:', error);
+      return [];
+    }
+  };
+
+  // Helper function to get months for predefined date ranges
+  const getMonthsForPredefinedRange = (dateRange: string): string[] => {
+    try {
+      const months: string[] = [];
+      const now = new Date();
+      let startDate: Date;
+      
+      switch (dateRange) {
+        case '7d':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '30d':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case '1y':
+          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+          break;
+        case '5y':
+          startDate = new Date(now.getTime() - 5 * 365 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); // Default to 1 year
+      }
+      
+      let current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+      
+      while (current <= now) {
+        months.push(current.toISOString().slice(0, 7)); // YYYY-MM format
+        current.setMonth(current.getMonth() + 1);
+      }
+      
+      console.log('Generated months for predefined range:', { dateRange, months });
+      return months;
+    } catch (error) {
+      console.error('Error generating months for predefined range:', error);
+      return [];
     }
   };
 
@@ -1667,44 +1871,72 @@ export default function AnalyticsPage() {
             {earningsData?.summary?.driver_performance_trends && earningsData.summary.driver_performance_trends.length > 0 && (hasMeaningfulData() || hasHistoricalData()) ? (
               <MultiLineChart
                 data={
-                  driverFilter.length > 0 && earningsData?.summary?.driver_performance_trends
-                    ? earningsData.summary.driver_performance_trends
-                        .filter((driver: DriverPerformanceTrend) => {
-                          if (driverFilter.length === 1) {
-                            return driver.driver_name === getSelectedDriver()?.full_name;
-                          } else {
-                            // For multiple drivers, show all selected drivers
-                            return getSelectedDrivers().some((selectedDriver: DriverEarnings) => 
-                              selectedDriver.full_name === driver.driver_name
-                            );
-                          }
-                        })
-                        .flatMap((driver: DriverPerformanceTrend) => 
-                          driver.monthly_earnings.map((month: MonthlyEarnings) => ({
-                            month: month.month,
-                            [driver.driver_name]: month.earnings
-                          }))
-                        )
-                    : earningsData.summary.driver_performance_trends.flatMap((driver: DriverPerformanceTrend) => 
-                        driver.monthly_earnings.map((month: MonthlyEarnings) => ({
-                          month: month.month,
-                          [driver.driver_name]: month.earnings
-                        }))
-                      ).reduce((acc: Record<string, unknown>[], curr: Record<string, unknown>) => {
-                        const existing = acc.find((item: Record<string, unknown>) => item.month === curr.month);
-                        if (existing) {
-                          Object.assign(existing, curr);
-                        } else {
-                          acc.push(curr);
-                        }
-                        return acc;
-                      }, [] as Record<string, unknown>[])
+                  (() => {
+                                         // Get the filtered drivers based on current filter
+                     const filteredDrivers = driverFilter.length > 0 && earningsData?.summary?.driver_performance_trends
+                       ? earningsData.summary.driver_performance_trends.filter((driver: DriverPerformanceTrend) => {
+                           if (driverFilter.length === 1) {
+                             return driver.driver_name === getSelectedDriver()?.full_name;
+                           } else {
+                             return getSelectedDrivers().some((selectedDriver: DriverEarnings) => 
+                               selectedDriver.full_name === driver.driver_name
+                             );
+                           }
+                         })
+                       : earningsData.summary.driver_performance_trends.slice(0, 5);
+
+                     // Get months based on whether we have custom dates or predefined range
+                     let monthRange: string[];
+                     if (filters.startDate && filters.endDate) {
+                       monthRange = getMonthsInRange(filters.startDate, filters.endDate);
+                     } else {
+                       monthRange = getMonthsForPredefinedRange(filters.dateRange);
+                     }
+
+                     // Get all unique months from the filtered data
+                     const allMonths = new Set<string>();
+                     filteredDrivers.forEach((driver: DriverPerformanceTrend) => {
+                       driver.monthly_earnings.forEach((month: MonthlyEarnings) => {
+                         allMonths.add(month.month);
+                       });
+                     });
+
+                     // Sort months chronologically (YYYY-MM format)
+                     const sortedMonths = Array.from(allMonths).sort((a, b) => {
+                       // Parse YYYY-MM format for proper chronological sorting
+                       const [yearA, monthA] = a.split('-').map(Number);
+                       const [yearB, monthB] = b.split('-').map(Number);
+                       
+                       if (yearA !== yearB) return yearA - yearB;
+                       return monthA - monthB;
+                     });
+
+                     // Debug logging for Driver Performance Trends
+                     console.log('Driver Performance Trends - Month range:', monthRange);
+                     console.log('Driver Performance Trends - Available months from data:', Array.from(allMonths));
+                     console.log('Driver Performance Trends - Sorted months:', sortedMonths);
+                     console.log('Driver Performance Trends - Filtered drivers:', filteredDrivers.map((d: DriverPerformanceTrend) => d.driver_name));
+
+
+
+                     // Create chart data with zero values for missing months
+                     return sortedMonths.map(month => {
+                       const monthData: Record<string, unknown> = { month };
+                       
+                       filteredDrivers.forEach((driver: DriverPerformanceTrend) => {
+                         const monthEarnings = driver.monthly_earnings.find((m: MonthlyEarnings) => m.month === month);
+                         monthData[driver.driver_name] = monthEarnings ? monthEarnings.earnings : 0;
+                       });
+                       
+                       return monthData;
+                     });
+                  })()
                 }
                 xKey="month"
                 lines={
-                  driverFilter.length > 0 && earningsData?.summary?.driver_performance_trends
-                    ? earningsData.summary.driver_performance_trends
-                        .filter((driver: DriverPerformanceTrend) => {
+                  (() => {
+                    const filteredDrivers = driverFilter.length > 0 && earningsData?.summary?.driver_performance_trends
+                      ? earningsData.summary.driver_performance_trends.filter((driver: DriverPerformanceTrend) => {
                           if (driverFilter.length === 1) {
                             return driver.driver_name === getSelectedDriver()?.full_name;
                           } else {
@@ -1713,16 +1945,14 @@ export default function AnalyticsPage() {
                             );
                           }
                         })
-                        .map((driver: DriverPerformanceTrend, index: number) => ({
-                          key: driver.driver_name,
-                          label: driver.driver_name,
-                          color: ['#0d9488', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'][index % 5]
-                        }))
-                    : earningsData.summary.driver_performance_trends.slice(0, 5).map((driver: DriverPerformanceTrend, index: number) => ({
-                        key: driver.driver_name,
-                        label: driver.driver_name,
-                        color: ['#0d9488', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'][index % 5]
-                      }))
+                      : earningsData.summary.driver_performance_trends.slice(0, 5);
+
+                    return filteredDrivers.map((driver: DriverPerformanceTrend, index: number) => ({
+                      key: driver.driver_name,
+                      label: driver.driver_name,
+                      color: ['#0d9488', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'][index % 5]
+                    }));
+                  })()
                 }
                 title={driverFilter.length > 0 ? `Driver Performance - ${driverFilter.length === 1 ? getSelectedDriver()?.full_name : `${driverFilter.length} Drivers`}` : "Driver Performance Trends"}
                 subtitle={driverFilter.length > 0 ? `Monthly earnings for ${driverFilter.length === 1 ? 'selected driver' : 'selected drivers'}` : "Monthly earnings by driver"}
