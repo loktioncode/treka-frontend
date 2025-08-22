@@ -37,6 +37,42 @@ const CHART_COLORS = {
   orange: '#f97316', // orange-500
 };
 
+// Custom dot component that only shows for non-zero values
+const CustomDot = (props: any) => {
+  const { cx, cy, payload } = props;
+  if (payload && payload.earnings > 0) {
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={4}
+        fill={CHART_COLORS.primary}
+        stroke="#ffffff"
+        strokeWidth={2}
+      />
+    );
+  }
+  return null;
+};
+
+// Custom dot component for modal (larger)
+const CustomDotModal = (props: any) => {
+  const { cx, cy, payload } = props;
+  if (payload && payload.earnings > 0) {
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={5}
+        fill={CHART_COLORS.primary}
+        stroke="#ffffff"
+        strokeWidth={2}
+      />
+    );
+  }
+  return null;
+};
+
 interface DashboardChartCardProps {
   title: string;
   subtitle?: string;
@@ -111,6 +147,21 @@ export function OverallEarningsChart({ data, title = 'Overall Earnings', subtitl
     earnings: Number(item.earnings) || 0
   }));
 
+  console.log('OverallEarningsChart - Original data:', data);
+  console.log('OverallEarningsChart - Processed chartData:', chartData);
+
+  // Check if we have any periods with actual earnings
+  const hasActualEarnings = chartData.some(item => item.earnings > 0);
+  if (!hasActualEarnings) {
+    return (
+      <DashboardChartCard title={title} subtitle={subtitle} onViewDetails={() => setShowModal(true)}>
+        <div className="flex items-center justify-center h-full text-gray-500">
+          <p>No earnings data available for selected period</p>
+        </div>
+      </DashboardChartCard>
+    );
+  }
+
   // Calculate dynamic Y-axis scaling
   const maxEarnings = Math.max(...chartData.map(item => item.earnings));
   const minEarnings = Math.min(...chartData.map(item => item.earnings));
@@ -175,10 +226,16 @@ export function OverallEarningsChart({ data, title = 'Overall Earnings', subtitl
               type="monotone" 
               dataKey="earnings" 
               stroke={CHART_COLORS.primary}
-              strokeWidth={2}
+              strokeWidth={3}
               fill="url(#earningsGradient)"
-              dot={{ fill: CHART_COLORS.primary, strokeWidth: 2, r: 3 }}
-              activeDot={{ r: 5, stroke: CHART_COLORS.primary, strokeWidth: 2 }}
+              dot={<CustomDot />}
+              activeDot={{ 
+                r: 6, 
+                stroke: CHART_COLORS.primary, 
+                strokeWidth: 3,
+                fill: '#ffffff'
+              }}
+              connectNulls={true}
             />
           </AreaChart>
         </ResponsiveContainer>
@@ -226,8 +283,14 @@ export function OverallEarningsChart({ data, title = 'Overall Earnings', subtitl
                   stroke={CHART_COLORS.primary}
                   strokeWidth={3}
                   fill="url(#earningsGradientModal)"
-                  dot={{ fill: CHART_COLORS.primary, strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, stroke: CHART_COLORS.primary, strokeWidth: 2 }}
+                  dot={<CustomDotModal />}
+                  activeDot={{ 
+                    r: 8, 
+                    stroke: CHART_COLORS.primary, 
+                    strokeWidth: 3,
+                    fill: '#ffffff'
+                  }}
+                  connectNulls={true}
                 />
               </AreaChart>
             </ResponsiveContainer>

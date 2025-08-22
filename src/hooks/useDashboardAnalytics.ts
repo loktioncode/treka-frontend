@@ -54,8 +54,12 @@ export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDe
   // Transform data for charts with frontend date filtering
   const transformData = (): DashboardAnalyticsData => {
     // Debug: Log the date range and parameters
-    console.log('useDashboardAnalytics transformData called with dateRange:', dateRange);
-    console.log('Driver earnings data:', driverEarningsQuery.data);
+    console.log('=== DASHBOARD ANALYTICS DEBUG ===');
+    console.log('Date range:', dateRange, 'Show demo data:', showDemoData);
+    console.log('Driver earnings API response:', driverEarningsQuery.data);
+    console.log('Driver earnings - summary:', driverEarningsQuery.data?.summary);
+    console.log('Driver earnings - data:', driverEarningsQuery.data?.data);
+    console.log('Monthly earnings from API:', driverEarningsQuery.data?.summary?.monthly_earnings);
     console.log('Payouts data:', payoutsQuery.data);
     console.log('Performance data:', performanceQuery.data);
     
@@ -112,24 +116,47 @@ export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDe
 
 
 
-    // 1. Overall Earnings - Use monthly earnings from driver earnings API with complete month coverage
+    // 1. Overall Earnings - Create complete timeline with actual data points
     let overallEarnings: Array<{ month: string; earnings: number }> = [];
     
     if (monthlyEarnings.length > 0) {
-      // Use the monthly earnings data from the driver earnings API
-      overallEarnings = monthlyEarnings.map((item: MonthlyEarningsItem) => ({
-        month: item.month,
-        earnings: Number(item.earnings) || 0
-      }));
+      // Convert API data to a map for easy lookup
+      const apiDataMap = new Map<string, number>();
+      monthlyEarnings.forEach((item: MonthlyEarningsItem) => {
+        const earnings = Number(item.earnings) || 0;
+        if (earnings > 0) { // Only store periods with actual earnings
+          // Store both the original format and normalized formats for better matching
+          apiDataMap.set(item.month, earnings);
+          
+          // Try to parse and create alternative formats for better matching
+          try {
+            if (item.month.includes('-') && item.month.length >= 7) {
+              // Format like "2024-08" -> convert to different representations
+              const parts = item.month.split('-');
+              if (parts.length >= 2) {
+                const year = parts[0];
+                const monthNum = parseInt(parts[1]);
+                const date = new Date(parseInt(year), monthNum - 1, 1);
+                
+                // Create various format alternatives
+                const shortYear = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+                const fullYear = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                
+                apiDataMap.set(shortYear, earnings);
+                apiDataMap.set(fullYear, earnings);
+              }
+            }
+          } catch (e) {
+            console.warn('Could not parse date format:', item.month, e);
+          }
+        }
+      });
       
-      console.log('Using monthly earnings from API:', overallEarnings);
-    }
-
-    // Ensure complete month coverage for the selected date range
-    if (overallEarnings.length > 0) {
-      // Generate all months for the selected date range
-      const allMonths: Array<{ month: string; earnings: number }> = [];
+      console.log('API data map with actual earnings:', Object.fromEntries(apiDataMap));
+      
+      // Generate complete timeline for the selected date range with zeros and actual data
       const now = new Date();
+      const allMonths: Array<{ month: string; earnings: number }> = [];
       
       switch (dateRange) {
         case '7d':
@@ -139,11 +166,9 @@ export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDe
             date.setDate(now.getDate() - i);
             const monthKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
             
-            // Find existing data for this month or use 0
-            const existingData = overallEarnings.find(item => item.month === monthKey);
             allMonths.push({
               month: monthKey,
-              earnings: existingData ? existingData.earnings : 0
+              earnings: apiDataMap.get(monthKey) || 0
             });
           }
           break;
@@ -155,11 +180,9 @@ export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDe
             date.setDate(now.getDate() - i);
             const monthKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
             
-            // Find existing data for this month or use 0
-            const existingData = overallEarnings.find(item => item.month === monthKey);
             allMonths.push({
               month: monthKey,
-              earnings: existingData ? existingData.earnings : 0
+              earnings: apiDataMap.get(monthKey) || 0
             });
           }
           break;
@@ -171,11 +194,9 @@ export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDe
             date.setMonth(now.getMonth() - i);
             const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
             
-            // Find existing data for this month or use 0
-            const existingData = overallEarnings.find(item => item.month === monthKey);
             allMonths.push({
               month: monthKey,
-              earnings: existingData ? existingData.earnings : 0
+              earnings: apiDataMap.get(monthKey) || 0
             });
           }
           break;
@@ -187,19 +208,41 @@ export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDe
             date.setMonth(now.getMonth() - i);
             const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
             
-            // Find existing data for this month or use 0
-            const existingData = overallEarnings.find(item => item.month === monthKey);
             allMonths.push({
               month: monthKey,
-              earnings: existingData ? existingData.earnings : 0
+              earnings: apiDataMap.get(monthKey) || 0
             });
           }
           break;
       }
       
-      // Replace overallEarnings with complete month coverage
       overallEarnings = allMonths;
-      console.log('Generated complete month coverage:', overallEarnings);
+      console.log('Generated complete timeline with actual data points:', overallEarnings);
+      console.log('Periods with actual earnings:', overallEarnings.filter(item => item.earnings > 0));
+    }
+
+    // If no monthly earnings data, try to aggregate from driver earnings data
+    if (overallEarnings.length === 0 && driverEarnings.length > 0) {
+      // Create a simple aggregation by summing all driver earnings
+      const totalEarnings = driverEarnings.reduce((sum: number, driver: DriverEarningsItem) => {
+        return sum + (Number(driver.total_earnings) || 0);
+      }, 0);
+      
+      if (totalEarnings > 0) {
+        // Create a single data point for the current period
+        const currentDate = new Date();
+        const monthKey = currentDate.toLocaleDateString('en-US', { 
+          month: 'short', 
+          year: dateRange === '1y' || dateRange === '5y' ? '2-digit' : undefined 
+        });
+        
+        overallEarnings = [{
+          month: monthKey,
+          earnings: totalEarnings
+        }];
+        
+        console.log('Created earnings data from driver totals:', overallEarnings);
+      }
     }
 
     // 2. Driver Leaderboard - Use driver earnings data from API only
