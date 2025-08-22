@@ -161,8 +161,12 @@ export default function ComponentDetailsPage() {
   }, [componentId]);
 
   useEffect(() => {
-    if (componentId) {
-      loadComponentDetails();
+    // Only make API calls if componentId is provided and user is authenticated
+    if (componentId && typeof window !== 'undefined') {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        loadComponentDetails();
+      }
     }
   }, [componentId, loadComponentDetails]);
 

@@ -125,9 +125,13 @@ export default function ClientDetailPage() {
 
   // Load client and users
   useEffect(() => {
-    if (clientId) {
-      loadClient();
-      loadUsers();
+    // Only make API calls if clientId is provided and user is authenticated
+    if (clientId && typeof window !== 'undefined') {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        loadClient();
+        loadUsers();
+      }
     }
   }, [clientId, loadClient, loadUsers]);
 

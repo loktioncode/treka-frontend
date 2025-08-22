@@ -23,6 +23,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [loading, setLoading] = useState(false);
 
   const refreshNotifications = useCallback(async () => {
+    // Don't make API calls if user is not authenticated
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      return;
+    }
+    
     try {
       setLoading(true);
       const response = await notificationAPI.getNotifications();
@@ -72,13 +78,21 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     !n.read_status && (n.urgency === 'critical' || n.urgency === 'OVERDUE')
   );
 
-  // Initial load
+  // Initial load - only when authenticated
   useEffect(() => {
-    refreshNotifications();
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      refreshNotifications();
+    }
   }, [refreshNotifications]);
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 30 seconds, but only when authenticated
   useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      return;
+    }
+    
     const interval = setInterval(refreshNotifications, 30000);
     return () => clearInterval(interval);
   }, [refreshNotifications]);

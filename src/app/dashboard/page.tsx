@@ -75,7 +75,7 @@ export default function Dashboard() {
     return false;
   });
   
-  // Fetch analytics data for charts
+  // Fetch analytics data for charts - only when user is authenticated
   const { data: analyticsData, isLoading: analyticsLoading, isError: analyticsError, refetch: refetchAnalytics } = useDashboardAnalytics(selectedDateRange, showDemoData);
 
   const loadDashboardStats = useCallback(async (isRefresh = false) => {
@@ -107,7 +107,8 @@ export default function Dashboard() {
   }, [user, setLoading, setRefreshing, setError, setDashboardStats]);
 
   useEffect(() => {
-    if (user) {
+    // Only make API calls if user is authenticated
+    if (user && user.id) {
       loadDashboardStats();
     }
   }, [user, loadDashboardStats]);

@@ -11,8 +11,14 @@ export function useRoutePrefetch() {
   const { prefetchClients, prefetchClient, prefetchClientUsers } = usePrefetch();
 
   useEffect(() => {
-    // Only prefetch data if user is authenticated
-    if (!user) return;
+    // Only prefetch data if user is authenticated and has a valid token
+    if (!user || !user.id) return;
+    
+    // Additional check for authentication token
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+    }
 
     // Preload data for adjacent routes based on current path and user role
     if (pathname === '/dashboard') {

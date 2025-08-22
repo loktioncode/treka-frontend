@@ -353,12 +353,22 @@ export default function AnalyticsPage() {
   }, [user]);
 
   useEffect(() => {
-    loadClientInfo();
+    // Only make API calls if user is authenticated
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        loadClientInfo();
+      }
+    }
   }, [loadClientInfo]);
 
   useEffect(() => {
-    if (currentClient) {
-      loadData();
+    // Only make API calls if user is authenticated and client is loaded
+    if (currentClient && typeof window !== 'undefined') {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        loadData();
+      }
     }
   }, [currentClient, loadData]);
 

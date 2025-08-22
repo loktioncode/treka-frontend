@@ -23,7 +23,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         queries: {
           staleTime: 1000 * 60 * 5, // 5 minutes
           gcTime: 1000 * 60 * 10, // 10 minutes (replaces cacheTime)
-                          retry: (failureCount, error: unknown) => {
+          retry: (failureCount, error: unknown) => {
             // Don't retry on authentication/authorization errors
             const errorWithResponse = error as { response?: { status?: number } };
             if (errorWithResponse?.response?.status && [401, 403, 404].includes(errorWithResponse.response.status)) {
@@ -33,6 +33,15 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
           },
           refetchOnWindowFocus: false, // Prevent unnecessary refetches
           refetchOnReconnect: true,    // Refetch when connection restored
+          // Don't run queries when not authenticated
+          enabled: (query) => {
+            // Check if we have an auth token before running any queries
+            if (typeof window !== 'undefined') {
+              const token = localStorage.getItem('auth_token');
+              return !!token;
+            }
+            return false;
+          },
         },
         mutations: {
           retry: 1, // Only retry mutations once

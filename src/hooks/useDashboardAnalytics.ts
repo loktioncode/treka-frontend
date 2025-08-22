@@ -15,6 +15,9 @@ export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDe
   // The date range filtering happens on the frontend to show the appropriate subset
   // This ensures we show data from the very first payout document in the database
 
+  // Check if user is authenticated before making API calls
+  const isAuthenticated = typeof window !== 'undefined' && !!localStorage.getItem('auth_token');
+
   // Fetch driver earnings data for overall earnings and leaderboard
   const driverEarningsQuery = useQuery({
     queryKey: ['dashboard-driver-earnings'],
@@ -23,6 +26,7 @@ export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDe
     gcTime: 10 * 60 * 1000, // 10 minutes
     retry: 2,
     retryDelay: 1000,
+    enabled: isAuthenticated, // Only run when authenticated
   });
 
   // Fetch logistics performance metrics
@@ -33,6 +37,7 @@ export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDe
     gcTime: 10 * 60 * 1000, // 10 minutes
     retry: 2,
     retryDelay: 1000,
+    enabled: isAuthenticated, // Only run when authenticated
   });
 
   // Fetch all payouts for payment distribution
@@ -43,6 +48,7 @@ export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDe
     gcTime: 10 * 60 * 1000, // 10 minutes
     retry: 2,
     retryDelay: 1000,
+    enabled: isAuthenticated, // Only run when authenticated
   });
 
   // Transform data for charts with frontend date filtering

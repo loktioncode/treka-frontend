@@ -89,12 +89,21 @@ api.interceptors.response.use(
     // Handle different types of errors
     if (error.response?.status === 401) {
       // Unauthorized - token expired or invalid
-      toast.error('Session expired. Please log in again.');
+      // Don't show toast here to avoid multiple notifications
+      // The login page will show the message once when redirected
       
       logger.userAction('session_expired', { 
         trigger: 'api_401_response',
         url: config?.url 
       });
+      
+      // Check if we're already redirecting to prevent multiple redirects
+      if (isRedirectingToLogin || window.location.pathname === '/login') {
+        return Promise.reject(error);
+      }
+      
+      // Set flag to prevent multiple redirects
+      isRedirectingToLogin = true;
       
       // Clear auth state
       localStorage.removeItem('auth_token');
@@ -102,10 +111,7 @@ api.interceptors.response.use(
       // Clear cookie as well
       document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       
-      // Add a small delay to ensure the toast is visible before redirect
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Redirect to login with expired parameter
+      // Redirect immediately to login with expired parameter
       window.location.href = '/login?expired=true';
     } else if (error.response?.status === 403) {
       // Forbidden - insufficient permissions

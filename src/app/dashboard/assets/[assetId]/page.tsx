@@ -247,15 +247,23 @@ export default function AssetViewPage() {
   }, [asset?.client_id]);
 
   useEffect(() => {
-    if (assetId) {
-      loadAsset();
-      loadComponents();
+    // Only make API calls if assetId is provided and user is authenticated
+    if (assetId && typeof window !== 'undefined') {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        loadAsset();
+        loadComponents();
+      }
     }
   }, [assetId, loadAsset, loadComponents]);
 
   useEffect(() => {
-    if (asset) {
-      loadDrivers();
+    // Only make API calls if asset is loaded and user is authenticated
+    if (asset && typeof window !== 'undefined') {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        loadDrivers();
+      }
     }
   }, [asset, loadDrivers]);
 
