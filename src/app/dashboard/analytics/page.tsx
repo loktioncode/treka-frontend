@@ -2075,24 +2075,26 @@ export default function AnalyticsPage() {
               </div>
             </Card>
 
-            {/* Quick Actions */}
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-              <div className="space-y-3">
-                <Button className="w-full justify-start" variant="outline" size="sm">
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Generate Report
-                </Button>
-                <Button className="w-full justify-start" variant="outline" size="sm">
-                  <AlertTriangle className="h-4 w-4 mr-2" />
-                  View Alerts
-                </Button>
-                <Button className="w-full justify-start" variant="outline" size="sm">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Configure Alerts
-                </Button>
-              </div>
-            </Card>
+            {/* Quick Actions - Hide for logistics clients */}
+            {currentClient?.client_type === 'industrial' && (
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+                <div className="space-y-3">
+                  <Button className="w-full justify-start" variant="outline" size="sm">
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Generate Report
+                  </Button>
+                  <Button className="w-full justify-start" variant="outline" size="sm">
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    View Alerts
+                  </Button>
+                  <Button className="w-full justify-start" variant="outline" size="sm">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Configure Alerts
+                  </Button>
+                </div>
+              </Card>
+            )}
           </div>
         </div>
       )}
