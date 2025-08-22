@@ -132,12 +132,19 @@ interface OverallEarningsChartProps {
 export function OverallEarningsChart({ data, title = 'Overall Earnings', subtitle = 'Monthly earnings trend' }: OverallEarningsChartProps) {
   const [showModal, setShowModal] = useState(false);
 
+  // Always render chart, even with no data
   if (!data || data.length === 0) {
+    // Return empty chart instead of "no data" message
+    const chartData = [];
     return (
-      <DashboardChartCard title={title} subtitle={subtitle} onViewDetails={() => setShowModal(true)}>
-        <div className="flex items-center justify-center h-full text-gray-500">
-          <p>No earnings data available</p>
-        </div>
+      <DashboardChartCard title={title} subtitle="No earnings data available" onViewDetails={() => setShowModal(true)}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" opacity={0.5} />
+            <XAxis stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
+            <YAxis stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
+          </AreaChart>
+        </ResponsiveContainer>
       </DashboardChartCard>
     );
   }
@@ -150,17 +157,11 @@ export function OverallEarningsChart({ data, title = 'Overall Earnings', subtitl
   console.log('OverallEarningsChart - Original data:', data);
   console.log('OverallEarningsChart - Processed chartData:', chartData);
 
-  // Check if we have any periods with actual earnings
+  // Check if all values are zero to show appropriate subtitle
   const hasActualEarnings = chartData.some(item => item.earnings > 0);
-  if (!hasActualEarnings) {
-    return (
-      <DashboardChartCard title={title} subtitle={subtitle} onViewDetails={() => setShowModal(true)}>
-        <div className="flex items-center justify-center h-full text-gray-500">
-          <p>No earnings data available for selected period</p>
-        </div>
-      </DashboardChartCard>
-    );
-  }
+  const displaySubtitle = hasActualEarnings ? subtitle : `${subtitle} (no earnings in selected period)`;
+  
+  console.log('Chart will render with data:', chartData.length, 'periods');
 
   // Calculate dynamic Y-axis scaling
   const maxEarnings = Math.max(...chartData.map(item => item.earnings));
@@ -180,6 +181,8 @@ export function OverallEarningsChart({ data, title = 'Overall Earnings', subtitl
 
   // Determine Y-axis domain for better scaling
   const getYAxisDomain = () => {
+    // Handle case where all values are zero
+    if (maxEarnings === 0) return [0, 100]; // Show a small scale for zero data
     if (earningsRange === 0) return [0, maxEarnings * 1.1];
     if (minEarnings === 0) return [0, maxEarnings * 1.1];
     return [minEarnings * 0.9, maxEarnings * 1.1];
@@ -187,7 +190,7 @@ export function OverallEarningsChart({ data, title = 'Overall Earnings', subtitl
 
   return (
     <>
-      <DashboardChartCard title={title} subtitle={subtitle} onViewDetails={() => setShowModal(true)}>
+      <DashboardChartCard title={title} subtitle={displaySubtitle} onViewDetails={() => setShowModal(true)}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
             <defs>

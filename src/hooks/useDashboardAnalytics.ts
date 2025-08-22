@@ -138,12 +138,23 @@ export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDe
                 const monthNum = parseInt(parts[1]);
                 const date = new Date(parseInt(year), monthNum - 1, 1);
                 
-                // Create various format alternatives
+                // Create various format alternatives for better matching
                 const shortYear = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
                 const fullYear = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                const monthOnly = date.toLocaleDateString('en-US', { month: 'short' });
                 
+                // Store all format variations
                 apiDataMap.set(shortYear, earnings);
                 apiDataMap.set(fullYear, earnings);
+                apiDataMap.set(monthOnly, earnings);
+                
+                console.log(`Created format mappings for ${item.month}:`, {
+                  original: item.month,
+                  shortYear,
+                  fullYear,
+                  monthOnly,
+                  earnings
+                });
               }
             }
           } catch (e) {
@@ -155,15 +166,64 @@ export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDe
       console.log('API data map with actual earnings:', Object.fromEntries(apiDataMap));
       
       // Generate complete timeline for the selected date range with zeros and actual data
-      const now = new Date();
+      // Use the actual data dates instead of current system date
       const allMonths: Array<{ month: string; earnings: number }> = [];
+      
+      // Find the actual date range from the data
+      let dataStartDate: Date | null = null;
+      let dataEndDate: Date | null = null;
+      
+      // Parse the actual dates from the API data
+      monthlyEarnings.forEach((item: MonthlyEarningsItem) => {
+        try {
+          if (item.month.includes('-') && item.month.length >= 7) {
+            // Format like "2024-08" -> parse to Date
+            const parts = item.month.split('-');
+            if (parts.length >= 2) {
+              const year = parseInt(parts[0]);
+              const monthNum = parseInt(parts[1]) - 1; // Month is 0-indexed
+              const date = new Date(year, monthNum, 1);
+              
+              if (!dataStartDate || date < dataStartDate) {
+                dataStartDate = date;
+              }
+              if (!dataEndDate || date > dataEndDate) {
+                dataEndDate = date;
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Could not parse date from:', item.month, e);
+        }
+      });
+      
+      console.log('Data date range found:', { dataStartDate, dataEndDate });
+      
+      // If we found actual data dates, use them; otherwise fall back to current date
+      let referenceDate = dataEndDate || new Date();
+      
+      // Special handling for 1y view: if we have 2024 data but are in 2025, 
+      // ensure we show the 2024 data properly
+      if (dateRange === '1y' && dataStartDate && dataEndDate) {
+        // For yearly view, use the year of the data, not the current year
+        const dataYear = (dataEndDate as Date).getFullYear();
+        const currentYear = new Date().getFullYear();
+        
+        if (dataYear < currentYear) {
+          // We have historical data, create a timeline centered on that year
+          referenceDate = new Date(dataYear, 11, 31); // End of the data year
+          console.log(`Using historical data year ${dataYear} for 1y timeline`);
+        }
+      }
+      
+      console.log('Using reference date for timeline:', referenceDate);
       
       switch (dateRange) {
         case '7d':
-          // Generate 7 daily periods
+          // Generate 7 daily periods from the reference date
           for (let i = 6; i >= 0; i--) {
-            const date = new Date(now);
-            date.setDate(now.getDate() - i);
+            const date = new Date(referenceDate);
+            date.setDate(referenceDate.getDate() - i);
             const monthKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
             
             allMonths.push({
@@ -174,10 +234,10 @@ export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDe
           break;
           
         case '30d':
-          // Generate 30 daily periods
+          // Generate 30 daily periods from the reference date
           for (let i = 29; i >= 0; i--) {
-            const date = new Date(now);
-            date.setDate(now.getDate() - i);
+            const date = new Date(referenceDate);
+            date.setDate(referenceDate.getDate() - i);
             const monthKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
             
             allMonths.push({
@@ -188,10 +248,10 @@ export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDe
           break;
           
         case '1y':
-          // Generate 12 monthly periods
+          // Generate 12 monthly periods from the reference date
           for (let i = 11; i >= 0; i--) {
-            const date = new Date(now);
-            date.setMonth(now.getMonth() - i);
+            const date = new Date(referenceDate);
+            date.setMonth(referenceDate.getMonth() - i);
             const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
             
             allMonths.push({
@@ -202,10 +262,10 @@ export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDe
           break;
           
         case '5y':
-          // Generate 60 monthly periods (5 years)
+          // Generate 60 monthly periods (5 years) from the reference date
           for (let i = 59; i >= 0; i--) {
-            const date = new Date(now);
-            date.setMonth(now.getMonth() - i);
+            const date = new Date(referenceDate);
+            date.setMonth(referenceDate.getMonth() - i);
             const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
             
             allMonths.push({
@@ -221,28 +281,74 @@ export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDe
       console.log('Periods with actual earnings:', overallEarnings.filter(item => item.earnings > 0));
     }
 
-    // If no monthly earnings data, try to aggregate from driver earnings data
-    if (overallEarnings.length === 0 && driverEarnings.length > 0) {
-      // Create a simple aggregation by summing all driver earnings
-      const totalEarnings = driverEarnings.reduce((sum: number, driver: DriverEarningsItem) => {
-        return sum + (Number(driver.total_earnings) || 0);
-      }, 0);
+    // If no monthly earnings data, create empty timeline with zeros
+    if (overallEarnings.length === 0) {
+      console.log('No monthly earnings data found, creating empty timeline with zeros');
       
-      if (totalEarnings > 0) {
-        // Create a single data point for the current period
-        const currentDate = new Date();
-        const monthKey = currentDate.toLocaleDateString('en-US', { 
-          month: 'short', 
-          year: dateRange === '1y' || dateRange === '5y' ? '2-digit' : undefined 
-        });
-        
-        overallEarnings = [{
-          month: monthKey,
-          earnings: totalEarnings
-        }];
-        
-        console.log('Created earnings data from driver totals:', overallEarnings);
+      // Create empty timeline based on selected date range
+      const now = new Date();
+      const emptyTimeline: Array<{ month: string; earnings: number }> = [];
+      
+      switch (dateRange) {
+        case '7d':
+          // Generate 7 daily periods with zeros
+          for (let i = 6; i >= 0; i--) {
+            const date = new Date(now);
+            date.setDate(now.getDate() - i);
+            const monthKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            
+            emptyTimeline.push({
+              month: monthKey,
+              earnings: 0
+            });
+          }
+          break;
+          
+        case '30d':
+          // Generate 30 daily periods with zeros
+          for (let i = 29; i >= 0; i--) {
+            const date = new Date(now);
+            date.setDate(now.getDate() - i);
+            const monthKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            
+            emptyTimeline.push({
+              month: monthKey,
+              earnings: 0
+            });
+          }
+          break;
+          
+        case '1y':
+          // Generate 12 monthly periods with zeros
+          for (let i = 11; i >= 0; i--) {
+            const date = new Date(now);
+            date.setMonth(now.getMonth() - i);
+            const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+            
+            emptyTimeline.push({
+              month: monthKey,
+              earnings: 0
+            });
+          }
+          break;
+          
+        case '5y':
+          // Generate 60 monthly periods (5 years) with zeros
+          for (let i = 59; i >= 0; i--) {
+            const date = new Date(now);
+            date.setMonth(now.getMonth() - i);
+            const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            
+            emptyTimeline.push({
+              month: monthKey,
+              earnings: 0
+            });
+          }
+          break;
       }
+      
+      overallEarnings = emptyTimeline;
+      console.log('Created empty timeline with zeros:', overallEarnings);
     }
 
     // 2. Driver Leaderboard - Use driver earnings data from API only
