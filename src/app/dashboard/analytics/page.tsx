@@ -1011,11 +1011,11 @@ export default function AnalyticsPage() {
       }
     });
 
-    // Convert to array format and add totals
+    // Convert to array format and add totals with formatted month names
     return Object.entries(monthlyData).map(([month, driverEarnings]) => {
       const total = Object.values(driverEarnings).reduce((sum, earnings) => sum + earnings, 0);
       return {
-        month,
+        month: formatMonthName(month),
         ...driverEarnings,
         total
       };
@@ -1062,7 +1062,7 @@ export default function AnalyticsPage() {
           });
           
           const result = Object.entries(combinedMonthlyData).map(([month, earnings]) => ({
-            month,
+            month: formatMonthName(month),
             earnings
           }));
           
@@ -1098,7 +1098,7 @@ export default function AnalyticsPage() {
             });
             
             const result = Object.entries(combinedMonthlyData).map(([month, earnings]) => ({
-              month,
+              month: formatMonthName(month),
               earnings
             }));
             
@@ -1109,8 +1109,11 @@ export default function AnalyticsPage() {
             return result;
           }
           
-          // Fallback to overall monthly earnings
-          return earningsData.summary.monthly_earnings;
+          // Fallback to overall monthly earnings with month formatting
+          return earningsData.summary.monthly_earnings.map((month: MonthlyEarnings) => ({
+            month: formatMonthName(month.month),
+            earnings: month.earnings
+          }));
         }
       } else {
         // Single driver selected
@@ -1141,7 +1144,7 @@ export default function AnalyticsPage() {
           }
           
           return Object.entries(driverMonthlyData).map(([month, earnings]) => ({
-            month,
+            month: formatMonthName(month),
             earnings
           }));
         } else {
@@ -1169,7 +1172,7 @@ export default function AnalyticsPage() {
             }
             
             const result = Object.entries(driverMonthlyData).map(([month, earnings]) => ({
-              month,
+              month: formatMonthName(month),
               earnings
             }));
             
@@ -1180,8 +1183,11 @@ export default function AnalyticsPage() {
             return result;
           }
           
-          // Fallback to overall monthly earnings
-          return earningsData.summary.monthly_earnings;
+          // Fallback to overall monthly earnings with month formatting
+          return earningsData.summary.monthly_earnings.map((month: MonthlyEarnings) => ({
+            month: formatMonthName(month.month),
+            earnings: month.earnings
+          }));
         }
       }
     }
@@ -1204,7 +1210,7 @@ export default function AnalyticsPage() {
       });
       
       const result = Object.entries(overallMonthlyData).map(([month, earnings]) => ({
-        month,
+        month: formatMonthName(month),
         earnings
       }));
       
@@ -1215,8 +1221,11 @@ export default function AnalyticsPage() {
       return result;
     }
     
-    // Fallback to overall monthly earnings
-    return earningsData.summary.monthly_earnings;
+    // Fallback to overall monthly earnings with month formatting
+    return earningsData.summary.monthly_earnings.map((month: MonthlyEarnings) => ({
+      month: formatMonthName(month.month),
+      earnings: month.earnings
+    }));
   };
 
   // Helper function to get months in a date range
@@ -1243,6 +1252,20 @@ export default function AnalyticsPage() {
     } catch (error) {
       console.error('Error generating months in range:', error);
       return [];
+    }
+  };
+
+  // Helper function to format month names for display (YYYY-MM -> Sep 24)
+  const formatMonthName = (monthKey: string): string => {
+    try {
+      const [year, month] = monthKey.split('-').map(Number);
+      const date = new Date(year, month - 1, 1);
+      const monthName = date.toLocaleDateString('en-US', { month: 'short' });
+      const yearShort = year.toString().slice(-2);
+      return `${monthName} ${yearShort}`;
+    } catch (error) {
+      console.error('Error formatting month name:', error);
+      return monthKey;
     }
   };
 
