@@ -157,6 +157,8 @@ export default function AnalyticsPage() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [driverFilter, setDriverFilter] = useState<string[]>([]);
   const [driverSearch, setDriverSearch] = useState<string>('');
+  const [showAllDrivers, setShowAllDrivers] = useState(false);
+  const [driversToShow, setDriversToShow] = useState(10);
 
   // React Query hooks for logistics analytics
   const { data: earningsData, isLoading: earningsLoading, refetch: refetchEarnings } = useDriverEarnings(
@@ -200,7 +202,7 @@ export default function AnalyticsPage() {
     }
   }, [earningsData, currentClient, filters.dateRange, filters.startDate, filters.endDate]);
 
-  // Clear driver search when date filters change (but not when they're both undefined)
+  // Clear driver search and reset show more/less when date filters change (but not when they're both undefined)
   useEffect(() => {
     if (currentClient?.client_type === 'logistics') {
       // Only clear search if we're going from having dates to not having dates
@@ -208,11 +210,16 @@ export default function AnalyticsPage() {
       if (!hadDates) {
         setDriverSearch('');
       }
+      // Reset show more/less state when filters change
+      setShowAllDrivers(false);
     }
   }, [filters.startDate, filters.endDate, currentClient]);
-  
 
-  
+  // Reset show more/less when driver search changes
+  useEffect(() => {
+    setShowAllDrivers(false);
+  }, [driverSearch]);
+
   const { data: performanceData } = useLogisticsPerformance(
     !!currentClient && currentClient.client_type === 'logistics'
   );
@@ -400,6 +407,14 @@ export default function AnalyticsPage() {
     };
     
     return periodLabels[filters.dateRange as keyof typeof periodLabels] || 'Last Year';
+  };
+
+  // Helper function to get optimal number of drivers to show initially
+  const getOptimalDriversToShow = (totalDrivers: number) => {
+    if (totalDrivers <= 10) return totalDrivers;
+    if (totalDrivers <= 25) return 15;
+    if (totalDrivers <= 50) return 20;
+    return 25; // Cap at 25 for very large datasets
   };
 
   // Helper function to check if there's meaningful data
@@ -1518,6 +1533,14 @@ export default function AnalyticsPage() {
     );
   }, [earningsData?.data?.drivers, driverSearch]);
 
+  // Dynamically adjust drivers to show based on data size
+  useEffect(() => {
+    if (filteredDrivers && filteredDrivers.length > 0) {
+      const optimalCount = getOptimalDriversToShow(filteredDrivers.length);
+      setDriversToShow(optimalCount);
+    }
+  }, [filteredDrivers]);
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -2035,6 +2058,11 @@ export default function AnalyticsPage() {
                     {filters.startDate} to {filters.endDate}
                   </span>
                 )}
+                {filteredDrivers && filteredDrivers.length > 0 && (
+                  <span className="text-sm text-gray-500">
+                    ({filteredDrivers.length} driver{filteredDrivers.length !== 1 ? 's' : ''})
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <Input
@@ -2064,57 +2092,90 @@ export default function AnalyticsPage() {
               </div>
             ) : filteredDrivers && filteredDrivers.length > 0 ? (
               (hasMeaningfulData() || hasHistoricalData()) ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-3 px-4 font-medium text-gray-900">Driver</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-900">
-                          {filters.startDate && filters.endDate ? 'Selected Period' : 'Total Earnings'}
-                        </th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-900">
-                          {filters.startDate && filters.endDate ? 'Period Earnings' : 'Last 7 Days'}
-                        </th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-900">
-                          {filters.startDate && filters.endDate ? 'Period Payments' : 'Last 30 Days'}
-                        </th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-900">Payments</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredDrivers.map((driver: DriverEarnings) => (
-                        <tr key={driver.uuid} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-3 px-4">
-                            <div>
-                              <div className="font-medium text-gray-900">{driver.full_name}</div>
-                              <div className="text-sm text-gray-500">ID: {driver.uuid}</div>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4 font-medium text-green-600">
-                            {filters.startDate && filters.endDate 
-                              ? formatCurrency(driver.selected_period_earnings || driver.total_earnings, earningsData?.summary?.currency || 'ZAR')
-                              : formatCurrency(driver.total_earnings, earningsData?.summary?.currency || 'ZAR')
-                            }
-                          </td>
-                          <td className="py-3 px-4 text-gray-700">
-                            {filters.startDate && filters.endDate 
-                              ? formatCurrency(driver.selected_period_earnings || 0, earningsData?.summary?.currency || 'ZAR')
-                              : formatCurrency(driver.period_earnings['7d'], earningsData?.summary?.currency || 'ZAR')
-                            }
-                          </td>
-                          <td className="py-3 px-4 text-gray-700">
-                            {filters.startDate && filters.endDate 
-                              ? formatCurrency(driver.selected_period_earnings || 0, earningsData?.summary?.currency || 'ZAR')
-                              : formatCurrency(driver.period_earnings['30d'], earningsData?.summary?.currency || 'ZAR')
-                            }
-                          </td>
-                          <td className="py-3 px-4 text-gray-700">
-                            {driver.payment_count}
-                          </td>
+                <div className="space-y-4">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="text-left py-3 px-4 font-medium text-gray-900">Driver</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-900">
+                            {filters.startDate && filters.endDate ? 'Selected Period' : 'Total Earnings'}
+                          </th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-900">
+                            {filters.startDate && filters.endDate ? 'Period Earnings' : 'Last 7 Days'}
+                          </th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-900">
+                            {filters.startDate && filters.endDate ? 'Period Payments' : 'Last 30 Days'}
+                          </th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-900">Payments</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {filteredDrivers.slice(0, showAllDrivers ? undefined : driversToShow).map((driver: DriverEarnings) => (
+                          <tr key={driver.uuid} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="py-3 px-4">
+                              <div>
+                                <div className="font-medium text-gray-900">{driver.full_name}</div>
+                                <div className="text-sm text-gray-500">ID: {driver.uuid}</div>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 font-medium text-green-600">
+                              {filters.startDate && filters.endDate 
+                                ? formatCurrency(driver.selected_period_earnings || driver.total_earnings, earningsData?.summary?.currency || 'ZAR')
+                                : formatCurrency(driver.total_earnings, earningsData?.summary?.currency || 'ZAR')
+                              }
+                            </td>
+                            <td className="py-3 px-4 text-gray-700">
+                              {filters.startDate && filters.endDate 
+                                ? formatCurrency(driver.selected_period_earnings || 0, earningsData?.summary?.currency || 'ZAR')
+                                : formatCurrency(driver.period_earnings['7d'], earningsData?.summary?.currency || 'ZAR')
+                              }
+                            </td>
+                            <td className="py-3 px-4 text-gray-700">
+                              {filters.startDate && filters.endDate 
+                                ? formatCurrency(driver.selected_period_earnings || 0, earningsData?.summary?.currency || 'ZAR')
+                                : formatCurrency(driver.period_earnings['30d'], earningsData?.summary?.currency || 'ZAR')
+                              }
+                            </td>
+                            <td className="py-3 px-4 text-gray-700">
+                              {driver.payment_count}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      
+
+                    </table>
+                  </div>
+                  
+                  {/* Show More/Less Controls */}
+                  {filteredDrivers.length > driversToShow && (
+                    <div className="flex items-center justify-center pt-4 border-t border-gray-200">
+                      <div className="flex items-center gap-4">
+                        <span className="text-sm text-gray-600">
+                          Showing {showAllDrivers ? filteredDrivers.length : driversToShow} of {filteredDrivers.length} drivers
+                        </span>
+                        <Button
+                          onClick={() => setShowAllDrivers(!showAllDrivers)}
+                          variant="outline"
+                          size="sm"
+                          className="text-teal-600 border-teal-600 hover:bg-teal-50 hover:text-teal-700 transition-colors duration-200"
+                        >
+                          {showAllDrivers ? (
+                            <>
+                              <span>Show Less</span>
+                              <span className="ml-1">↑</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>Show More</span>
+                              <span className="ml-1">↓</span>
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-12">
