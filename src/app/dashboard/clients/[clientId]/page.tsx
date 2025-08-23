@@ -304,8 +304,7 @@ export default function ClientDetailPage() {
         throw new Error('No valid user ID found');
       }
       
-      console.log('🗑️ Deleting user with ID:', userId);
-      console.log('🗑️ Selected user data:', selectedUser);
+
       
       await userAPI.deleteUser(userId);
       toast.success('User deleted successfully');

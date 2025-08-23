@@ -260,18 +260,10 @@ export default function ComponentsPage() {
       label: 'Edit',
       icon: Edit,
       onClick: (component) => {
-        console.log('Editing component:', component);
-        console.log('Original dates:', {
-          last_maintenance_date: component.last_maintenance_date,
-          next_maintenance_date: component.next_maintenance_date
-        });
-        
         const formattedDates = {
           last_maintenance_date: formatDateForInput(component.last_maintenance_date),
           next_maintenance_date: formatDateForInput(component.next_maintenance_date)
         };
-        
-        console.log('Formatted dates:', formattedDates);
         
         setSelectedComponent(component);
         setFormData({

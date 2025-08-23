@@ -152,15 +152,6 @@ export function DataTable<T extends { id: string }>({
     };
     const visibleActions = actions.filter(action => action.show ? action.show(item) : true);
     
-    // Debug logging for actions
-    if (actions.length > 0) {
-              console.log('🔍 Actions for item:', item.id || 'unknown', {
-        totalActions: actions.length,
-        visibleActions: visibleActions.length,
-        actions: actions.map(a => ({ key: a.key, label: typeof a.label === 'function' ? a.label(item) : a.label, visible: a.show ? a.show(item) : true }))
-      });
-    }
-    
     if (visibleActions.length === 0) return null;
 
     if (visibleActions.length === 1) {

@@ -461,7 +461,7 @@ export function MetricCard({ title, value, change, trend, icon, color = CHART_CO
               <span className={`text-sm font-medium ${getTrendColor()}`}>
                 {getTrendIcon()} {change}
               </span>
-              <span className="text-sm text-gray-500">from last period</span>
+              <span className="text-sm text-gray-500">active drivers from last period</span>
             </div>
           )}
         </div>

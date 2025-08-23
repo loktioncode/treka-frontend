@@ -30,10 +30,9 @@ import {
   Clock,
   Upload,
   Users,
-  Car,
   TrendingUp,
-  TrendingDown,
-  DollarSign
+  DollarSign,
+  Eye
 } from 'lucide-react';
 import { analyticsAPI, assetAPI, componentAPI, clientAPI, notificationAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -159,6 +158,10 @@ export default function AnalyticsPage() {
   const [driverSearch, setDriverSearch] = useState<string>('');
   const [showAllDrivers, setShowAllDrivers] = useState(false);
   const [driversToShow, setDriversToShow] = useState(10);
+  const [dataViewType, setDataViewType] = useState<'monthly' | 'weekly'>('monthly'); // New state for data view toggle
+  const [weekFilter, setWeekFilter] = useState<string>('all'); // 'all' or specific week range
+  const [selectedDriverForDetail, setSelectedDriverForDetail] = useState<DriverEarnings | null>(null);
+  const [showDriverDetailModal, setShowDriverDetailModal] = useState(false);
 
   // React Query hooks for logistics analytics
   const { data: earningsData, isLoading: earningsLoading, refetch: refetchEarnings } = useDriverEarnings(
@@ -174,33 +177,12 @@ export default function AnalyticsPage() {
   // Debug logging for filter changes and manual refetch
   useEffect(() => {
     if (currentClient?.client_type === 'logistics') {
-      console.log('Logistics filters changed:', {
-        dateRange: filters.dateRange,
-        startDate: filters.startDate,
-        endDate: filters.endDate
-      });
-      
       // Manually refetch earnings data when filters change
       if (refetchEarnings) {
-        console.log('Refetching earnings data due to filter change');
         refetchEarnings();
       }
     }
   }, [filters.dateRange, filters.startDate, filters.endDate, currentClient, refetchEarnings]);
-
-  // Debug logging for earnings data changes
-  useEffect(() => {
-    if (currentClient?.client_type === 'logistics' && earningsData) {
-      console.log('Earnings data updated:', {
-        totalDrivers: earningsData?.summary?.total_drivers,
-        totalEarnings: earningsData?.summary?.total_earnings,
-        selectedPeriodEarnings: earningsData?.summary?.selected_period_earnings,
-        dateRange: filters.dateRange,
-        startDate: filters.startDate,
-        endDate: filters.endDate
-      });
-    }
-  }, [earningsData, currentClient, filters.dateRange, filters.startDate, filters.endDate]);
 
   // Clear driver search and reset show more/less when date filters change (but not when they're both undefined)
   useEffect(() => {
@@ -225,6 +207,145 @@ export default function AnalyticsPage() {
   );
   
   const uploadEarningsMutation = useUploadEarnings();
+
+  // Helper functions to separate monthly and weekly data calculations
+  const getMonthlyEarningsData = () => {
+    if (!earningsData?.data?.drivers) return [];
+    
+    return earningsData.data.drivers.map((driver: DriverEarnings) => {
+      if (driver.payments && Array.isArray(driver.payments)) {
+        const monthlyEarnings = driver.payments.reduce((sum: number, payment: { amount: number }) => sum + (payment.amount || 0), 0);
+        return {
+          ...driver,
+          total_earnings: monthlyEarnings,
+          payment_count: driver.payments.length,
+          period_earnings: {}
+        };
+      } else {
+        return {
+          ...driver,
+          total_earnings: 0,
+          payment_count: 0,
+          period_earnings: {}
+        };
+      }
+    });
+  };
+
+
+
+  const getWeeklyEarningsData = useCallback(() => {
+    if (!earningsData?.data?.drivers) return [];
+    
+    return earningsData.data.drivers.map((driver: DriverEarnings) => {
+      if (driver.weekly_payments && Array.isArray(driver.weekly_payments)) {
+        let weeklyPayments = driver.weekly_payments;
+        
+        if (weekFilter !== 'all') {
+          weeklyPayments = weeklyPayments.filter((weekly: { week_start: string; week_end: string; total_earnings: number }) => {
+            const weekKey = `${weekly.week_start}_${weekly.week_end}`;
+            const matches = weekKey === weekFilter;
+            return matches;
+          });
+        }
+        
+        const weeklyEarnings = weeklyPayments.reduce((sum: number, weekly: { total_earnings: number }) => sum + (weekly.total_earnings || 0), 0);
+        return {
+          ...driver,
+          total_earnings: weeklyEarnings,
+          payment_count: weeklyPayments.length,
+          period_earnings: {}
+        };
+      } else {
+        return {
+          ...driver,
+          total_earnings: 0,
+          payment_count: 0,
+          period_earnings: {}
+        };
+      }
+    });
+  }, [earningsData, weekFilter]);
+
+  const getCurrentEarningsData = () => {
+    if (dataViewType === 'weekly') {
+      return memoizedWeeklyData;
+    }
+    return getMonthlyEarningsData();
+  };
+
+  const getMonthlySummary = () => {
+    if (!earningsData?.summary) return null;
+    
+    const monthlyDrivers = getMonthlyEarningsData();
+    
+    // Calculate totals from the monthly data (payments array)
+    const totalMonthlyEarnings = monthlyDrivers.reduce((sum: number, driver: { total_earnings: number }) => sum + (driver.total_earnings || 0), 0);
+    const totalMonthlyPayments = monthlyDrivers.reduce((sum: number, driver: { payment_count: number }) => sum + (driver.payment_count || 0), 0);
+    
+    return {
+      total_drivers: monthlyDrivers.length,
+      total_earnings: totalMonthlyEarnings,
+      total_payments: totalMonthlyPayments,
+      monthly_earnings: earningsData.summary.monthly_earnings || [],
+      driver_performance_trends: earningsData.summary.driver_performance_trends || [],
+      earnings_change_percentage: earningsData.summary.earnings_change_percentage,
+      selected_period_earnings: earningsData.summary.selected_period_earnings || 0,
+      type: 'monthly' as const
+    };
+  };
+
+  const getWeeklySummary = useCallback(() => {
+    if (!earningsData?.summary) return null;
+    
+    const weeklyDrivers = getWeeklyEarningsData();
+    
+    // Calculate totals from the weekly data (weekly_payments array)
+    const totalWeeklyEarnings = weeklyDrivers.reduce((sum: number, driver: { total_earnings: number }) => sum + (driver.total_earnings || 0), 0);
+    
+    // Count total unique weeks across ALL drivers from original data, not filtered data
+    if (!earningsData?.data?.drivers) {
+      console.warn('earningsData.data.drivers is undefined, returning null');
+      return null;
+    }
+    
+    const allWeeklyPayments = earningsData.data.drivers.flatMap((driver: DriverEarnings) => driver.weekly_payments || []);
+    
+    // Create unique week ranges and count them
+    const uniqueWeeks = new Set();
+    allWeeklyPayments.forEach((weekly: { week_start: string; week_end: string }) => {
+      if (weekly.week_start && weekly.week_end) {
+        uniqueWeeks.add(`${weekly.week_start}_${weekly.week_end}`);
+      }
+    });
+    const totalWeeklyReports = uniqueWeeks.size; // Total unique weeks
+    
+    // For weekly view, count only drivers with earnings > 0 (active drivers)
+    const activeDriversCount = weeklyDrivers.filter((driver: { total_earnings: number }) => (driver.total_earnings || 0) > 0).length;
+    
+    return {
+      total_drivers: activeDriversCount, // Only count active drivers (earnings > 0)
+      total_earnings: totalWeeklyEarnings,
+      total_weekly_reports: totalWeeklyReports,
+      average_weekly_earnings: totalWeeklyReports > 0 ? totalWeeklyEarnings / totalWeeklyReports : 0,
+      type: 'weekly' as const
+    };
+  }, [earningsData, getWeeklyEarningsData]);
+
+  const getCurrentSummary = () => {
+    return dataViewType === 'monthly' ? getMonthlySummary() : memoizedWeeklySummary;
+  };
+
+  // Type guard functions
+  const isMonthlySummary = (summary: ReturnType<typeof getMonthlySummary> | ReturnType<typeof getWeeklySummary> | null): summary is ReturnType<typeof getMonthlySummary> => {
+    return summary !== null && summary.type === 'monthly';
+  };
+
+  const isWeeklySummary = (summary: ReturnType<typeof getMonthlySummary> | ReturnType<typeof getWeeklySummary> | null): summary is ReturnType<typeof getWeeklySummary> => {
+    return summary !== null && summary.type === 'weekly';
+  };
+
+
 
   // Load data
   const loadData = useCallback(async () => {
@@ -774,7 +895,7 @@ export default function AnalyticsPage() {
       insights.push(
         <div key="delayed" className="p-3 bg-red-50 rounded-lg">
           <p className="text-sm text-red-800">
-            <strong>⚠️ Maintenance Overdue:</strong> {delayedComponents.length} component{delayedComponents.length !== 1 ? 's' : ''} 
+            <strong>Maintenance Overdue:</strong> {delayedComponents.length} component{delayedComponents.length !== 1 ? 's' : ''} 
             {criticalDelayed > 0 ? ` (${criticalDelayed} critical)` : ''} 
             overdue by {avgDelayDays} day{avgDelayDays !== 1 ? 's' : ''} on average
           </p>
@@ -960,7 +1081,7 @@ export default function AnalyticsPage() {
       insights.push(
         <div key="high-priority" className="p-3 bg-red-50 rounded-lg">
           <p className="text-sm text-red-800">
-            <strong>🚨 High Priority Alerts:</strong> {highPriorityNotifications.length} notification{highPriorityNotifications.length !== 1 ? 's' : ''} 
+            <strong>High Priority Alerts:</strong> {highPriorityNotifications.length} notification{highPriorityNotifications.length !== 1 ? 's' : ''} 
             require immediate attention
           </p>
         </div>
@@ -972,7 +1093,7 @@ export default function AnalyticsPage() {
       insights.push(
         <div key="overdue" className="p-3 bg-orange-50 rounded-lg">
           <p className="text-sm text-orange-800">
-            <strong>⏰ Overdue Notifications:</strong> {overdueNotifications.length} notification{overdueNotifications.length !== 1 ? 's' : ''} 
+            <strong>Overdue Notifications:</strong> {overdueNotifications.length} notification{overdueNotifications.length !== 1 ? 's' : ''} 
             have been pending for over 7 days
           </p>
         </div>
@@ -996,50 +1117,42 @@ export default function AnalyticsPage() {
 
   // Helper function to get grouped monthly earnings data for multiple drivers
   const getGroupedMonthlyEarningsData = () => {
-    if (!driverFilter.length || driverFilter.length < 2 || !earningsData?.data?.drivers || !earningsData?.summary?.driver_performance_trends) {
-      return null;
-    }
-
-    // Check if we have date filters applied
-    const hasDateFilters = !!(filters.startDate && filters.endDate);
+    if (!earningsData?.data?.drivers) return [];
     
-    if (!hasDateFilters) {
-      return null; // Only show grouped chart when date filters are applied
-    }
-
     const selectedDrivers = earningsData.data.drivers.filter((d: DriverEarnings) => driverFilter.includes(d.uuid));
-    const monthlyData: Record<string, Record<string, number>> = {};
     
-    // Initialize monthly data structure
+    if (selectedDrivers.length === 0) return [];
+    
+    // Group by month and sum earnings
+    const monthlyData: { [key: string]: number } = {};
+    
     selectedDrivers.forEach((driver: DriverEarnings) => {
-      const driverTrend = earningsData.summary.driver_performance_trends.find(
-        (trend: DriverPerformanceTrend) => trend.driver_name === driver.full_name
-      );
-      
-      if (driverTrend) {
-        driverTrend.monthly_earnings.forEach((month: MonthlyEarnings) => {
-          if (!monthlyData[month.month]) {
-            monthlyData[month.month] = {};
+      if (driver.payments && Array.isArray(driver.payments)) {
+        driver.payments.forEach((payment: { date: string; amount: number }) => {
+          try {
+            const date = new Date(payment.date);
+            const monthKey = date.toISOString().slice(0, 7); // YYYY-MM format
+            
+            if (!monthlyData[monthKey]) {
+              monthlyData[monthKey] = 0;
+            }
+            monthlyData[monthKey] += payment.amount || 0;
+          } catch (error) {
+            console.warn('Invalid payment date:', payment.date);
           }
-          monthlyData[month.month][driver.full_name] = month.earnings;
         });
       }
     });
-
-    // Convert to array format and add totals with formatted month names
-    return Object.entries(monthlyData).map(([month, driverEarnings]) => {
-      const total = Object.values(driverEarnings).reduce((sum, earnings) => sum + earnings, 0);
-      return {
-        month: formatMonthName(month),
-        ...driverEarnings,
-        total
-      };
-    });
+    
+    return Object.entries(monthlyData).map(([month, earnings]) => ({
+      month,
+      earnings
+    })).sort((a, b) => a.month.localeCompare(b.month));
   };
 
   // Helper function to get selected drivers' monthly earnings
   const getSelectedDriversMonthlyEarnings = () => {
-    if (!earningsData?.summary?.monthly_earnings) {
+    if (!earningsData?.summary?.monthly_earnings || !earningsData?.data?.drivers) {
       return [];
     }
     
@@ -1081,10 +1194,6 @@ export default function AnalyticsPage() {
             earnings
           }));
           
-          // Debug logging for Monthly Earnings chart
-          console.log('Monthly Earnings (Multiple Drivers) - Combined data:', result);
-          console.log('Monthly Earnings (Multiple Drivers) - All months from range:', allMonths);
-          
           return result;
         } else {
           // Use predefined date range (1y, 5y, etc.) with driver performance trends
@@ -1117,130 +1226,46 @@ export default function AnalyticsPage() {
               earnings
             }));
             
-            // Debug logging for predefined range
-            console.log('Monthly Earnings (Multiple Drivers - Predefined Range) - Combined data:', result);
-            console.log('Monthly Earnings (Multiple Drivers - Predefined Range) - All months from range:', allMonths);
-            
             return result;
           }
-          
-          // Fallback to overall monthly earnings with month formatting
-          return earningsData.summary.monthly_earnings.map((month: MonthlyEarnings) => ({
-            month: formatMonthName(month.month),
-            earnings: month.earnings
-          }));
         }
-      } else {
-        // Single driver selected
+      } else if (driverFilter.length === 1) {
+        // Single driver selected - use their individual monthly earnings
         const selectedDriver = earningsData.data.drivers.find((d: DriverEarnings) => d.uuid === driverFilter[0]);
-        if (!selectedDriver) return earningsData.summary.monthly_earnings;
         
-        if (hasDateFilters && earningsData?.summary?.driver_performance_trends) {
+        if (selectedDriver && hasDateFilters && earningsData?.summary?.driver_performance_trends) {
           // Use date-filtered performance trends with zero values for missing months
           const allMonths = getMonthsInRange(filters.startDate!, filters.endDate!);
-          const driverMonthlyData: Record<string, number> = {};
-          
-          // Initialize all months with 0
-          allMonths.forEach((month: string) => {
-            driverMonthlyData[month] = 0;
-          });
-          
-          // Fill in actual earnings data
           const driverTrend = earningsData.summary.driver_performance_trends.find(
             (trend: DriverPerformanceTrend) => trend.driver_name === selectedDriver.full_name
           );
           
           if (driverTrend) {
-            driverTrend.monthly_earnings.forEach((month: MonthlyEarnings) => {
-              if (driverMonthlyData[month.month] !== undefined) {
-                driverMonthlyData[month.month] = month.earnings;
-              }
-            });
-          }
-          
-          return Object.entries(driverMonthlyData).map(([month, earnings]) => ({
-            month: formatMonthName(month),
-            earnings
-          }));
-        } else {
-          // Use predefined date range (1y, 5y, etc.) with driver performance trends
-          if (earningsData?.summary?.driver_performance_trends) {
-            const allMonths = getMonthsForPredefinedRange(filters.dateRange);
-            const driverMonthlyData: Record<string, number> = {};
+            const monthlyData: Record<string, number> = {};
             
             // Initialize all months with 0
             allMonths.forEach((month: string) => {
-              driverMonthlyData[month] = 0;
+              monthlyData[month] = 0;
             });
             
             // Fill in actual earnings data
-            const driverTrend = earningsData.summary.driver_performance_trends.find(
-              (trend: DriverPerformanceTrend) => trend.driver_name === selectedDriver.full_name
-            );
+            driverTrend.monthly_earnings.forEach((month: MonthlyEarnings) => {
+              if (monthlyData[month.month] !== undefined) {
+                monthlyData[month.month] = month.earnings;
+              }
+            });
             
-            if (driverTrend) {
-              driverTrend.monthly_earnings.forEach((month: MonthlyEarnings) => {
-                if (driverMonthlyData[month.month] !== undefined) {
-                  driverMonthlyData[month.month] = month.earnings;
-                }
-              });
-            }
-            
-            const result = Object.entries(driverMonthlyData).map(([month, earnings]) => ({
+            return Object.entries(monthlyData).map(([month, earnings]) => ({
               month: formatMonthName(month),
               earnings
             }));
-            
-            // Debug logging for predefined range
-            console.log('Monthly Earnings (Single Driver - Predefined Range) - Combined data:', result);
-            console.log('Monthly Earnings (Single Driver - Predefined Range) - All months from range:', allMonths);
-            
-            return result;
           }
-          
-          // Fallback to overall monthly earnings with month formatting
-          return earningsData.summary.monthly_earnings.map((month: MonthlyEarnings) => ({
-            month: formatMonthName(month.month),
-            earnings: month.earnings
-          }));
         }
       }
     }
     
-    // No driver filter - handle predefined date ranges
-    if (earningsData?.summary?.driver_performance_trends) {
-      const allMonths = getMonthsForPredefinedRange(filters.dateRange);
-      const overallMonthlyData: Record<string, number> = {};
-      
-      // Initialize all months with 0
-      allMonths.forEach((month: string) => {
-        overallMonthlyData[month] = 0;
-      });
-      
-      // Fill in actual earnings data from overall monthly earnings
-      earningsData.summary.monthly_earnings.forEach((month: MonthlyEarnings) => {
-        if (overallMonthlyData[month.month] !== undefined) {
-          overallMonthlyData[month.month] = month.earnings;
-        }
-      });
-      
-      const result = Object.entries(overallMonthlyData).map(([month, earnings]) => ({
-        month: formatMonthName(month),
-        earnings
-      }));
-      
-      // Debug logging for no filter case
-      console.log('Monthly Earnings (No Filter - Predefined Range) - Combined data:', result);
-      console.log('Monthly Earnings (No Filter - Predefined Range) - All months from range:', allMonths);
-      
-      return result;
-    }
-    
-    // Fallback to overall monthly earnings with month formatting
-    return earningsData.summary.monthly_earnings.map((month: MonthlyEarnings) => ({
-      month: formatMonthName(month.month),
-      earnings: month.earnings
-    }));
+    // Fallback: return empty array if no valid data found
+    return [];
   };
 
   // Helper function to get months in a date range
@@ -1251,21 +1276,17 @@ export default function AnalyticsPage() {
       const end = new Date(endDate);
       
       if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-        console.warn('Invalid date range provided:', { startDate, endDate });
         return [];
       }
       
-      let current = new Date(start.getFullYear(), start.getMonth(), 1);
+      const startMonth = new Date(start.getFullYear(), start.getMonth(), 1);
       
-      while (current <= end) {
+      for (let current = startMonth; current <= end; current = new Date(current.getFullYear(), current.getMonth() + 1, 1)) {
         months.push(current.toISOString().slice(0, 7)); // YYYY-MM format
-        current.setMonth(current.getMonth() + 1);
       }
       
-      console.log('Generated months in range:', { startDate, endDate, months });
       return months;
-    } catch (error) {
-      console.error('Error generating months in range:', error);
+    } catch {
       return [];
     }
   };
@@ -1278,8 +1299,7 @@ export default function AnalyticsPage() {
       const monthName = date.toLocaleDateString('en-US', { month: 'short' });
       const yearShort = year.toString().slice(-2);
       return `${monthName} ${yearShort}`;
-    } catch (error) {
-      console.error('Error formatting month name:', error);
+    } catch {
       return monthKey;
     }
   };
@@ -1308,30 +1328,27 @@ export default function AnalyticsPage() {
           startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); // Default to 1 year
       }
       
-      let current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+      const startMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
       
-      while (current <= now) {
+      for (let current = startMonth; current <= now; current = new Date(current.getFullYear(), current.getMonth() + 1, 1)) {
         months.push(current.toISOString().slice(0, 7)); // YYYY-MM format
-        current.setMonth(current.getMonth() + 1);
       }
       
-      console.log('Generated months for predefined range:', { dateRange, months });
       return months;
-    } catch (error) {
-      console.error('Error generating months for predefined range:', error);
+    } catch {
       return [];
     }
   };
 
   // Helper function to get selected drivers data
   const getSelectedDrivers = () => {
-    if (!driverFilter.length || !earningsData?.data?.drivers) return [];
+    if (!earningsData?.data?.drivers) return [];
     return earningsData.data.drivers.filter((d: DriverEarnings) => driverFilter.includes(d.uuid));
   };
 
   // Helper function to get first selected driver (for backward compatibility)
   const getSelectedDriver = () => {
-    if (!driverFilter.length || !earningsData?.data?.drivers) return null;
+    if (!earningsData?.data?.drivers) return null;
     return earningsData.data.drivers.find((d: DriverEarnings) => d.uuid === driverFilter[0]) || null;
   };
 
@@ -1529,7 +1546,8 @@ export default function AnalyticsPage() {
     if (!driverSearch.trim()) return earningsData.data.drivers;
     
     return earningsData.data.drivers.filter((driver: DriverEarnings) =>
-      driver.full_name.toLowerCase().includes(driverSearch.toLowerCase())
+      driver.full_name.toLowerCase().includes(driverSearch.toLowerCase()) ||
+      driver.uuid.toLowerCase().includes(driverSearch.toLowerCase())
     );
   }, [earningsData?.data?.drivers, driverSearch]);
 
@@ -1540,6 +1558,76 @@ export default function AnalyticsPage() {
       setDriversToShow(optimalCount);
     }
   }, [filteredDrivers]);
+
+  // Memoize functions to prevent infinite loops in useEffect dependencies
+  const memoizedGetUniqueWeekRanges = useCallback(() => {
+    // Since getUniqueWeekRanges is now inside getWeeklyEarningsData, we need to extract it
+    if (!earningsData?.data?.drivers) return [];
+    
+    const allWeeklyPayments = earningsData.data.drivers.flatMap((driver: DriverEarnings) => driver.weekly_payments || []);
+    const uniqueWeeks = new Map();
+    
+    allWeeklyPayments.forEach((weekly: { week_start: string; week_end: string }) => {
+      if (weekly.week_start && weekly.week_end) {
+        const weekKey = `${weekly.week_start}_${weekly.week_end}`;
+        if (!uniqueWeeks.has(weekKey)) {
+          uniqueWeeks.set(weekKey, {
+            week_start: weekly.week_start,
+            week_end: weekly.week_end,
+            display: `${weekly.week_start} to ${weekly.week_end}`,
+            value: weekKey
+          });
+        }
+      }
+    });
+    
+    return Array.from(uniqueWeeks.values()).sort((a, b) => a.week_start.localeCompare(b.week_start));
+  }, [earningsData]);
+
+  const memoizedGetWeeklyEarningsData = useCallback(() => {
+    return getWeeklyEarningsData();
+  }, [getWeeklyEarningsData]);
+
+  const memoizedGetWeeklySummary = useCallback(() => {
+    return getWeeklySummary();
+  }, [getWeeklySummary]);
+
+  // Monitor data changes for debugging
+  useEffect(() => {
+    if (earningsData?.data?.drivers) {
+      // Data monitoring logic removed for production
+    }
+  }, [earningsData, memoizedGetUniqueWeekRanges]);
+
+  // Monitor week filter changes
+  useEffect(() => {
+    if (earningsData?.data?.drivers) {
+      // Week filter monitoring logic removed for production
+    }
+  }, [weekFilter, earningsData, memoizedGetWeeklyEarningsData]);
+
+  // Memoize weekly data to ensure it updates when filter changes
+  const memoizedWeeklyData = useMemo(() => {
+    return memoizedGetWeeklyEarningsData();
+  }, [memoizedGetWeeklyEarningsData]);
+
+  const memoizedWeeklySummary = useMemo(() => {
+    return memoizedGetWeeklySummary();
+  }, [memoizedGetWeeklySummary]);
+
+  const hasMonthlyData = useCallback(() => {
+    if (!earningsData?.data?.drivers) return false;
+    return earningsData.data.drivers.some((driver: DriverEarnings) =>
+      driver.payments && Array.isArray(driver.payments) && driver.payments.length > 0
+    );
+  }, [earningsData]);
+
+  const hasWeeklyData = useCallback(() => {
+    if (!earningsData?.data?.drivers) return false;
+    return earningsData.data.drivers.some((driver: DriverEarnings) =>
+      driver.weekly_payments && Array.isArray(driver.weekly_payments) && driver.weekly_payments.length > 0
+    );
+  }, [earningsData]);
 
   if (loading) {
     return (
@@ -1781,56 +1869,264 @@ export default function AnalyticsPage() {
             </Button>
           </div>
 
+          {/* Data View Toggle */}
+          <div className="flex items-center justify-center">
+            <div className="bg-gray-100 rounded-lg p-1 flex items-center space-x-1">
+              <button
+                onClick={() => setDataViewType('monthly')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                  dataViewType === 'monthly'
+                    ? 'bg-white text-teal-700 shadow-sm border border-teal-200'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <Calendar className="h-4 w-4" />
+                  <span>Monthly View</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setDataViewType('weekly')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                  dataViewType === 'weekly'
+                    ? 'bg-white text-teal-700 shadow-sm border border-teal-200'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <Clock className="h-4 w-4" />
+                  <span>Weekly View</span>
+                </div>
+              </button>
+            </div>
+          </div>
 
+          {/* Data View Description */}
+          <div className="text-center">
+            <p className="text-sm text-gray-600">
+              {dataViewType === 'monthly' 
+                ? '📅 Viewing daily earnings records with detailed payment breakdowns'
+                : '📊 Viewing weekly aggregated earnings for overall performance analysis'
+              }
+            </p>
+          </div>
+
+          {/* Data View Specific Content */}
+          {dataViewType === 'monthly' ? (
+            // Monthly View - Show existing charts and daily data
+            <div className="space-y-6">
+              {/* Monthly view content will show existing charts below */}
+            </div>
+          ) : (
+            // Weekly View - Show weekly aggregated data
+            <div className="space-y-6">
+            
+              {/* Weekly Data Summary */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Weekly Earnings Overview</h3>
+                    {/* Week Filter Dropdown */}
+                    <div className="flex items-center gap-3">
+                      <label htmlFor="weekFilter" className="text-sm font-medium text-gray-700">
+                        Week Range:
+                      </label>
+                      <div className="relative">
+                        <select
+                          id="weekFilter"
+                          value={weekFilter}
+                          onChange={(e) => {
+                            setWeekFilter(e.target.value);
+                          }}
+                          className="block w-48 rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm bg-white"
+                        >
+                          <option value="all">All Weekly Data</option>
+                          {memoizedGetUniqueWeekRanges().map((week) => (
+                            <option key={week.value} value={week.value}>
+                              {week.display}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {weekFilter !== 'all' && (
+                        <Button
+                          onClick={() => {
+                            setWeekFilter('all');
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs border-teal-300 text-teal-700 hover:bg-teal-50"
+                        >
+                          Reset
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  
+
+                  
+                  {/* Filter Status */}
+                  {weekFilter !== 'all' && (
+                    <div className="mb-4 p-3 bg-teal-50 border border-teal-200 rounded-lg">
+                      <p className="text-sm text-teal-800">
+                        <strong>Filtered View:</strong> Showing data for week range: {memoizedGetUniqueWeekRanges().find(w => w.value === weekFilter)?.display}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {memoizedWeeklySummary?.total_weekly_reports === 0 ? (
+                    <div className="text-center py-8">
+                      <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">No Weekly Data Available Yet</h3>
+                      <p className="text-gray-600 mb-4">
+                        Weekly reports haven&apos;t been uploaded yet. Upload a weekly CSV to see weekly analytics.
+                      </p>
+                      <Button
+                        onClick={() => setShowUploadModal(true)}
+                        className="bg-teal-600 hover:bg-teal-700 text-white"
+                      >
+                        Upload Weekly Report
+                      </Button>
+                    </div>
+                  ) : (
+                    <div key={`weekly-data-${weekFilter}`} className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Total Weekly Reports:</span>
+                        <span className="font-semibold text-gray-900">
+                          {memoizedWeeklySummary?.total_weekly_reports || 0}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Total Weekly Earnings:</span>
+                        <span className="font-semibold text-gray-900">
+                          {formatCurrency(memoizedWeeklySummary?.total_earnings || 0)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Total Drivers:</span>
+                        <span className="font-semibold text-gray-900">
+                          {memoizedWeeklySummary?.total_drivers || 0}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Average Weekly Earnings:</span>
+                        <span className="font-semibold text-gray-900">
+                          {formatCurrency(memoizedWeeklySummary?.average_weekly_earnings || 0)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Data Type:</span>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {weekFilter === 'all' ? 'All Weekly Data' : 'Filtered Week'}
+                        </span>
+                      </div>
+                      
+                      {/* Note about driver count */}
+                      <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
+                        <strong>Note:</strong> Total Drivers shows only active drivers (earnings {'>'} 0) for the selected period.
+                      </div>
+                    </div>
+                  )}
+                </Card>
+                
+                <Card className="p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload Information</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Supported Format:</span>
+                      <span className="text-sm text-gray-900">Weekly CSV (no vs_reporting)</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Filename Pattern:</span>
+                      <span className="text-sm text-gray-900">YYYYMMDD-YYYYMMDD-...</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Data Structure:</span>
+                      <span className="text-sm text-gray-900">Weekly breakdowns</span>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            </div>
+          )}
 
           {/* Logistics Metrics */}
           {/* Note: UUID 00000000-0000-0000-0000-000000000000 represents client withdrawals and is handled separately */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <MetricCard
               title="Total Drivers"
-              value={earningsData?.summary?.total_drivers?.toString() || '0'}
-              change="+0.0%"
+              value={getCurrentSummary()?.total_drivers?.toString() || '0'}
+              change={
+                dataViewType === 'monthly' 
+                  ? "+0.0%" 
+                  : weekFilter === 'all' ? "Active drivers (all weeks)" : "Active drivers (filtered week)"
+              }
               trend="up"
               icon={<Users className="h-6 w-6" />}
               color="text-blue-600"
             />
             <MetricCard
-              title={driverFilter.length > 0 ? `Driver Earnings (${getPeriodDisplayText()})` : `Total Earnings (${getPeriodDisplayText()})`}
-              value={
-                driverFilter.length > 0
-                  ? formatCurrency(
-                      driverFilter.length === 1
-                        ? (getSelectedDriver()?.total_earnings || 0)
-                        : getSelectedDrivers().reduce((sum: number, driver: DriverEarnings) => sum + (driver.total_earnings || 0), 0),
-                      earningsData?.summary?.currency || 'ZAR'
-                    )
-                  : formatCurrency(earningsData?.summary?.selected_period_earnings || 0, earningsData?.summary?.currency || 'ZAR')
+              title={dataViewType === 'monthly' 
+                ? (driverFilter.length > 0 ? `Driver Earnings (${getPeriodDisplayText()})` : `Total Earnings (${getPeriodDisplayText()})`)
+                : "Weekly Earnings"
               }
-              change={hasMeaningfulData() ? "+0.0%" : hasHistoricalData() ? "Historical Data" : "No Data"}
-              trend={hasMeaningfulData() ? "up" : hasHistoricalData() ? "neutral" : "neutral"}
+              value={
+                dataViewType === 'monthly'
+                  ? (driverFilter.length > 0
+                      ? formatCurrency(isMonthlySummary(getCurrentSummary()) ? (getCurrentSummary() as ReturnType<typeof getMonthlySummary>)?.selected_period_earnings || 0 : 0)
+                      : formatCurrency(getCurrentSummary()?.total_earnings || 0))
+                  : formatCurrency(getCurrentSummary()?.total_earnings || 0)
+              }
+              change={
+                dataViewType === 'monthly' 
+                  ? isMonthlySummary(getCurrentSummary()) && (getCurrentSummary() as ReturnType<typeof getMonthlySummary>)?.earnings_change_percentage 
+                    ? ((getCurrentSummary() as ReturnType<typeof getMonthlySummary>)?.earnings_change_percentage || 0) > 0 
+                      ? `+${((getCurrentSummary() as ReturnType<typeof getMonthlySummary>)?.earnings_change_percentage || 0).toFixed(1)}%`
+                      : `${((getCurrentSummary() as ReturnType<typeof getMonthlySummary>)?.earnings_change_percentage || 0).toFixed(1)}%`
+                    : "+0.0%"
+                  : weekFilter === 'all' ? "All weeks" : "Filtered week"
+              }
+              trend={
+                dataViewType === 'monthly' 
+                  ? isMonthlySummary(getCurrentSummary()) && ((getCurrentSummary() as ReturnType<typeof getMonthlySummary>)?.earnings_change_percentage || 0) > 0 ? "up" : "down"
+                  : "neutral"
+              }
               icon={<DollarSign className="h-6 w-6" />}
-              color={hasMeaningfulData() ? "text-green-600" : hasHistoricalData() ? "text-blue-600" : "text-gray-400"}
+              color="text-green-600"
             />
             <MetricCard
-              title="Vehicles with Drivers"
-              value={performanceData?.fleet?.assigned_vehicles?.toString() || '0'}
-              subtitle={
-                performanceData?.fleet?.active_vehicles && performanceData?.fleet?.assigned_vehicles 
-                  ? `${performanceData.fleet.active_vehicles - performanceData.fleet.assigned_vehicles} unassigned`
-                  : undefined
+              title={dataViewType === 'monthly' ? "Daily Payments" : "Weekly Reports"}
+              value={
+                dataViewType === 'monthly'
+                  ? (isMonthlySummary(getCurrentSummary()) ? (getCurrentSummary() as ReturnType<typeof getMonthlySummary>)?.total_payments || 0 : 0).toString()
+                  : (isWeeklySummary(getCurrentSummary()) ? (getCurrentSummary() as ReturnType<typeof getWeeklySummary>)?.total_weekly_reports || 0 : 0).toString()
               }
-              change="+0.0%"
-              trend="up"
-              icon={<Car className="h-6 w-6" />}
+              change={
+                dataViewType === 'monthly' 
+                  ? "Daily payment records"
+                  : "Weekly aggregated reports"
+              }
+              trend="neutral"
+              icon={dataViewType === 'monthly' ? <Activity className="h-6 w-6" /> : <Package className="h-6 w-6" />}
               color="text-purple-600"
             />
             <MetricCard
-              title="Total Withdrawals"
-              value={formatCurrency(earningsData?.summary?.client_withdrawals || 0, earningsData?.summary?.currency || 'ZAR')}
-              change="+0.0%"
-              trend="up"
-              icon={<TrendingDown className="h-6 w-6" />}
-              color="text-red-600"
+              title={dataViewType === 'monthly' ? "Active Period" : "Data Coverage"}
+              value={
+                dataViewType === 'monthly'
+                  ? filters.dateRange === 'custom' && filters.startDate && filters.endDate
+                    ? `${filters.startDate} to ${filters.endDate}`
+                    : filters.dateRange
+                  : "Weekly aggregated"
+              }
+              change={
+                dataViewType === 'monthly'
+                  ? "Date range"
+                  : "Weekly breakdowns"
+              }
+              trend="neutral"
+              icon={dataViewType === 'monthly' ? <Calendar className="h-6 w-6" /> : <Clock className="h-6 w-6" />}
+              color="text-orange-600"
             />
           </div>
 
@@ -1875,152 +2171,154 @@ export default function AnalyticsPage() {
           )}
 
           {/* Logistics Charts Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Monthly Earnings Chart */}
-            {earningsData?.summary?.monthly_earnings && earningsData.summary.monthly_earnings.length > 0 && (hasMeaningfulData() || hasHistoricalData()) ? (
-              // Show grouped chart for multiple drivers with date filters, otherwise show simple chart
-              driverFilter.length > 1 && getGroupedMonthlyEarningsData() ? (
-                <GroupedMonthlyEarningsChart
-                  data={getGroupedMonthlyEarningsData()!}
-                  driverNames={getSelectedDrivers().map((d: DriverEarnings) => d.full_name)}
-                  title={`Monthly Earnings - ${driverFilter.length} Drivers`}
-                  subtitle="Individual driver earnings and total by month"
+          {dataViewType === 'monthly' ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Monthly Earnings Chart */}
+              {earningsData?.summary?.monthly_earnings && earningsData.summary.monthly_earnings.length > 0 && (hasMeaningfulData() || hasHistoricalData()) ? (
+                // Show grouped chart for multiple drivers with date filters, otherwise show simple chart
+                driverFilter.length > 1 && getGroupedMonthlyEarningsData() ? (
+                  <GroupedMonthlyEarningsChart
+                    data={getGroupedMonthlyEarningsData()!}
+                    driverNames={getSelectedDrivers().map((d: DriverEarnings) => d.full_name)}
+                    title={`Monthly Earnings - ${driverFilter.length} Drivers`}
+                    subtitle="Individual driver earnings and total by month"
+                  />
+                ) : (
+                  <SimpleBarChart
+                    data={getSelectedDriversMonthlyEarnings()}
+                    xKey="month"
+                    yKey="earnings"
+                    title={driverFilter.length > 0 ? `Monthly Earnings - ${driverFilter.length === 1 ? getSelectedDriver()?.full_name : `${driverFilter.length} Drivers`}` : "Monthly Earnings"}
+                    subtitle={driverFilter.length > 0 ? `Monthly earnings for ${driverFilter.length === 1 ? 'selected driver' : 'selected drivers'}` : "Total earnings by month"}
+                  />
+                )
+              ) : (
+                <Card className="p-6">
+                  <div className="text-center py-8">
+                    <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Monthly Earnings Data</h3>
+                    <p className="text-gray-600 mb-4">
+                      {hasHistoricalData() ? 'No monthly earnings data available for the selected period' : 'Upload earnings data to see monthly trends'}
+                    </p>
+                    {!hasHistoricalData() && (
+                      <Button onClick={() => setShowUploadModal(true)} className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Earnings CSV
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              )}
+
+              {/* Driver Performance Trends */}
+              {earningsData?.summary?.driver_performance_trends && earningsData.summary.driver_performance_trends.length > 0 && (hasMeaningfulData() || hasHistoricalData()) ? (
+                <MultiLineChart
+                  data={
+                    (() => {
+                      // Get the filtered drivers based on current filter
+                      const filteredDrivers = driverFilter.length > 0 && earningsData?.summary?.driver_performance_trends
+                        ? earningsData.summary.driver_performance_trends.filter((driver: DriverPerformanceTrend) => {
+                            if (driverFilter.length === 1) {
+                              return driver.driver_name === getSelectedDriver()?.full_name;
+                            } else {
+                              return getSelectedDrivers().some((selectedDriver: DriverEarnings) => 
+                                selectedDriver.full_name === driver.driver_name
+                              );
+                            }
+                          })
+                        : earningsData.summary.driver_performance_trends.slice(0, 5);
+
+                      // Get all unique months from the filtered data
+                      const allMonths = new Set<string>();
+                      filteredDrivers.forEach((driver: DriverPerformanceTrend) => {
+                        driver.monthly_earnings.forEach((month: MonthlyEarnings) => {
+                          allMonths.add(month.month);
+                        });
+                      });
+
+                      // Sort months chronologically (YYYY-MM format)
+                      const sortedMonths = Array.from(allMonths).sort((a, b) => {
+                        // Parse YYYY-MM format for proper chronological sorting
+                        const [yearA, monthA] = a.split('-').map(Number);
+                        const [yearB, monthB] = b.split('-').map(Number);
+                        
+                        if (yearA !== yearB) return yearA - yearB;
+                        return monthA - monthB;
+                      });
+
+                      // Create chart data with zero values for missing months
+                      return sortedMonths.map(month => {
+                        const monthData: Record<string, unknown> = { month };
+                        
+                        filteredDrivers.forEach((driver: DriverPerformanceTrend) => {
+                          const monthEarnings = driver.monthly_earnings.find((m: MonthlyEarnings) => m.month === month);
+                          monthData[driver.driver_name] = monthEarnings ? monthEarnings.earnings : 0;
+                        });
+                        
+                        return monthData;
+                      });
+                    })()
+                  }
+                  xKey="month"
+                  lines={
+                    (() => {
+                      const filteredDrivers = driverFilter.length > 0 && earningsData?.summary?.driver_performance_trends
+                        ? earningsData.summary.driver_performance_trends.filter((driver: DriverPerformanceTrend) => {
+                            if (driverFilter.length === 1) {
+                              return driver.driver_name === getSelectedDriver()?.full_name;
+                            } else {
+                              return getSelectedDrivers().some((selectedDriver: DriverEarnings) => 
+                                selectedDriver.full_name === driver.driver_name
+                              );
+                            }
+                          })
+                        : earningsData.summary.driver_performance_trends.slice(0, 5);
+
+                      return filteredDrivers.map((driver: DriverPerformanceTrend, index: number) => ({
+                        key: driver.driver_name,
+                        label: driver.driver_name,
+                        color: ['#0d9488', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'][index % 5]
+                      }));
+                    })()
+                  }
+                  title={driverFilter.length > 0 ? `Driver Performance Trends - ${driverFilter.length === 1 ? getSelectedDriver()?.full_name : `${driverFilter.length} Drivers`}` : "Driver Performance Trends"}
+                  subtitle={driverFilter.length > 0 ? `Performance trends for ${driverFilter.length === 1 ? 'selected driver' : 'selected drivers'}` : "Top 5 drivers performance trends"}
                 />
               ) : (
-                <SimpleBarChart
-                  data={getSelectedDriversMonthlyEarnings()}
-                  xKey="month"
-                  yKey="earnings"
-                  title={driverFilter.length > 0 ? `Monthly Earnings - ${driverFilter.length === 1 ? getSelectedDriver()?.full_name : `${driverFilter.length} Drivers`}` : "Monthly Earnings"}
-                  subtitle={driverFilter.length > 0 ? `Monthly earnings for ${driverFilter.length === 1 ? 'selected driver' : 'selected drivers'}` : "Total earnings by month"}
-                />
-              )
-            ) : (
-              <Card className="p-6">
-                <div className="text-center py-8">
-                  <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Monthly Earnings Data</h3>
-                  <p className="text-gray-600 mb-4">
-                    {hasHistoricalData() ? 'No monthly earnings data available for the selected period' : 'Upload earnings data to see monthly trends'}
-                  </p>
-                  {!hasHistoricalData() && (
-                    <Button onClick={() => setShowUploadModal(true)} className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload Earnings CSV
-                    </Button>
-                  )}
-                </div>
-              </Card>
-            )}
-
-            {/* Driver Performance Trends */}
-            {earningsData?.summary?.driver_performance_trends && earningsData.summary.driver_performance_trends.length > 0 && (hasMeaningfulData() || hasHistoricalData()) ? (
-              <MultiLineChart
-                data={
-                  (() => {
-                                         // Get the filtered drivers based on current filter
-                     const filteredDrivers = driverFilter.length > 0 && earningsData?.summary?.driver_performance_trends
-                       ? earningsData.summary.driver_performance_trends.filter((driver: DriverPerformanceTrend) => {
-                           if (driverFilter.length === 1) {
-                             return driver.driver_name === getSelectedDriver()?.full_name;
-                           } else {
-                             return getSelectedDrivers().some((selectedDriver: DriverEarnings) => 
-                               selectedDriver.full_name === driver.driver_name
-                             );
-                           }
-                         })
-                       : earningsData.summary.driver_performance_trends.slice(0, 5);
-
-                     // Get months based on whether we have custom dates or predefined range
-                     let monthRange: string[];
-                     if (filters.startDate && filters.endDate) {
-                       monthRange = getMonthsInRange(filters.startDate, filters.endDate);
-                     } else {
-                       monthRange = getMonthsForPredefinedRange(filters.dateRange);
-                     }
-
-                     // Get all unique months from the filtered data
-                     const allMonths = new Set<string>();
-                     filteredDrivers.forEach((driver: DriverPerformanceTrend) => {
-                       driver.monthly_earnings.forEach((month: MonthlyEarnings) => {
-                         allMonths.add(month.month);
-                       });
-                     });
-
-                     // Sort months chronologically (YYYY-MM format)
-                     const sortedMonths = Array.from(allMonths).sort((a, b) => {
-                       // Parse YYYY-MM format for proper chronological sorting
-                       const [yearA, monthA] = a.split('-').map(Number);
-                       const [yearB, monthB] = b.split('-').map(Number);
-                       
-                       if (yearA !== yearB) return yearA - yearB;
-                       return monthA - monthB;
-                     });
-
-                     // Debug logging for Driver Performance Trends
-                     console.log('Driver Performance Trends - Month range:', monthRange);
-                     console.log('Driver Performance Trends - Available months from data:', Array.from(allMonths));
-                     console.log('Driver Performance Trends - Sorted months:', sortedMonths);
-                     console.log('Driver Performance Trends - Filtered drivers:', filteredDrivers.map((d: DriverPerformanceTrend) => d.driver_name));
-
-
-
-                     // Create chart data with zero values for missing months
-                     return sortedMonths.map(month => {
-                       const monthData: Record<string, unknown> = { month };
-                       
-                       filteredDrivers.forEach((driver: DriverPerformanceTrend) => {
-                         const monthEarnings = driver.monthly_earnings.find((m: MonthlyEarnings) => m.month === month);
-                         monthData[driver.driver_name] = monthEarnings ? monthEarnings.earnings : 0;
-                       });
-                       
-                       return monthData;
-                     });
-                  })()
-                }
-                xKey="month"
-                lines={
-                  (() => {
-                    const filteredDrivers = driverFilter.length > 0 && earningsData?.summary?.driver_performance_trends
-                      ? earningsData.summary.driver_performance_trends.filter((driver: DriverPerformanceTrend) => {
-                          if (driverFilter.length === 1) {
-                            return driver.driver_name === getSelectedDriver()?.full_name;
-                          } else {
-                            return getSelectedDrivers().some((selectedDriver: DriverEarnings) => 
-                              selectedDriver.full_name === driver.driver_name
-                            );
-                          }
-                        })
-                      : earningsData.summary.driver_performance_trends.slice(0, 5);
-
-                    return filteredDrivers.map((driver: DriverPerformanceTrend, index: number) => ({
-                      key: driver.driver_name,
-                      label: driver.driver_name,
-                      color: ['#0d9488', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'][index % 5]
-                    }));
-                  })()
-                }
-                title={driverFilter.length > 0 ? `Driver Performance - ${driverFilter.length === 1 ? getSelectedDriver()?.full_name : `${driverFilter.length} Drivers`}` : "Driver Performance Trends"}
-                subtitle={driverFilter.length > 0 ? `Monthly earnings for ${driverFilter.length === 1 ? 'selected driver' : 'selected drivers'}` : "Monthly earnings by driver"}
-              />
-            ) : (
-              <Card className="p-6">
-                <div className="text-center py-8">
-                  <TrendingUp className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Driver Performance Data</h3>
-                  <p className="text-gray-600 mb-4">
-                    {hasHistoricalData() ? 'No driver performance trends available for the selected period' : 'Upload earnings data to see driver performance trends'}
-                  </p>
-                  {!hasHistoricalData() && (
-                    <Button onClick={() => setShowUploadModal(true)} className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload Earnings CSV
-                    </Button>
-                  )}
-                </div>
-              </Card>
-            )}
-          </div>
+                <Card className="p-6">
+                  <div className="text-center py-8">
+                    <TrendingUp className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Performance Trends Data</h3>
+                    <p className="text-gray-600 mb-4">
+                      {hasHistoricalData() ? 'No performance trends data available for the selected period' : 'Upload earnings data to see performance trends'}
+                    </p>
+                    {!hasHistoricalData() && (
+                      <Button onClick={() => setShowUploadModal(true)} className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Earnings CSV
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              )}
+            </div>
+          ) : (
+            // Weekly View - Show message about charts
+            <div className="text-center py-8">
+              <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Weekly Data View</h3>
+              <p className="text-gray-600 mb-4">
+                Charts and detailed analytics are available in Monthly View. Switch to Monthly View to see earnings trends and performance charts.
+              </p>
+              <Button 
+                onClick={() => setDataViewType('monthly')} 
+                className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                Switch to Monthly View
+              </Button>
+            </div>
+          )}
 
           {/* Vehicle Performance Metrics */}
           {performanceData?.fleet && (
@@ -2052,10 +2350,22 @@ export default function AnalyticsPage() {
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <h3 className="text-lg font-semibold text-gray-900">Driver Performance</h3>
-                {filters.startDate && filters.endDate && (
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {dataViewType === 'monthly' ? 'Driver Performance' : 'Weekly Driver Summary'}
+                </h3>
+                {dataViewType === 'monthly' && filters.startDate && filters.endDate && (
                   <span className="text-sm font-medium text-teal-600 bg-teal-50 px-3 py-1 rounded-full border border-teal-200">
                     {filters.startDate} to {filters.endDate}
+                  </span>
+                )}
+                {dataViewType === 'weekly' && (
+                  <span className="text-sm font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+                    Weekly Aggregated Data
+                  </span>
+                )}
+                {dataViewType === 'weekly' && weekFilter !== 'all' && (
+                  <span className="text-sm font-medium text-teal-600 bg-teal-50 px-3 py-1 rounded-full border border-teal-200">
+                    Filtered: {memoizedGetUniqueWeekRanges().find(w => w.value === weekFilter)?.display}
                   </span>
                 )}
                 {filteredDrivers && filteredDrivers.length > 0 && (
@@ -2066,11 +2376,11 @@ export default function AnalyticsPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Input
-                  placeholder="Search drivers in table..."
+                  placeholder={`Search drivers in ${dataViewType === 'monthly' ? 'table' : 'weekly data'}...`}
                   className="w-64"
                   value={driverSearch}
                   onChange={(e) => setDriverSearch(e.target.value)}
-                  disabled={!earningsData?.data?.drivers?.length}
+                  disabled={!getCurrentEarningsData()?.length}
                 />
                 {driverSearch && (
                   <Button
@@ -2093,58 +2403,139 @@ export default function AnalyticsPage() {
             ) : filteredDrivers && filteredDrivers.length > 0 ? (
               (hasMeaningfulData() || hasHistoricalData()) ? (
                 <div className="space-y-4">
+                  {/* Weekly Filter Status */}
+                  {dataViewType === 'weekly' && weekFilter !== 'all' && (
+                    <div className="p-3 bg-teal-50 border border-teal-200 rounded-lg">
+                      <p className="text-sm text-teal-800">
+                        <strong>Filtered View:</strong> Showing weekly data for {memoizedGetUniqueWeekRanges().find(w => w.value === weekFilter)?.display}. 
+                        Total earnings and weekly reports are calculated only for this period.
+                      </p>
+                    </div>
+                  )}
+                  
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-gray-200">
                           <th className="text-left py-3 px-4 font-medium text-gray-900">Driver</th>
                           <th className="text-left py-3 px-4 font-medium text-gray-900">
-                            {filters.startDate && filters.endDate ? 'Selected Period' : 'Total Earnings'}
+                            {dataViewType === 'monthly' 
+                              ? (filters.startDate && filters.endDate ? 'Selected Period' : 'Total Earnings')
+                              : 'Total Weekly Earnings'
+                            }
+                            {dataViewType === 'weekly' && (
+                              <span className="ml-2 text-xs text-blue-600 font-normal">(Sorted by highest)</span>
+                            )}
                           </th>
                           <th className="text-left py-3 px-4 font-medium text-gray-900">
-                            {filters.startDate && filters.endDate ? 'Period Earnings' : 'Last 7 Days'}
+                            {dataViewType === 'monthly' 
+                              ? (filters.startDate && filters.endDate ? 'Period Earnings' : 'Last 7 Days')
+                              : 'Weekly Reports'
+                            }
                           </th>
                           <th className="text-left py-3 px-4 font-medium text-gray-900">
-                            {filters.startDate && filters.endDate ? 'Period Payments' : 'Last 30 Days'}
+                            {dataViewType === 'monthly' 
+                              ? (filters.startDate && filters.endDate ? 'Period Payments' : 'Last 30 Days')
+                              : 'Average Weekly'
+                            }
                           </th>
-                          <th className="text-left py-3 px-4 font-medium text-gray-900">Payments</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-900">
+                            {dataViewType === 'monthly' ? 'Payments' : 'Actions'}
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredDrivers.slice(0, showAllDrivers ? undefined : driversToShow).map((driver: DriverEarnings) => (
-                          <tr key={driver.uuid} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="py-3 px-4">
-                              <div>
-                                <div className="font-medium text-gray-900">{driver.full_name}</div>
-                                <div className="text-sm text-gray-500">ID: {driver.uuid}</div>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4 font-medium text-green-600">
-                              {filters.startDate && filters.endDate 
-                                ? formatCurrency(driver.selected_period_earnings || driver.total_earnings, earningsData?.summary?.currency || 'ZAR')
-                                : formatCurrency(driver.total_earnings, earningsData?.summary?.currency || 'ZAR')
-                              }
-                            </td>
-                            <td className="py-3 px-4 text-gray-700">
-                              {filters.startDate && filters.endDate 
-                                ? formatCurrency(driver.selected_period_earnings || 0, earningsData?.summary?.currency || 'ZAR')
-                                : formatCurrency(driver.period_earnings['7d'], earningsData?.summary?.currency || 'ZAR')
-                              }
-                            </td>
-                            <td className="py-3 px-4 text-gray-700">
-                              {filters.startDate && filters.endDate 
-                                ? formatCurrency(driver.selected_period_earnings || 0, earningsData?.summary?.currency || 'ZAR')
-                                : formatCurrency(driver.period_earnings['30d'], earningsData?.summary?.currency || 'ZAR')
-                              }
-                            </td>
-                            <td className="py-3 px-4 text-gray-700">
-                              {driver.payment_count}
-                            </td>
-                          </tr>
-                        ))}
+                        {(() => {
+                          // Sort drivers by earnings from highest to lowest in weekly view
+                          let sortedDrivers = filteredDrivers;
+                          
+                          if (dataViewType === 'weekly') {
+                            // Create a map of driver UUIDs to their weekly earnings for sorting
+                            const driverEarningsMap = new Map();
+                            memoizedWeeklyData.forEach((driverData: { uuid: string; total_earnings: number }) => {
+                              driverEarningsMap.set(driverData.uuid, driverData.total_earnings || 0);
+                            });
+                            
+                            // Sort filteredDrivers by weekly earnings (highest first)
+                            sortedDrivers = [...filteredDrivers].sort((a, b) => {
+                              const earningsA = driverEarningsMap.get(a.uuid) || 0;
+                              const earningsB = driverEarningsMap.get(b.uuid) || 0;
+                              return earningsB - earningsA; // Highest to lowest
+                            });
+                            
+                            // Sorting logic completed
+                          }
+                          
+                          return sortedDrivers.slice(0, showAllDrivers ? undefined : driversToShow).map((driver: DriverEarnings) => {
+                            // For weekly view, use the filtered weekly data that respects the week filter
+                            const currentDriverData = dataViewType === 'weekly' 
+                              ? memoizedWeeklyData.find((d: { uuid: string; total_earnings: number; payment_count: number }) => d.uuid === driver.uuid)
+                              : getCurrentEarningsData().find((d: { uuid: string; total_earnings: number; payment_count: number }) => d.uuid === driver.uuid);
+                            
+                            return (
+                              <tr key={driver.uuid} className="border-b border-gray-100 hover:bg-gray-50">
+                                <td className="py-3 px-4">
+                                  <div>
+                                    <div className="font-medium text-gray-900">{driver.full_name}</div>
+                                    <div className="text-sm text-gray-500">ID: {driver.uuid}</div>
+                                  </div>
+                                </td>
+                                <td className="py-3 px-4 font-medium text-green-600">
+                                  {dataViewType === 'monthly'
+                                    ? (filters.startDate && filters.endDate 
+                                        ? formatCurrency(driver.selected_period_earnings || driver.total_earnings, earningsData?.summary?.currency || 'ZAR')
+                                        : formatCurrency(driver.total_earnings, earningsData?.summary?.currency || 'ZAR')
+                                      )
+                                    : formatCurrency(currentDriverData?.total_earnings || 0, earningsData?.summary?.currency || 'ZAR')
+                                  }
+                                </td>
+                                <td className="py-3 px-4 text-gray-700">
+                                  {dataViewType === 'monthly'
+                                    ? (filters.startDate && filters.endDate 
+                                        ? formatCurrency(driver.selected_period_earnings || 0, earningsData?.summary?.currency || 'ZAR')
+                                        : formatCurrency(driver.period_earnings['7d'], earningsData?.summary?.currency || 'ZAR')
+                                      )
+                                    : (currentDriverData?.payment_count || 0).toString()
+                                  }
+                                </td>
+                                <td className="py-3 px-4 text-gray-700">
+                                  {dataViewType === 'monthly'
+                                    ? (filters.startDate && filters.endDate 
+                                        ? formatCurrency(driver.selected_period_earnings || 0, earningsData?.summary?.currency || 'ZAR')
+                                        : formatCurrency(driver.period_earnings['30d'], earningsData?.summary?.currency || 'ZAR')
+                                      )
+                                    : formatCurrency(
+                                        currentDriverData && currentDriverData.payment_count > 0 
+                                          ? (currentDriverData.total_earnings / currentDriverData.payment_count)
+                                          : 0, 
+                                        earningsData?.summary?.currency || 'ZAR'
+                                      )
+                                  }
+                                </td>
+                                <td className="py-3 px-4 text-gray-700">
+                                  {dataViewType === 'monthly' 
+                                    ? driver.payment_count
+                                    : (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-8 w-8 p-0 text-teal-600 hover:text-teal-700 hover:bg-teal-50"
+                                          onClick={() => {
+                                            setSelectedDriverForDetail(driver);
+                                            setShowDriverDetailModal(true);
+                                          }}
+                                          title={`View detailed ${dataViewType} performance for ${driver.full_name}`}
+                                        >
+                                          <Eye className="h-4 w-4" />
+                                        </Button>
+                                      )
+                                  }
+                                </td>
+                              </tr>
+                            );
+                          });
+                        })()}
                       </tbody>
-                      
-
                     </table>
                   </div>
                   
@@ -2431,7 +2822,24 @@ export default function AnalyticsPage() {
             </p>
           </div>
 
-
+          {/* Data Type Information */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="font-medium text-blue-900 mb-2">📋 Supported CSV Formats:</h4>
+            <div className="space-y-2 text-sm text-blue-800">
+              <div className="flex items-start space-x-2">
+                <span className="text-blue-600">📅</span>
+                <div>
+                  <strong>Monthly Reports:</strong> CSV with <code className="bg-blue-100 px-1 rounded">vs_reporting</code> column for daily records
+                </div>
+              </div>
+              <div className="flex items-start space-x-2">
+                <span className="text-blue-600">📊</span>
+                <div>
+                  <strong>Weekly Reports:</strong> CSV without <code className="bg-blue-100 px-1 rounded">vs_reporting</code> for weekly aggregated data
+                </div>
+              </div>
+            </div>
+          </div>
           
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
             <input
@@ -2489,11 +2897,22 @@ export default function AnalyticsPage() {
               onClick={async () => {
                 if (uploadFile) {
                   try {
-                    await uploadEarningsMutation.mutateAsync(uploadFile);
+                    const result = await uploadEarningsMutation.mutateAsync(uploadFile);
                     setShowUploadModal(false);
                     setUploadFile(null);
+                    
+                    // Show success message with data type info
+                    if (result.data_type) {
+                      toast.success(
+                        `CSV uploaded successfully! Detected as ${result.data_type} data with ${result.new_payments} new payments.`,
+                        { duration: 5000 }
+                      );
+                    } else {
+                      toast.success('CSV uploaded successfully!');
+                    }
                   } catch (error) {
                     console.error('Upload failed:', error);
+                    toast.error('Upload failed. Please check the file format and try again.');
                   }
                 }
               }}
@@ -2510,6 +2929,223 @@ export default function AnalyticsPage() {
               )}
             </Button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Detailed Driver Performance Modal */}
+      <Modal
+        isOpen={showDriverDetailModal}
+        onClose={() => setShowDriverDetailModal(false)}
+        title={`${selectedDriverForDetail?.full_name} - ${dataViewType === 'monthly' ? 'Monthly' : 'Weekly'} Performance Details`}
+        size="lg"
+      >
+        <div className="space-y-6">
+          {selectedDriverForDetail && (
+            <>
+              {/* Driver Info Header */}
+              <div className="bg-gradient-to-r from-teal-50 to-blue-50 rounded-lg p-4 border border-teal-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">{selectedDriverForDetail.full_name}</h3>
+                    <p className="text-sm text-gray-600">ID: {selectedDriverForDetail.uuid}</p>
+                    <p className="text-xs text-teal-600 font-medium">
+                      {dataViewType === 'monthly' ? 'Monthly Performance View' : 'Weekly Performance View'}
+                      {dataViewType === 'weekly' && weekFilter !== 'all' && (
+                        <span className="ml-2">• Filtered: {memoizedGetUniqueWeekRanges().find(w => w.value === weekFilter)?.display}</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-teal-600">
+                      {(() => {
+                        if (dataViewType === 'weekly') {
+                          const weeklyData = memoizedWeeklyData.find((d: { uuid: string; total_earnings: number }) => d.uuid === selectedDriverForDetail.uuid);
+                          return formatCurrency(weeklyData?.total_earnings || 0);
+                        } else {
+                          return formatCurrency(selectedDriverForDetail.total_earnings || 0);
+                        }
+                      })()}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {dataViewType === 'weekly' ? 'Total Weekly Earnings' : 'Total Earnings'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Performance Details */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Left Column */}
+                <div className="space-y-4">
+                  <Card className="p-4">
+                    <h4 className="font-semibold text-gray-900 mb-3">Performance Summary</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Total Earnings:</span>
+                        <span className="font-medium">
+                          {(() => {
+                            if (dataViewType === 'weekly') {
+                              const weeklyData = memoizedWeeklyData.find((d: { uuid: string; total_earnings: number }) => d.uuid === selectedDriverForDetail.uuid);
+                              return formatCurrency(weeklyData?.total_earnings || 0);
+                            } else {
+                              return formatCurrency(selectedDriverForDetail.total_earnings || 0);
+                            }
+                          })()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">
+                          {dataViewType === 'weekly' ? 'Weekly Reports:' : 'Total Payments:'}
+                        </span>
+                        <span className="font-medium">
+                          {(() => {
+                            if (dataViewType === 'weekly') {
+                              const weeklyData = memoizedWeeklyData.find((d: { uuid: string; payment_count: number }) => d.uuid === selectedDriverForDetail.uuid);
+                              return weeklyData?.payment_count || 0;
+                            } else {
+                              return selectedDriverForDetail.payment_count || 0;
+                            }
+                          })()}
+                        </span>
+                      </div>
+                      {dataViewType === 'weekly' && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Average Weekly:</span>
+                          <span className="font-medium">
+                            {(() => {
+                              const weeklyData = memoizedWeeklyData.find((d: { uuid: string; total_earnings: number; payment_count: number }) => d.uuid === selectedDriverForDetail.uuid);
+                              if (weeklyData && weeklyData.payment_count > 0) {
+                                return formatCurrency(weeklyData.total_earnings / weeklyData.payment_count);
+                              }
+                              return formatCurrency(0);
+                            })()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+
+                  {/* Period Earnings for Monthly View */}
+                  {dataViewType === 'monthly' && selectedDriverForDetail.period_earnings && (
+                    <Card className="p-4">
+                      <h4 className="font-semibold text-gray-900 mb-3">Period Earnings</h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Last 7 Days:</span>
+                          <span className="font-medium">
+                            {formatCurrency(selectedDriverForDetail.period_earnings['7d'] || 0)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Last 30 Days:</span>
+                          <span className="font-medium">
+                            {formatCurrency(selectedDriverForDetail.period_earnings['30d'] || 0)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Last Year:</span>
+                          <span className="font-medium">
+                            {formatCurrency(selectedDriverForDetail.period_earnings['1y'] || 0)}
+                          </span>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-4">
+                  {/* Weekly Breakdown for Weekly View */}
+                  {dataViewType === 'weekly' && (
+                    <Card className="p-4">
+                      <h4 className="font-semibold text-gray-900 mb-3">Weekly Breakdown</h4>
+                      {(() => {
+                                                  const weeklyData = memoizedWeeklyData.find((d: { uuid: string; total_earnings: number }) => d.uuid === selectedDriverForDetail.uuid);
+                        if (weeklyData?.weekly_payments && weeklyData.weekly_payments.length > 0) {
+                          return (
+                            <div className="space-y-2">
+                              {weeklyData.weekly_payments.map((weekly: { week_start: string; week_end: string; total_earnings: number }, index: number) => (
+                                <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                  <div>
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {weekly.week_start} to {weekly.week_end}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      Week {index + 1}
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-medium text-teal-600">
+                                      {formatCurrency(weekly.total_earnings || 0)}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="text-center py-4 text-gray-500">
+                            No weekly data available
+                          </div>
+                        );
+                      })()}
+                    </Card>
+                  )}
+
+                  {/* Payment Details for Monthly View */}
+                  {dataViewType === 'monthly' && selectedDriverForDetail.payments && (
+                    <Card className="p-4">
+                      <h4 className="font-semibold text-gray-900 mb-3">Recent Payments</h4>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {selectedDriverForDetail.payments.slice(0, 5).map((payment: { date: string; amount: number; description?: string }, index: number) => (
+                          <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {payment.date}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {payment.description || 'Payment'}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-medium text-green-600">
+                                {formatCurrency(payment.amount || 0)}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {selectedDriverForDetail.payments.length > 5 && (
+                          <div className="text-center py-2 text-xs text-gray-500">
+                            +{selectedDriverForDetail.payments.length - 5} more payments
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDriverDetailModal(false)}
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={() => {
+                    // TODO: Implement export functionality
+                  }}
+                  className="bg-teal-600 hover:bg-teal-700 text-white"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export Data
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </Modal>
 

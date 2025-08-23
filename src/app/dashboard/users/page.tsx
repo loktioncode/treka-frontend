@@ -118,7 +118,7 @@ export default function UsersPage() {
   
   // Debug role change data changes
   useEffect(() => {
-    console.log('🔍 roleChangeData changed:', roleChangeData);
+    // Role change data monitoring logic removed for production
   }, [roleChangeData]);
 
   // Form state - using a union type that includes all necessary fields
@@ -404,7 +404,7 @@ export default function UsersPage() {
           role: 'admin'
         } as CreateAdminRequest;
         
-        console.log('Creating admin user with data:', adminData);
+
         await createAdminMutation.mutateAsync(adminData);
       } else if (user?.role === 'admin' && user.client_id) {
         // Create regular user for client - use the role from form data
@@ -413,11 +413,7 @@ export default function UsersPage() {
           role: formData.role || 'user'
         } as CreateUserRequest;
         
-        console.log('🔍 Creating client user with data:', userData);
-        console.log('🔍 Client ID:', user.client_id);
-        console.log('🔍 User role:', userData.role);
-        console.log('🔍 Form data role:', formData.role);
-        console.log('🔍 Available roles:', getAvailableRoles());
+
         
         await createUserMutation.mutateAsync(userData);
       } else if (user?.role === 'admin' && !user.client_id) {
@@ -472,8 +468,7 @@ export default function UsersPage() {
     try {
       // Use the utility function to get a valid user ID
       const userId = getValidUserId(selectedUser);
-      console.log('🗑️ Deleting user with ID:', userId);
-      console.log('🗑️ Selected user data:', selectedUser);
+
       
       await deleteUserMutation.mutateAsync(userId);
       
@@ -494,18 +489,14 @@ export default function UsersPage() {
   };
 
   const handleViewUser = (user: User) => {
-    console.log('👁️ View user clicked:', user);
+    
     setSelectedUser(user);
     setShowUserModal(true);
   };
 
   const handleEditUser = (user: User) => {
-    console.log('✏️ Edit user clicked:', user);
-    console.log('🔍 User license data:', {
-      license_number: user.license_number,
-      license_type: user.license_type,
-      vehicle_assignments: user.vehicle_assignments
-    });
+
+
     setSelectedUser(user);
     setEditFormData({
       first_name: user.first_name,
@@ -565,7 +556,7 @@ export default function UsersPage() {
     // Check if email is being changed and if it's different from current
     if (editFormData.email && editFormData.email !== selectedUser.email) {
       // Email is being changed - check if it's unique (this might be a backend validation)
-      console.log('Email is being changed from', selectedUser.email, 'to', editFormData.email);
+
     }
     
     if (Object.keys(errors).length > 0) {
@@ -576,10 +567,7 @@ export default function UsersPage() {
     
     setIsSubmitting(true);
     try {
-      // Log the data being sent for debugging
-      console.log('Updating user with data:', editFormData);
-      console.log('User ID being updated:', selectedUser.id);
-      console.log('Current user data:', selectedUser);
+
       
       // Only send fields that have actually changed
       const changedFields: Partial<User> = {};
@@ -609,7 +597,7 @@ export default function UsersPage() {
         changedFields.uber_driver_uuid = editFormData.uber_driver_uuid;
       }
       
-      console.log('Only sending changed fields:', changedFields);
+      
       
       // If no fields have changed, show a message and return
       if (Object.keys(changedFields).length === 0) {
@@ -621,7 +609,7 @@ export default function UsersPage() {
       let userId: string;
       try {
         userId = getValidUserId(selectedUser);
-        console.log('Using user ID for user update:', userId);
+
       } catch (error) {
         console.error('❌ Failed to get valid user ID for user update:', error);
         toast.error('Invalid user data - cannot update user');
@@ -726,15 +714,7 @@ export default function UsersPage() {
     
     setIsSubmitting(true);
     try {
-      // Log the role change data for debugging
-      console.log('Role change request:', {
-        userId: selectedUser.id,
-        id: selectedUser.id,
-        currentRole: selectedUser.role,
-        newRole: roleChangeData.role,
-        clientId: roleChangeData.client_id,
-        user: selectedUser
-      });
+
       
               // Validate client_id if it's being sent
         if (roleChangeData.client_id) {
@@ -745,14 +725,14 @@ export default function UsersPage() {
           toast.error('Invalid client selection. Please try again.');
           return;
         }
-        console.log('✅ Valid client found:', client);
+
       }
       
       // Use the utility function to get a valid user ID
       let userId: string;
       try {
         userId = getValidUserId(selectedUser);
-        console.log('Using user ID for role update:', userId);
+
       } catch {
         toast.error('Invalid user data - cannot update role');
         return;
@@ -988,24 +968,24 @@ export default function UsersPage() {
       icon: Trash2,
       variant: 'destructive',
       onClick: (u) => {
-        console.log('🗑️ Delete action clicked for user:', u);
-        console.log('🗑️ Current user ID:', user?.id);
-        console.log('🗑️ User ID to delete:', u.id);
+        
         setSelectedUser(u);
         setShowDeleteModal(true);
       },
       show: (u) => {
         const canDelete = u.id !== user?.id;
-        console.log('🗑️ Delete action visibility check:', {
-          userId: u.id,
-          currentUserId: user?.id,
-          canDelete,
-          userEmail: u.email
-        });
+
         return canDelete; // Can't delete yourself
       }
     }
   ];
+
+  // Monitor role change data
+  useEffect(() => {
+    if (roleChangeData) {
+      // Role change data monitoring logic removed for production
+    }
+  }, [roleChangeData]);
 
   if (!['super_admin', 'admin'].includes(user?.role || '')) {
     return null;
@@ -1024,9 +1004,7 @@ export default function UsersPage() {
     label: client.name
   }));
   
-  // Debug client options
-  console.log('Client options created:', clientOptions);
-  console.log('Raw clients data:', clients);
+
 
   return (
     <div className="space-y-6">
@@ -1223,7 +1201,7 @@ export default function UsersPage() {
                 value={formData.role || 'user'}
                 onChange={(e) => {
                   const newRole = e.target.value as CreateUserRequest['role'];
-                  console.log('🔍 Role changed to:', newRole);
+
                   setFormData({ ...formData, role: newRole });
                   
                   // Clear related errors when role changes
@@ -2454,13 +2432,7 @@ export default function UsersPage() {
                   options={clientOptions}
                   value={roleChangeData.client_id || ''}
                   onChange={(e) => {
-                    console.log('Client selection changed:', {
-                      selectedValue: e.target.value,
-                      availableOptions: clientOptions,
-                      currentRoleChangeData: roleChangeData
-                    });
                     const newData = { ...roleChangeData, client_id: e.target.value };
-                    console.log('Setting new role change data:', newData);
                     setRoleChangeData(newData);
                   }}
                   placeholder="Select a client"

@@ -165,15 +165,10 @@ export function OverallEarningsChart({ data, title = 'Overall Earnings', subtitl
     earnings: Number(item.earnings) || 0
   }));
 
-  console.log('OverallEarningsChart - Original data:', data);
-  console.log('OverallEarningsChart - Processed chartData:', chartData);
-
   // Check if all values are zero to show appropriate subtitle
   const hasActualEarnings = chartData.some(item => item.earnings > 0);
   const displaySubtitle = hasActualEarnings ? subtitle : `${subtitle} (no earnings in selected period)`;
   
-  console.log('Chart will render with data:', chartData.length, 'periods');
-
   // Calculate dynamic Y-axis scaling
   const maxEarnings = Math.max(...chartData.map(item => item.earnings));
   const minEarnings = Math.min(...chartData.map(item => item.earnings));

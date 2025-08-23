@@ -416,6 +416,22 @@ export interface DriverEarnings {
   };
   selected_period_earnings?: number;  // Earnings for the selected custom date range
   payment_count: number;
+  // Monthly data (daily payments)
+  payments?: Array<{
+    date: string;
+    amount: number;
+    fee_type: string;
+    description: string;
+    metadata?: Record<string, any>;
+  }>;
+  // Weekly data (weekly aggregated payments)
+  weekly_payments?: Array<{
+    week_start: string;
+    week_end: string;
+    total_earnings: number;
+    breakdown: Record<string, number>;
+    metadata?: Record<string, any>;
+  }>;
 }
 
 export interface MonthlyEarnings {
@@ -498,5 +514,10 @@ export interface UploadEarningsResponse {
   upload_id: string;
   total_drivers: number;
   total_payments: number;
+  new_payments: number;
+  duplicate_payments: number;
+  data_type: 'monthly' | 'weekly';
   filename: string;
+  upload_timestamp: string;
+  processing_time_ms: number;
 }
