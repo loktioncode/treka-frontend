@@ -2478,14 +2478,7 @@ export default function AnalyticsPage() {
         <div className="space-y-6">
           {/* Logistics Header */}
           <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">
-                Logistics Analytics Dashboard
-              </h2>
-              <p className="text-sm text-gray-600">
-                Track driver performance and earnings from Uber Fleet
-              </p>
-            </div>
+         
             <Button
               onClick={() => setShowUploadModal(true)}
               className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
