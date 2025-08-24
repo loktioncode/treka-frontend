@@ -422,7 +422,7 @@ export interface DriverEarnings {
     amount: number;
     fee_type: string;
     description: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }>;
   // Weekly data (weekly aggregated payments)
   weekly_payments?: Array<{
@@ -430,7 +430,7 @@ export interface DriverEarnings {
     week_end: string;
     total_earnings: number;
     breakdown: Record<string, number>;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }>;
 }
 

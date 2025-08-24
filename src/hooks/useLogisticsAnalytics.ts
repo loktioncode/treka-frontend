@@ -18,9 +18,16 @@ export const useDriverEarnings = (
 ) => {
   return useQuery({
     queryKey: ['logistics-driver-earnings', driverName, dateRange, startDate, endDate],
-    queryFn: () => {
+    queryFn: async () => {
       console.log('Calling analyticsAPI.getDriverEarnings with:', { driverName, dateRange, startDate, endDate });
-      return analyticsAPI.getDriverEarnings(dateRange, startDate, endDate);
+      try {
+        const result = await analyticsAPI.getDriverEarnings(dateRange, startDate, endDate);
+        console.log('analyticsAPI.getDriverEarnings result:', result);
+        return result;
+      } catch (error) {
+        console.error('analyticsAPI.getDriverEarnings error:', error);
+        throw error;
+      }
     },
     enabled: enabled,
     staleTime: 1000 * 60 * 5, // 5 minutes

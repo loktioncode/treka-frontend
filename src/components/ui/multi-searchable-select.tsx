@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Search, ChevronDown, X, Check } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import React, { useState, useRef, useEffect } from "react";
+import { Search, ChevronDown, X, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface MultiSearchableSelectOption {
   value: string;
@@ -18,40 +18,48 @@ interface MultiSearchableSelectProps {
   className?: string;
   disabled?: boolean;
   searchPlaceholder?: string;
+  maxSelections?: number;
 }
 
 export function MultiSearchableSelect({
   options,
   value,
   onChange,
-  placeholder = 'Select options...',
+  placeholder = "Select options...",
   className,
   disabled = false,
-  searchPlaceholder = 'Search...'
+  searchPlaceholder = "Search...",
+  maxSelections,
 }: MultiSearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const selectedOptions = options.filter(option => value.includes(option.value));
-  const filteredOptions = options.filter(option =>
-    option.label.toLowerCase().includes(searchQuery.toLowerCase()) &&
-    !value.includes(option.value) // Don't show already selected options
+  const selectedOptions = options.filter((option) =>
+    value.includes(option.value),
+  );
+  const filteredOptions = options.filter(
+    (option) =>
+      option.label.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      !value.includes(option.value), // Don't show already selected options
   );
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
-        setSearchQuery('');
+        setSearchQuery("");
         setHighlightedIndex(-1);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -62,49 +70,52 @@ export function MultiSearchableSelect({
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     switch (event.key) {
-      case 'ArrowDown':
+      case "ArrowDown":
         event.preventDefault();
-        setHighlightedIndex(prev => 
-          prev < filteredOptions.length - 1 ? prev + 1 : 0
+        setHighlightedIndex((prev) =>
+          prev < filteredOptions.length - 1 ? prev + 1 : 0,
         );
         break;
-      case 'ArrowUp':
+      case "ArrowUp":
         event.preventDefault();
-        setHighlightedIndex(prev => 
-          prev > 0 ? prev - 1 : filteredOptions.length - 1
+        setHighlightedIndex((prev) =>
+          prev > 0 ? prev - 1 : filteredOptions.length - 1,
         );
         break;
-      case 'Enter':
+      case "Enter":
         event.preventDefault();
         if (highlightedIndex >= 0 && filteredOptions[highlightedIndex]) {
           handleSelect(filteredOptions[highlightedIndex].value);
         }
         break;
-      case 'Escape':
+      case "Escape":
         setIsOpen(false);
-        setSearchQuery('');
+        setSearchQuery("");
         setHighlightedIndex(-1);
         break;
     }
   };
 
   const handleSelect = (optionValue: string) => {
+    if (maxSelections && value.length >= maxSelections) {
+      return; // Don't allow more selections than the limit
+    }
     const newValue = [...value, optionValue];
     onChange(newValue);
-    setSearchQuery('');
+    setSearchQuery("");
     setHighlightedIndex(-1);
     // Keep dropdown open for multiple selections
   };
 
   const handleRemove = (optionValue: string) => {
-    onChange(value.filter(v => v !== optionValue));
+    onChange(value.filter((v) => v !== optionValue));
   };
 
   const handleToggle = () => {
     if (!disabled) {
       setIsOpen(!isOpen);
       if (!isOpen) {
-        setSearchQuery('');
+        setSearchQuery("");
         setHighlightedIndex(-1);
       }
     }
@@ -113,7 +124,7 @@ export function MultiSearchableSelect({
   const clearAll = (e: React.MouseEvent) => {
     e.stopPropagation();
     onChange([]);
-    setSearchQuery('');
+    setSearchQuery("");
   };
 
   return (
@@ -122,7 +133,7 @@ export function MultiSearchableSelect({
         className={cn(
           "flex min-h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
           disabled && "cursor-not-allowed opacity-50",
-          !disabled && "cursor-pointer hover:border-ring"
+          !disabled && "cursor-pointer hover:border-ring",
         )}
         onClick={handleToggle}
       >
@@ -153,7 +164,7 @@ export function MultiSearchableSelect({
             ))
           )}
         </div>
-        
+
         <div className="flex items-center gap-2 ml-2">
           {value.length > 0 && !disabled && (
             <>
@@ -170,19 +181,17 @@ export function MultiSearchableSelect({
               </button>
             </>
           )}
-          <ChevronDown 
+          <ChevronDown
             className={cn(
               "h-4 w-4 text-muted-foreground transition-transform",
-              isOpen && "rotate-180"
-            )} 
+              isOpen && "rotate-180",
+            )}
           />
         </div>
       </div>
 
       {isOpen && (
-        <div 
-          className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-xl max-h-60 overflow-hidden"
-        >
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-xl max-h-60 overflow-hidden">
           <div className="p-2 border-b border-gray-200 bg-gray-50">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
@@ -198,51 +207,76 @@ export function MultiSearchableSelect({
             </div>
             {searchQuery && (
               <div className="text-xs text-gray-600 mt-1">
-                {filteredOptions.length} result{filteredOptions.length !== 1 ? 's' : ''} found
+                {filteredOptions.length} result
+                {filteredOptions.length !== 1 ? "s" : ""} found
               </div>
             )}
           </div>
-          
+
           <div className="max-h-48 overflow-y-auto">
             {/* Select All Option */}
-            {filteredOptions.length > 0 && (
-              <div
-                className="px-3 py-2 text-sm cursor-pointer hover:bg-teal-50 border-b border-gray-200 bg-gray-50 flex items-center gap-3 font-medium"
-                onClick={() => {
-                  const allValues = filteredOptions.map(opt => opt.value);
-                  onChange([...value, ...allValues]);
-                  setSearchQuery('');
-                }}
-              >
-                <div className="w-4 h-4 border border-gray-400 rounded bg-white flex items-center justify-center">
-                  <Check className="w-3 h-3 text-teal-600" />
+            {filteredOptions.length > 0 &&
+              (!maxSelections || value.length < maxSelections) && (
+                <div
+                  className="px-3 py-2 text-sm cursor-pointer hover:bg-teal-50 border-b border-gray-200 bg-gray-50 flex items-center gap-3 font-medium"
+                  onClick={() => {
+                    let allValues = filteredOptions.map((opt) => opt.value);
+                    if (maxSelections) {
+                      const remainingSlots = maxSelections - value.length;
+                      allValues = allValues.slice(0, remainingSlots);
+                    }
+                    onChange([...value, ...allValues]);
+                    setSearchQuery("");
+                  }}
+                >
+                  <div className="w-4 h-4 border border-gray-400 rounded bg-white flex items-center justify-center">
+                    <Check className="w-3 h-3 text-teal-600" />
+                  </div>
+                  {maxSelections &&
+                  value.length + filteredOptions.length > maxSelections
+                    ? `Select Available (Max ${maxSelections})`
+                    : "Select All Available"}
                 </div>
-                Select All Available
-              </div>
-            )}
-            
+              )}
+
             {filteredOptions.length === 0 ? (
               <div className="px-3 py-2 text-sm text-gray-500 text-center bg-gray-50">
-                {searchQuery ? `No results found for "${searchQuery}"` : 'No more options available'}
+                {searchQuery
+                  ? `No results found for "${searchQuery}"`
+                  : "No more options available"}
               </div>
             ) : (
-              filteredOptions.map((option, index) => (
-                <div
-                  key={option.value}
-                  className={cn(
-                    "px-3 py-2 text-sm cursor-pointer hover:bg-teal-50 border-l-2 border-transparent flex items-center gap-3",
-                    index === highlightedIndex && "bg-teal-50 border-l-teal-500",
-                    option.disabled && "opacity-50 cursor-not-allowed bg-gray-50"
-                  )}
-                  onClick={() => !option.disabled && handleSelect(option.value)}
-                >
-                  {/* Checkbox placeholder for visual consistency */}
-                  <div className="w-4 h-4 border border-gray-300 rounded bg-white flex items-center justify-center">
-                    <div className="w-2 h-2 bg-teal-500 rounded-sm opacity-0" />
+              filteredOptions.map((option, index) => {
+                const isSelectionLimitReached =
+                  maxSelections && value.length >= maxSelections;
+                return (
+                  <div
+                    key={option.value}
+                    className={cn(
+                      "px-3 py-2 text-sm cursor-pointer hover:bg-teal-50 border-l-2 border-transparent flex items-center gap-3",
+                      index === highlightedIndex &&
+                        "bg-teal-50 border-l-teal-500",
+                      (option.disabled || isSelectionLimitReached) &&
+                        "opacity-50 cursor-not-allowed bg-gray-50",
+                    )}
+                    onClick={() =>
+                      !(option.disabled || isSelectionLimitReached) &&
+                      handleSelect(option.value)
+                    }
+                  >
+                    {/* Checkbox placeholder for visual consistency */}
+                    <div className="w-4 h-4 border border-gray-300 rounded bg-white flex items-center justify-center">
+                      <div className="w-2 h-2 bg-teal-500 rounded-sm opacity-0" />
+                    </div>
+                    {option.label}
+                    {isSelectionLimitReached && (
+                      <span className="ml-auto text-xs text-gray-500">
+                        (Max reached)
+                      </span>
+                    )}
                   </div>
-                  {option.label}
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
