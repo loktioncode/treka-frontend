@@ -4166,6 +4166,7 @@ export default function AnalyticsPage() {
                                     week_start: string;
                                     week_end: string;
                                     total_earnings: number;
+                                    metadata?: Record<string, unknown>;
                                   },
                                   index: number,
                                 ) => (
@@ -4173,15 +4174,27 @@ export default function AnalyticsPage() {
                                     key={index}
                                     className="flex justify-between items-center p-2 bg-gray-50 rounded"
                                   >
-                                    <div>
+                                    <div className="flex-1">
                                       <div className="text-sm font-medium text-gray-900">
                                         {weekly.week_start} to {weekly.week_end}
                                       </div>
                                       <div className="text-xs text-gray-500">
                                         Week {index + 1}
                                       </div>
+                                      {weekly.metadata && (
+                                        <div className="text-xs text-gray-600 mt-1">
+                                          {(() => {
+                                            const paidToDriver = weekly.metadata.paid_to_driver;
+                                            if (paidToDriver && typeof paidToDriver === 'number') {
+                                              return <div>Paid to driver: {formatCurrency(paidToDriver)}</div>;
+                                            }
+                                            return null;
+                                          })()}
+
+                                        </div>
+                                      )}
                                     </div>
-                                    <div className="text-right">
+                                    <div className="text-right ml-2">
                                       <div className="font-medium text-teal-600">
                                         {formatCurrency(
                                           weekly.total_earnings || 0,

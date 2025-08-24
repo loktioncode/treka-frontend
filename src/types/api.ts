@@ -429,7 +429,6 @@ export interface DriverEarnings {
     week_start: string;
     week_end: string;
     total_earnings: number;
-    breakdown: Record<string, number>;
     metadata?: Record<string, unknown>;
   }>;
 }
