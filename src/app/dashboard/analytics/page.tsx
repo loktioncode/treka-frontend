@@ -2472,11 +2472,11 @@ export default function AnalyticsPage() {
         />
       )}
 
-      {/* Key Metrics */}
+     
       {currentClient?.client_type === "logistics" ? (
-        // Logistics Analytics Dashboard
+        
         <div className="space-y-6">
-          {/* Logistics Header */}
+      
           <div className="flex items-center justify-between">
          
             <Button
