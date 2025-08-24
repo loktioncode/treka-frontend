@@ -2902,17 +2902,6 @@ export default function AnalyticsPage() {
           {/* Logistics Charts Section */}
           {dataViewType === "monthly" ? (
             <>
-              {/* Debug Info */}
-              <div className="mb-4 p-4 bg-gray-100 rounded text-xs">
-                <strong>Debug Info:</strong><br/>
-                Date Range: {filters.dateRange}<br/>
-                Start Date: {filters.startDate}<br/>
-                End Date: {filters.endDate}<br/>
-                Driver Filter: {driverFilter.join(', ')}<br/>
-                Monthly Earnings Count: {earningsData?.summary?.monthly_earnings?.length || 0}<br/>
-                Drivers Count: {earningsData?.data?.drivers?.length || 0}<br/>
-                Performance Trends Count: {earningsData?.summary?.driver_performance_trends?.length || 0}
-              </div>
               
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Monthly Earnings Chart */}
