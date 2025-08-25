@@ -53,7 +53,7 @@ export function ChartCard({ title, subtitle, children, className = '', actions }
           </div>
         )}
       </div>
-      <div className="h-64 w-full overflow-hidden">
+      <div className="h-80 w-full overflow-hidden">
         {children}
       </div>
     </Card>
@@ -133,6 +133,8 @@ export function SimpleBarChart({ data, xKey, yKey, color = CHART_COLORS.primary,
               return value.toLocaleString();
             }}
             tick={{ fill: '#6b7280' }}
+            domain={['dataMin', 'dataMax']}
+            allowDataOverflow={false}
           />
           <Tooltip content={<CustomTooltip />} />
           <Bar 
@@ -188,6 +190,8 @@ export function SimpleLineChart({ data, xKey, yKey, color = CHART_COLORS.primary
             tickLine={false}
             axisLine={false}
             tickFormatter={(value) => value.toLocaleString()}
+            domain={['dataMin', 'dataMax']}
+            allowDataOverflow={false}
           />
           <Tooltip 
             contentStyle={{
@@ -386,6 +390,8 @@ export function MultiLineChart({ data, xKey, lines, title, subtitle }: MultiLine
             axisLine={false}
             tickFormatter={(value) => value.toLocaleString()}
             tick={{ fill: '#6b7280' }}
+            domain={['dataMin', 'dataMax']}
+            allowDataOverflow={false}
           />
           <Tooltip content={<CustomTooltip />} />
           <Legend 
@@ -591,6 +597,8 @@ export function DriverPerformanceChart({ data, title, subtitle, maxDrivers = 6 }
             axisLine={false}
             tickFormatter={(value) => `R${(value / 1000).toFixed(0)}k`}
             tick={{ fill: '#6b7280' }}
+            domain={['dataMin', 'dataMax']}
+            allowDataOverflow={false}
           />
           <Tooltip content={<CustomTooltip />} />
           <Bar 
@@ -681,23 +689,29 @@ export function GroupedMonthlyEarningsChart({ data, driverNames, title, subtitle
   const CustomTooltip = ({ active, payload, label }: BarChartTooltipProps) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg shadow-xl backdrop-blur-sm" style={{ backgroundColor: 'white', opacity: 1, backdropFilter: 'blur(8px)' }}>
           <p className="font-medium text-gray-900 mb-2">{label}</p>
           <div className="space-y-1">
-            {payload.map((entry, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <div 
-                  className="w-3 h-3 rounded-full" 
-                  style={{ backgroundColor: entry.color }}
-                />
-                <span className="text-sm text-gray-600">
-                  {entry.dataKey === 'total' ? 'Total' : entry.dataKey}:
-                </span>
-                <span className="text-sm font-medium text-gray-900">
-                  R{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}
-                </span>
-              </div>
-            ))}
+            {payload.map((entry, index) => {
+              const isTotal = entry.dataKey === 'total';
+              const driverIndex = driverNames.indexOf(entry.dataKey as string);
+              const color = isTotal ? '#0d9488' : colors[driverIndex % colors.length];
+              
+              return (
+                <div key={index} className="flex items-center gap-2">
+                  <div 
+                    className="w-4 h-4 rounded-full border-2 border-white shadow-sm" 
+                    style={{ backgroundColor: color }}
+                  />
+                  <span className="text-sm text-gray-600">
+                    {isTotal ? 'Total' : getDriverInitials(entry.dataKey as string)}:
+                  </span>
+                  <span className="text-sm font-medium text-gray-900">
+                    R{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       );
@@ -705,8 +719,21 @@ export function GroupedMonthlyEarningsChart({ data, driverNames, title, subtitle
     return null;
   };
 
-  // Use provided driver names
-  const colors = ['#0d9488', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
+  // Use provided driver names - More colorful and vibrant colors
+  const colors = [
+    '#0d9488', // Teal
+    '#3b82f6', // Blue
+    '#10b981', // Emerald
+    '#f59e0b', // Amber
+    '#ef4444', // Red
+    '#8b5cf6', // Violet
+    '#06b6d4', // Cyan
+    '#f97316', // Orange
+    '#84cc16', // Lime
+    '#ec4899', // Pink
+    '#06b6d4', // Sky
+    '#a855f7'  // Purple
+  ];
   
   // Validate that data has the expected structure
   const validData = data.filter(item => 
@@ -749,8 +776,21 @@ export function GroupedMonthlyEarningsChart({ data, driverNames, title, subtitle
             axisLine={false}
             tickFormatter={(value) => `R${(value / 1000).toFixed(0)}k`}
             tick={{ fill: '#6b7280' }}
+            domain={['dataMin', 'dataMax']}
+            allowDataOverflow={false}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip 
+            content={<CustomTooltip />}
+            wrapperStyle={{ zIndex: 1000 }}
+            contentStyle={{
+              backgroundColor: 'white',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              opacity: 1,
+              pointerEvents: 'auto'
+            }}
+          />
           <Legend 
             verticalAlign="bottom" 
             height={60}
@@ -760,11 +800,13 @@ export function GroupedMonthlyEarningsChart({ data, driverNames, title, subtitle
               if (value === 'total') {
                 return <span className="text-gray-700 font-medium">{value}</span>;
               }
-              // Find the full driver name and show only initials
+              // Find the full driver name and show only initials with matching color
               const fullName = driverNames.find(name => name === value);
               if (fullName) {
+                const colorIndex = driverNames.indexOf(fullName);
+                const color = colors[colorIndex % colors.length];
                 return (
-                  <span className="text-gray-700">
+                  <span className="font-medium" style={{ color: color }}>
                     {getDriverInitials(fullName)}
                   </span>
                 );
@@ -780,8 +822,9 @@ export function GroupedMonthlyEarningsChart({ data, driverNames, title, subtitle
               dataKey={driverName}
               fill={colors[index % colors.length]}
               radius={[4, 4, 0, 0]}
-              opacity={0.7}
-              strokeWidth={1}
+              opacity={0.85}
+              strokeWidth={2}
+              stroke={colors[index % colors.length]}
               name={driverName}
             />
           ))}
@@ -791,8 +834,8 @@ export function GroupedMonthlyEarningsChart({ data, driverNames, title, subtitle
             dataKey="total"
             fill="#0d9488"
             radius={[4, 4, 0, 0]}
-            opacity={0.9}
-            strokeWidth={2}
+            opacity={1.0}
+            strokeWidth={3}
             stroke="#0d9488"
             name="total"
           />

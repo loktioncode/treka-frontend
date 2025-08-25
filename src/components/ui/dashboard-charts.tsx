@@ -125,7 +125,7 @@ export function DashboardChartCard({
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="h-48 w-full overflow-hidden relative">
+        <div className="h-64 w-full overflow-hidden relative">
           {children}
         </div>
       </CardContent>
@@ -700,6 +700,8 @@ export function PerformanceTrendsChart({ data, title = 'Performance Trends', sub
               axisLine={false}
               yAxisId="left"
               tickFormatter={(value) => value.toString()}
+              domain={['dataMin', 'dataMax']}
+              allowDataOverflow={false}
             />
             <YAxis 
               stroke="#6b7280"
@@ -709,6 +711,8 @@ export function PerformanceTrendsChart({ data, title = 'Performance Trends', sub
               yAxisId="right"
               orientation="right"
               tickFormatter={(value) => `R${(value / 1000).toFixed(0)}k`}
+              domain={['dataMin', 'dataMax']}
+              allowDataOverflow={false}
             />
             <Tooltip 
               contentStyle={{

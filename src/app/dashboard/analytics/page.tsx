@@ -2620,13 +2620,13 @@ export default function AnalyticsPage() {
                     }}
                     placeholder={
                       earningsData?.data?.drivers?.length
-                        ? "Select drivers (max 3)..."
+                        ? "Select drivers (max 5)..."
                         : "Loading drivers..."
                     }
                     searchPlaceholder="Search drivers..."
                     className="min-w-[300px]"
                     disabled={!earningsData?.data?.drivers?.length}
-                    maxSelections={3}
+                    maxSelections={5}
                   />
                   {driverFilter.length > 0 && (
                     <Button
@@ -2790,7 +2790,7 @@ export default function AnalyticsPage() {
                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
                      Weekly Performance Chart
                    </h3>
-                   <div className="h-64">
+                   <div className="h-80">
                      {(() => {
                        const chartData = getWeeklyChartData();
                        console.log('Weekly Performance Chart - chartData:', chartData);
@@ -2811,6 +2811,8 @@ export default function AnalyticsPage() {
                                tickLine={false}
                                axisLine={false}
                                tickFormatter={(value) => `R${value.toLocaleString()}`}
+                               domain={['dataMin', 'dataMax']}
+                               allowDataOverflow={false}
                              />
                              <Tooltip 
                                contentStyle={{
@@ -2998,10 +3000,10 @@ export default function AnalyticsPage() {
                       {driverFilter.length === 1
                         ? `Driver ID: ${driverFilter[0]}`
                         : getSelectedDrivers()
-                            .slice(0, 3)
+                            .slice(0, 5)
                             .map((driver: DriverEarnings) => driver.full_name)
                             .join(", ") +
-                          (driverFilter.length > 3 ? "..." : "")}
+                          (driverFilter.length > 5 ? "..." : "")}
                     </p>
                   </div>
                 </div>
@@ -4306,7 +4308,7 @@ export default function AnalyticsPage() {
                         
                         return (
                           <div className="space-y-4">
-                            <div className="h-64">
+                            <div className="h-80">
                               <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                                   <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" opacity={0.5} />
@@ -4323,6 +4325,8 @@ export default function AnalyticsPage() {
                                     tickLine={false}
                                     axisLine={false}
                                     tickFormatter={(value) => `$${value.toLocaleString()}`}
+                                    domain={['dataMin', 'dataMax']}
+                                    allowDataOverflow={false}
                                   />
                                   <Tooltip 
                                     content={({ active, payload, label }) => {
@@ -4509,6 +4513,8 @@ export default function AnalyticsPage() {
                                     tickLine={false}
                                     axisLine={false}
                                     tickFormatter={(value) => `$${value.toLocaleString()}`}
+                                    domain={['dataMin', 'dataMax']}
+                                    allowDataOverflow={false}
                                   />
                                   <Tooltip 
                                     content={({ active, payload, label }) => {
