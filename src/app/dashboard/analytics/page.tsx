@@ -271,7 +271,7 @@ export default function AnalyticsPage() {
       if (driver.payments && Array.isArray(driver.payments)) {
         const monthlyEarnings = driver.payments.reduce(
           (sum: number, payment: { amount: number }) =>
-            sum + (payment.amount || 0),
+            sum + Math.max(0, payment.amount || 0),
           0,
         );
         return {
@@ -294,7 +294,17 @@ export default function AnalyticsPage() {
   const getWeeklyEarningsData = useCallback(() => {
     if (!earningsData?.data?.drivers) return [];
 
+    console.log('=== getWeeklyEarningsData DEBUG ===');
+    console.log('earningsData.data.drivers:', earningsData.data.drivers);
+
     return earningsData.data.drivers.map((driver: DriverEarnings) => {
+      console.log(`Processing driver ${driver.uuid}:`, {
+        hasWeeklyPayments: !!driver.weekly_payments,
+        weeklyPaymentsType: typeof driver.weekly_payments,
+        weeklyPaymentsLength: Array.isArray(driver.weekly_payments) ? driver.weekly_payments.length : 'not array',
+        weeklyPayments: driver.weekly_payments
+      });
+      
       if (driver.weekly_payments && Array.isArray(driver.weekly_payments)) {
         let weeklyPayments = driver.weekly_payments;
 
@@ -322,6 +332,7 @@ export default function AnalyticsPage() {
           total_earnings: weeklyEarnings,
           payment_count: weeklyPayments.length,
           period_earnings: {},
+          weekly_payments: weeklyPayments, // Preserve the weekly payments for display
         };
       } else {
         return {
@@ -329,6 +340,7 @@ export default function AnalyticsPage() {
           total_earnings: 0,
           payment_count: 0,
           period_earnings: {},
+          weekly_payments: [], // Ensure weekly_payments is always present
         };
       }
     });
@@ -360,7 +372,7 @@ export default function AnalyticsPage() {
 
     return {
       total_drivers: monthlyDrivers.length,
-      total_earnings: totalMonthlyEarnings,
+      total_earnings: Math.max(0, totalMonthlyEarnings), // Ensure earnings are never negative
       total_payments: totalMonthlyPayments,
       monthly_earnings: earningsData.summary.monthly_earnings || [],
       driver_performance_trends:
@@ -368,7 +380,7 @@ export default function AnalyticsPage() {
       earnings_change_percentage:
         earningsData.summary.earnings_change_percentage,
       selected_period_earnings:
-        earningsData.summary.selected_period_earnings || 0,
+        Math.max(0, earningsData.summary.selected_period_earnings || 0), // Ensure selected period earnings are never negative
       type: "monthly" as const,
     };
   };
@@ -376,49 +388,74 @@ export default function AnalyticsPage() {
   const getWeeklySummary = useCallback(() => {
     if (!earningsData?.summary) return null;
 
+    console.log('=== getWeeklySummary DEBUG ===');
+    console.log('earningsData.data.drivers:', earningsData.data.drivers);
+
+    // Get filtered weekly data for display purposes
     const weeklyDrivers = getWeeklyEarningsData();
 
-    // Calculate totals from the weekly data (weekly_payments array)
-    const totalWeeklyEarnings = weeklyDrivers.reduce(
-      (sum: number, driver: { total_earnings: number }) =>
-        sum + (driver.total_earnings || 0),
-      0,
-    );
+    let totalWeeklyEarnings = 0;
+    let totalWeeklyReports = 0;
+    let activeDriversCount = 0;
+    let overallTotalEarnings = 0;
 
-    // Count total unique weeks across ALL drivers from original data, not filtered data
-    if (!earningsData?.data?.drivers) {
-      console.warn("earningsData.data.drivers is undefined, returning null");
-      return null;
+    if (earningsData?.data?.drivers) {
+      // Calculate total earnings from FILTERED data for the selected period
+      totalWeeklyEarnings = weeklyDrivers.reduce((sum: number, driver: { total_earnings: number }) => {
+        return sum + Math.max(0, driver.total_earnings || 0);
+      }, 0);
+
+      // Calculate overall total earnings from ALL data for average calculation
+      overallTotalEarnings = earningsData.data.drivers.reduce((sum: number, driver: DriverEarnings) => {
+        if (driver.weekly_payments && Array.isArray(driver.weekly_payments)) {
+          const driverEarnings = driver.weekly_payments.reduce((weekSum: number, weekly: { total_earnings: number }) => {
+            const weeklyEarnings = weekly.total_earnings || 0;
+            // Ensure weekly earnings are never negative
+            return weekSum + Math.max(0, weeklyEarnings);
+          }, 0);
+          return sum + driverEarnings;
+        }
+        return sum;
+      }, 0);
+
+      // Count total unique weeks across ALL drivers from original data
+      const allWeeklyPayments = earningsData.data.drivers.flatMap(
+        (driver: DriverEarnings) => driver.weekly_payments || [],
+      );
+
+      console.log('allWeeklyPayments:', allWeeklyPayments);
+
+      // Create unique week ranges and count them
+      const uniqueWeeks = new Set();
+      allWeeklyPayments.forEach(
+        (weekly: { week_start: string; week_end: string }) => {
+          if (weekly.week_start && weekly.week_end) {
+            uniqueWeeks.add(`${weekly.week_start}_${weekly.week_end}`);
+          }
+        },
+      );
+      totalWeeklyReports = uniqueWeeks.size; // Total unique weeks
+
+      console.log('uniqueWeeks:', Array.from(uniqueWeeks));
+      console.log('totalWeeklyReports:', totalWeeklyReports);
+
+      // Count active drivers from filtered data for the selected period
+      activeDriversCount = weeklyDrivers.filter(
+        (driver: { total_earnings: number }) => (driver.total_earnings || 0) > 0,
+      ).length;
     }
 
-    const allWeeklyPayments = earningsData.data.drivers.flatMap(
-      (driver: DriverEarnings) => driver.weekly_payments || [],
-    );
-
-    // Create unique week ranges and count them
-    const uniqueWeeks = new Set();
-    allWeeklyPayments.forEach(
-      (weekly: { week_start: string; week_end: string }) => {
-        if (weekly.week_start && weekly.week_end) {
-          uniqueWeeks.add(`${weekly.week_start}_${weekly.week_end}`);
-        }
-      },
-    );
-    const totalWeeklyReports = uniqueWeeks.size; // Total unique weeks
-
-    // For weekly view, count only drivers with earnings > 0 (active drivers)
-    const activeDriversCount = weeklyDrivers.filter(
-      (driver: { total_earnings: number }) => (driver.total_earnings || 0) > 0,
-    ).length;
-
-    return {
-      total_drivers: activeDriversCount, // Only count active drivers (earnings > 0)
-      total_earnings: totalWeeklyEarnings,
+    const result = {
+      total_drivers: activeDriversCount,
+      total_earnings: Math.max(0, totalWeeklyEarnings), // Earnings for selected period
       total_weekly_reports: totalWeeklyReports,
       average_weekly_earnings:
-        totalWeeklyReports > 0 ? totalWeeklyEarnings / totalWeeklyReports : 0,
+        totalWeeklyReports > 0 ? Math.max(0, overallTotalEarnings / totalWeeklyReports) : 0, // Overall average across all weeks
       type: "weekly" as const,
     };
+
+    console.log('Weekly summary result:', result);
+    return result;
   }, [earningsData, getWeeklyEarningsData]);
 
   const getCurrentSummary = () => {
@@ -2113,9 +2150,15 @@ export default function AnalyticsPage() {
     // Since getUniqueWeekRanges is now inside getWeeklyEarningsData, we need to extract it
     if (!earningsData?.data?.drivers) return [];
 
+    console.log('=== WEEKLY DATA DEBUG ===');
+    console.log('earningsData.data.drivers:', earningsData.data.drivers);
+    
     const allWeeklyPayments = earningsData.data.drivers.flatMap(
       (driver: DriverEarnings) => driver.weekly_payments || [],
     );
+    
+    console.log('allWeeklyPayments:', allWeeklyPayments);
+    
     const uniqueWeeks = new Map();
 
     allWeeklyPayments.forEach(
@@ -2134,9 +2177,12 @@ export default function AnalyticsPage() {
       },
     );
 
-    return Array.from(uniqueWeeks.values()).sort((a, b) =>
+    const result = Array.from(uniqueWeeks.values()).sort((a, b) =>
       a.week_start.localeCompare(b.week_start),
     );
+    
+    console.log('uniqueWeeks result:', result);
+    return result;
   }, [earningsData]);
 
   const memoizedGetWeeklyEarningsData = useCallback(() => {
@@ -2741,7 +2787,7 @@ export default function AnalyticsPage() {
                           : 0,
                       )
                     : formatCurrency(getCurrentSummary()?.total_earnings || 0)
-                  : formatCurrency(getCurrentSummary()?.total_earnings || 0)
+                  : formatCurrency(Math.max(0, getCurrentSummary()?.total_earnings || 0))
               }
               change={
                 dataViewType === "monthly"
@@ -3326,19 +3372,17 @@ export default function AnalyticsPage() {
                               ? filters.startDate && filters.endDate
                                 ? "Period Earnings"
                                 : "Last 7 Days"
-                              : "Weekly Reports"}
+                              : "Cash Collected"}
                           </th>
                           <th className="text-left py-3 px-4 font-medium text-gray-900">
                             {dataViewType === "monthly"
                               ? filters.startDate && filters.endDate
                                 ? "Period Payments"
                                 : "Last 30 Days"
-                              : "Average Weekly"}
+                              : "Earnings Tip"}
                           </th>
                           <th className="text-left py-3 px-4 font-medium text-gray-900">
-                            {dataViewType === "monthly"
-                              ? "Payments"
-                              : "Actions"}
+                            Actions
                           </th>
                         </tr>
                       </thead>
@@ -3450,11 +3494,23 @@ export default function AnalyticsPage() {
                                             earningsData?.summary?.currency ||
                                               "ZAR",
                                           )
-                                      : (
-                                          currentDriverData?.payment_count || 0
-                                        ).toString()}
+                                      : (() => {
+                                          // Extract cash collected from metadata
+                                          const weeklyData = memoizedWeeklyData.find(
+                                            (d: { uuid: string; total_earnings: number }) =>
+                                              d.uuid === driver.uuid,
+                                          );
+                                          if (weeklyData?.weekly_payments?.[0]?.metadata?.raw_data) {
+                                            const rawData = weeklyData.weekly_payments[0].metadata.raw_data;
+                                            const cashCollected = rawData.paid_to_you_trip_balance_payouts_cash_collected || 
+                                                                 rawData.cash_collected || 
+                                                                 rawData.payouts_cash_collected || 0;
+                                            return formatCurrency(parseFloat(cashCollected) || 0, "ZAR");
+                                          }
+                                          return formatCurrency(0, "ZAR");
+                                        })()}
                                   </td>
-                                  <td className="py-3 px-4 text-gray-700">
+                                                                    <td className="py-3 px-4 text-gray-700">
                                     {dataViewType === "monthly"
                                       ? filters.startDate && filters.endDate
                                         ? formatCurrency(
@@ -3468,15 +3524,22 @@ export default function AnalyticsPage() {
                                             earningsData?.summary?.currency ||
                                               "ZAR",
                                           )
-                                      : formatCurrency(
-                                          currentDriverData &&
-                                            currentDriverData.payment_count > 0
-                                            ? currentDriverData.total_earnings /
-                                                currentDriverData.payment_count
-                                            : 0,
-                                          earningsData?.summary?.currency ||
-                                            "ZAR",
-                                        )}
+                                      : (() => {
+                                          // Extract earnings tip from metadata
+                                          const weeklyData = memoizedWeeklyData.find(
+                                            (d: { uuid: string; total_earnings: number }) =>
+                                              d.uuid === driver.uuid,
+                                          );
+                                          if (weeklyData?.weekly_payments?.[0]?.metadata?.raw_data) {
+                                            const rawData = weeklyData.weekly_payments[0].metadata.raw_data;
+                                            const earningsTip = rawData.paid_to_you_your_earnings_tip || 
+                                                               rawData.your_earnings_tip || 
+                                                               rawData.earnings_tip || 
+                                                               rawData.tip || 0;
+                                            return formatCurrency(parseFloat(earningsTip) || 0, "ZAR");
+                                          }
+                                          return formatCurrency(0, "ZAR");
+                                        })()}
                                   </td>
                                   <td className="py-3 px-4 text-gray-700">
                                     {dataViewType === "monthly" ? (

@@ -56,6 +56,21 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
 
 export function formatCurrency(amount: number, currency: string = 'ZAR'): string {
   try {
+    // Special case for 0 to ensure consistent formatting
+    if (amount === 0) {
+      const currencySymbols: Record<string, string> = {
+        'ZAR': 'R',
+        'USD': '$',
+        'EUR': '€',
+        'GBP': '£',
+        'KES': 'KSh',
+        'NGN': '₦',
+        'GHS': 'GH₵'
+      };
+      const symbol = currencySymbols[currency] || 'R';
+      return `${symbol} 0.00`;
+    }
+    
     // Map currency codes to locale strings for proper formatting
     const currencyMap: Record<string, string> = {
       'ZAR': 'en-ZA',
