@@ -39,7 +39,7 @@ interface ChartCardProps {
 
 export function ChartCard({ title, subtitle, children, className = '', actions }: ChartCardProps) {
   return (
-    <Card className={`p-4 sm:p-6 ${className}`}>
+    <Card className={`p-4 sm:p-6 h-full ${className}`}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-3">
         <div className="flex-1 min-w-0">
           <h3 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">{title}</h3>
@@ -53,7 +53,7 @@ export function ChartCard({ title, subtitle, children, className = '', actions }
           </div>
         )}
       </div>
-      <div className="h-80 sm:h-96 w-full overflow-hidden relative">
+      <div className="h-full w-full overflow-hidden relative">
         <div className="absolute inset-0">
           {children}
         </div>
@@ -488,9 +488,10 @@ interface DriverPerformanceChartProps {
   }>;
   title?: string;
   subtitle?: string;
+  maxDrivers?: number;
 }
 
-export function DriverPerformanceChart({ data, title, subtitle }: DriverPerformanceChartProps) {
+export function DriverPerformanceChart({ data, title, subtitle, maxDrivers = 6 }: DriverPerformanceChartProps) {
   if (!data || data.length === 0) {
     return (
       <ChartCard title={title || 'Driver Performance Chart'} subtitle={subtitle}>
@@ -518,7 +519,7 @@ export function DriverPerformanceChart({ data, title, subtitle }: DriverPerforma
   };
 
   // Transform data for the chart
-  const chartData = data.slice(0, 6).map((driver, index) => {
+  const chartData = data.slice(0, maxDrivers).map((driver, index) => {
     const totalEarnings = driver.monthly_earnings.reduce((sum, month) => sum + month.earnings, 0);
     const avgMonthlyEarnings = totalEarnings / Math.max(driver.monthly_earnings.length, 1);
     const trend = driver.monthly_earnings.length >= 2 ? 
@@ -531,7 +532,7 @@ export function DriverPerformanceChart({ data, title, subtitle }: DriverPerforma
       totalEarnings,
       avgMonthlyEarnings,
       trend,
-      color: ['#0d9488', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][index % 6]
+      color: ['#0d9488', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#f97316', '#06b6d4', '#84cc16', '#a855f7'][index % 10]
     };
   });
 

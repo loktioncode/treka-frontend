@@ -17,7 +17,9 @@ import {
   MultiLineChart,
   MetricCard,
   GroupedMonthlyEarningsChart,
+  DriverPerformanceChart,
 } from "@/components/ui/charts";
+import { DashboardChartCard } from "@/components/ui/dashboard-charts";
 import {
   LineChart,
   Line,
@@ -417,6 +419,116 @@ export default function AnalyticsPage() {
     }
     return getMonthlyEarningsData();
   };
+
+  const getWeeklyChartData = useCallback(() => {
+    if (!earningsData?.data?.drivers) return [];
+
+    console.log('getWeeklyChartData - weekFilter:', weekFilter);
+    
+    // For weekly view, we can use the total_earnings that's already calculated per driver
+    // This should give us the same totals that are shown in the driver tables
+    
+    if (weekFilter !== "all") {
+      // For specific week selection, get the total driver earnings for that specific week
+      // We need to look at each driver's weekly_payments for the selected week
+      let totalWeekEarnings = 0;
+      
+      earningsData.data.drivers.forEach((driver: DriverEarnings) => {
+        if (driver.weekly_payments && Array.isArray(driver.weekly_payments)) {
+          // Find the payment for the selected week
+          const weekPayment = driver.weekly_payments.find((weekly: any) => {
+            const weekKey = `${weekly.week_start}_${weekly.week_end}`;
+            return weekKey === weekFilter;
+          });
+          
+          if (weekPayment && weekPayment.total_earnings > 0) {
+            totalWeekEarnings += weekPayment.total_earnings;
+          }
+        }
+      });
+      
+      console.log('getWeeklyChartData - specific week totalWeekEarnings:', totalWeekEarnings);
+      
+      return [{
+        week: weekFilter.split('_')[0], // Get week start from filter
+        earnings: totalWeekEarnings
+      }];
+    }
+
+    // For "all weeks" view, we need to get the weekly breakdown
+    // Get all weekly payments from ALL drivers (unfiltered)
+    const allWeeklyPayments: Array<{ week_start: string; week_end: string; total_earnings: number }> = [];
+    
+    console.log('getWeeklyChartData - earningsData.data.drivers:', earningsData.data.drivers);
+    
+    earningsData.data.drivers.forEach((driver: DriverEarnings) => {
+      console.log('getWeeklyChartData - driver:', driver);
+      console.log('getWeeklyChartData - driver.weekly_payments:', driver.weekly_payments);
+      
+      if (driver.weekly_payments && Array.isArray(driver.weekly_payments)) {
+        driver.weekly_payments.forEach((weekly: any) => {
+          console.log('getWeeklyChartData - weekly payment:', weekly);
+          allWeeklyPayments.push({
+            week_start: weekly.week_start,
+            week_end: weekly.week_end,
+            total_earnings: weekly.total_earnings || 0
+          });
+        });
+      }
+    });
+    
+    console.log('getWeeklyChartData - allWeeklyPayments (unfiltered):', allWeeklyPayments);
+
+    // Group by week and sum earnings for all weeks
+    // Only include positive earnings, filter out negative values
+    const weeklyTotals = new Map<string, number>();
+    allWeeklyPayments.forEach((payment) => {
+      const weekKey = `${payment.week_start}_${payment.week_end}`;
+      const existing = weeklyTotals.get(weekKey) || 0;
+      // Only add positive earnings, ignore negative values
+      const paymentEarnings = payment.total_earnings > 0 ? payment.total_earnings : 0;
+      weeklyTotals.set(weekKey, existing + paymentEarnings);
+    });
+
+    // Convert to chart data format and sort by week start date
+    const chartData = Array.from(weeklyTotals.entries()).map(([weekKey, earnings]) => {
+      const [weekStart] = weekKey.split('_');
+      return {
+        week: weekStart,
+        earnings: Math.max(0, earnings) // Ensure earnings are never negative
+      };
+    }).sort((a, b) => a.week.localeCompare(b.week));
+
+    console.log('getWeeklyChartData - final chartData:', chartData);
+    console.log('getWeeklyChartData - weeklyTotals map:', weeklyTotals);
+    
+    return chartData;
+  }, [earningsData, weekFilter]);
+
+  const getDriverPerformanceData = useCallback(() => {
+    if (!earningsData?.data?.drivers) return [];
+
+    // Get current earnings data (filtered by week if applicable)
+    const currentData = getCurrentEarningsData();
+    
+    // Filter drivers with positive earnings and sort by earnings (highest first)
+    const topDrivers = currentData
+      .filter((driver: any) => driver.total_earnings > 0)
+      .sort((a: any, b: any) => b.total_earnings - a.total_earnings)
+      .slice(0, 10); // Get top 10
+
+    // Format data for DriverPerformanceChart component
+    return topDrivers.map((driver: any) => ({
+      driver_id: driver.uuid,
+      driver_name: driver.full_name,
+      monthly_earnings: [{
+        month: weekFilter === "all" ? "All Weeks" : "Selected Week",
+        earnings: driver.total_earnings
+      }]
+    }));
+  }, [earningsData, getCurrentEarningsData, weekFilter]);
+
+
 
   const getMonthlySummary = () => {
     if (!earningsData?.summary) return null;
@@ -2623,167 +2735,107 @@ export default function AnalyticsPage() {
           ) : (
             // Weekly View - Show weekly aggregated data
             <div className="space-y-6">
+              {/* Week Filter */}
+              <div className="flex items-center justify-center gap-3">
+                <label
+                  htmlFor="weekFilter"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  Week Range:
+                </label>
+                <div className="relative">
+                  <select
+                    id="weekFilter"
+                    value={weekFilter}
+                    onChange={(e) => {
+                      setWeekFilter(e.target.value);
+                    }}
+                    className="block w-48 rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm bg-white"
+                  >
+                    <option value="all">All Weekly Data</option>
+                    {memoizedGetUniqueWeekRanges().map((week) => (
+                      <option key={week.value} value={week.value}>
+                        {week.display}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {weekFilter !== "all" && (
+                  <Button
+                    onClick={() => {
+                      setWeekFilter("all");
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs border-teal-300 text-teal-700 hover:bg-teal-50"
+                  >
+                    Reset
+                  </Button>
+                )}
+              </div>
+
               {/* Weekly Data Summary */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      Weekly Earnings Overview
-                    </h3>
-                    {/* Week Filter Dropdown */}
-                    <div className="flex items-center gap-3">
-                      <label
-                        htmlFor="weekFilter"
-                        className="text-sm font-medium text-gray-700"
-                      >
-                        Week Range:
-                      </label>
-                      <div className="relative">
-                        <select
-                          id="weekFilter"
-                          value={weekFilter}
-                          onChange={(e) => {
-                            setWeekFilter(e.target.value);
-                          }}
-                          className="block w-48 rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm bg-white"
-                        >
-                          <option value="all">All Weekly Data</option>
-                          {memoizedGetUniqueWeekRanges().map((week) => (
-                            <option key={week.value} value={week.value}>
-                              {week.display}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      {weekFilter !== "all" && (
-                        <Button
-                          onClick={() => {
-                            setWeekFilter("all");
-                          }}
-                          variant="outline"
-                          size="sm"
-                          className="text-xs border-teal-300 text-teal-700 hover:bg-teal-50"
-                        >
-                          Reset
-                        </Button>
-                      )}
-                    </div>
-                  </div>
+                {/* Top 10 Drivers Performance Chart */}
+                {getCurrentEarningsData().length > 0 && (
+                  <DriverPerformanceChart
+                    data={getDriverPerformanceData()}
+                    title="Top 10 Drivers Performance"
+                    subtitle={`For ${weekFilter === "all" ? "all weeks" : "selected week"}`}
+                    maxDrivers={10}
+                  />
+                )}
 
-                  {/* Filter Status */}
-                  {weekFilter !== "all" && (
-                    <div className="mb-4 p-3 bg-teal-50 border border-teal-200 rounded-lg">
-                      <p className="text-sm text-teal-800">
-                        <strong>Filtered View:</strong> Showing data for week
-                        range:{" "}
-                        {
-                          memoizedGetUniqueWeekRanges().find(
-                            (w) => w.value === weekFilter,
-                          )?.display
-                        }
-                      </p>
-                    </div>
-                  )}
-
-                  {memoizedWeeklySummary?.total_weekly_reports === 0 ? (
-                    <div className="text-center py-8">
-                      <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        No Weekly Data Available Yet
-                      </h3>
-                      <p className="text-gray-600 mb-4">
-                        Weekly reports haven&apos;t been uploaded yet. Upload a
-                        weekly CSV to see weekly analytics.
-                      </p>
-                      <Button
-                        onClick={() => setShowUploadModal(true)}
-                        className="bg-teal-600 hover:bg-teal-700 text-white"
-                      >
-                        Upload Weekly Report
-                      </Button>
-                    </div>
-                  ) : (
-                    <div
-                      key={`weekly-data-${weekFilter}`}
-                      className="space-y-3"
-                    >
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">
-                          Total Weekly Reports:
-                        </span>
-                        <span className="font-semibold text-gray-900">
-                          {memoizedWeeklySummary?.total_weekly_reports || 0}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">
-                          Total Weekly Earnings:
-                        </span>
-                        <span className="font-semibold text-gray-900">
-                          {formatCurrency(
-                            memoizedWeeklySummary?.total_earnings || 0,
-                          )}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Total Drivers:</span>
-                        <span className="font-semibold text-gray-900">
-                          {memoizedWeeklySummary?.total_drivers || 0}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">
-                          Average Weekly Earnings:
-                        </span>
-                        <span className="font-semibold text-gray-900">
-                          {formatCurrency(
-                            memoizedWeeklySummary?.average_weekly_earnings || 0,
-                          )}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Data Type:</span>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {weekFilter === "all"
-                            ? "All Weekly Data"
-                            : "Filtered Week"}
-                        </span>
-                      </div>
-
-                      {/* Note about driver count */}
-                      <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
-                        <strong>Note:</strong> Total Drivers shows only active
-                        drivers (earnings {">"} 0) for the selected period.
-                      </div>
-                    </div>
-                  )}
-                </Card>
-
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Upload Information
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Supported Format:</span>
-                      <span className="text-sm text-gray-900">
-                        Weekly CSV (no vs_reporting)
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Filename Pattern:</span>
-                      <span className="text-sm text-gray-900">
-                        YYYYMMDD-YYYYMMDD-...
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Data Structure:</span>
-                      <span className="text-sm text-gray-900">
-                        Weekly breakdowns
-                      </span>
-                    </div>
-                  </div>
-                </Card>
+                                 {/* Weekly Performance Chart */}
+                 <Card className="p-6">
+                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                     Weekly Performance Chart
+                   </h3>
+                   <div className="h-64">
+                     {(() => {
+                       const chartData = getWeeklyChartData();
+                       console.log('Weekly Performance Chart - chartData:', chartData);
+                       return (
+                         <ResponsiveContainer width="100%" height="100%">
+                           <LineChart data={chartData}>
+                             <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" opacity={0.5} />
+                             <XAxis 
+                               dataKey="week" 
+                               stroke="#6b7280"
+                               fontSize={12}
+                               tickLine={false}
+                               axisLine={false}
+                             />
+                             <YAxis 
+                               stroke="#6b7280"
+                               fontSize={12}
+                               tickLine={false}
+                               axisLine={false}
+                               tickFormatter={(value) => `R${value.toLocaleString()}`}
+                             />
+                             <Tooltip 
+                               contentStyle={{
+                                 backgroundColor: '#ffffff',
+                                 border: '1px solid #e5e7eb',
+                                 borderRadius: '8px',
+                                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                               }}
+                               formatter={(value: number) => [`R${value.toLocaleString()}`, 'Earnings']}
+                             />
+                             <Line 
+                               type="monotone" 
+                               dataKey="earnings" 
+                               stroke="#0d9488" 
+                               strokeWidth={2}
+                               dot={{ fill: '#0d9488', strokeWidth: 2, r: 4 }}
+                               activeDot={{ r: 6, stroke: '#0d9488', strokeWidth: 2 }}
+                             />
+                           </LineChart>
+                         </ResponsiveContainer>
+                       );
+                     })()}
+                   </div>
+                 </Card>
               </div>
             </div>
           )}
@@ -3244,22 +3296,7 @@ export default function AnalyticsPage() {
           ) : (
             // Weekly View - Show message about charts
             <div className="text-center py-8">
-              <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Weekly Data View
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Charts and detailed analytics are available in Monthly View.
-                Switch to Monthly View to see earnings trends and performance
-                charts.
-              </p>
-              <Button
-                onClick={() => setDataViewType("monthly")}
-                className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white hover:text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
-              >
-                <Calendar className="h-4 w-4 mr-2" />
-                Switch to Monthly View
-              </Button>
+           
             </div>
           )}
 
