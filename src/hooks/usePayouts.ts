@@ -21,7 +21,7 @@ export interface PayoutsResponse {
   payouts: PayoutDriver[];
 }
 
-export const usePayouts = () => {
+export const usePayouts = (isLogisticsClient: boolean = true) => {
   return useQuery<PayoutsResponse>({
     queryKey: ['payouts'],
     queryFn: analyticsAPI.getAllPayouts,
@@ -29,5 +29,6 @@ export const usePayouts = () => {
     gcTime: 10 * 60 * 1000, // 10 minutes
     retry: 2,
     retryDelay: 1000,
+    enabled: isLogisticsClient, // Only run for logistics clients
   });
 };

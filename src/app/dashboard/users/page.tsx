@@ -97,7 +97,12 @@ export default function UsersPage() {
   // React Query hooks - backend now handles role-based filtering
   const { data: users = [], isLoading: loading } = useUsers();
   const { data: clients = [] } = useClients();
-  const { data: payoutsData } = usePayouts();
+  
+  // Get current client to determine if user is logistics client
+  const currentClient = clients.find((c: Client) => c.id === user?.client_id);
+  const isLogisticsClient = currentClient?.client_type === 'logistics';
+  
+  const { data: payoutsData } = usePayouts(isLogisticsClient);
   const createUserMutation = useCreateUser();
   const createAdminMutation = useCreateAdmin();
   const updateUserMutation = useUpdateUser();

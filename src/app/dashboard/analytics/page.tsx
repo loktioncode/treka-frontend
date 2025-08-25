@@ -906,7 +906,7 @@ export default function AnalyticsPage() {
     );
   };
 
-  // Handle chat message
+  // Handle chat message - Industrial client focused
   const handleChatMessage = async (message: string) => {
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -919,37 +919,49 @@ export default function AnalyticsPage() {
     setIsChatLoading(true);
 
     try {
-      // Get AI insights from the backend
-      const filtersForAI = {
-        dateRange: filters.dateRange,
-        startDate: filters.startDate,
-        endDate: filters.endDate,
-        assetIds: filters.assetIds,
-        componentIds: filters.componentIds,
-        userIds: filters.userIds,
-        status: filters.status,
-        assetType: filters.assetType,
-        condition: filters.condition,
-        clientId: filters.clientId,
-        searchQuery: filters.searchQuery,
-      };
+      // For industrial clients, provide asset and component focused insights
+      // without calling logistics APIs
+      const industrialInsights = [
+        `Total assets in system: ${stats?.assets.total || 0}`,
+        `Active components: ${stats?.components.operational || 0}`,
+        `Critical issues requiring attention: ${stats?.components.critical || 0}`,
+        `Maintenance due within 7 days: ${stats?.components.maintenance_due || 0}`,
+        `System notifications pending: ${stats?.notifications.pending || 0}`,
+      ];
 
-      const aiResponse = await analyticsAPI.getAIInsights(
-        message,
-        filtersForAI,
-      );
+      // Add asset-specific insights if available
+      if (assets && assets.length > 0) {
+        const assetTypes = assets.reduce((acc, asset) => {
+          acc[asset.asset_type] = (acc[asset.asset_type] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+        
+        Object.entries(assetTypes).forEach(([type, count]) => {
+          industrialInsights.push(`${type} assets: ${count}`);
+        });
+      }
+
+      // Add component-specific insights if available
+      if (components && components.length > 0) {
+        const componentStatuses = components.reduce((acc, component) => {
+          acc[component.status] = (acc[component.status] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+        
+        Object.entries(componentStatuses).forEach(([status, count]) => {
+          industrialInsights.push(`${status} components: ${count}`);
+        });
+      }
 
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content:
-          aiResponse.data_summary ||
-          `I've analyzed your data based on: "${message}". Here are the key insights:`,
+        content: `I've analyzed your industrial asset data based on: "${message}". Here are the key insights:`,
         timestamp: new Date(),
         metadata: {
-          dataSource: "analytics_dashboard",
+          dataSource: "industrial_analytics",
           filters: filters,
-          insights: aiResponse.insights || [],
+          insights: industrialInsights,
         },
       };
 
@@ -958,14 +970,14 @@ export default function AnalyticsPage() {
     } catch (error) {
       console.error("Error processing chat message:", error);
 
-      // Fallback to mock response if API fails
+      // Fallback to industrial-focused response if anything fails
       const fallbackMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: `I'm analyzing your data based on: "${message}". Here are some insights based on the current filters and data:`,
+        content: `I'm analyzing your industrial asset data based on: "${message}". Here are some insights:`,
         timestamp: new Date(),
         metadata: {
-          dataSource: "analytics_dashboard",
+          dataSource: "industrial_analytics",
           filters: filters,
           insights: [
             `Total assets: ${stats?.assets.total || 0}`,
@@ -978,7 +990,7 @@ export default function AnalyticsPage() {
 
       setChatMessages((prev) => [...prev, fallbackMessage]);
       setIsChatLoading(false);
-      toast.error("AI analysis failed, showing fallback insights");
+      toast.error("Analysis failed, showing fallback insights");
     }
   };
 
@@ -2857,9 +2869,9 @@ export default function AnalyticsPage() {
             </div>
           )}
 
-          {/* Logistics Metrics */}
-          {/* Note: UUID 00000000-0000-0000-0000-000000000000 represents client withdrawals and is handled separately */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Logistics Metrics - Only for logistics clients */}
+          {currentClient?.client_type === "logistics" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <MetricCard
               title="Total Drivers"
               value={getCurrentSummary()?.total_drivers?.toString() || "0"}
@@ -2997,6 +3009,7 @@ export default function AnalyticsPage() {
               color="text-orange-600"
             />
           </div>
+          )}
 
           {/* Selected Drivers Summary Card */}
           {driverFilter.length > 0 && earningsData?.data?.drivers && (
@@ -4952,176 +4965,16 @@ export default function AnalyticsPage() {
         </div>
       </Modal>
 
-      {/* Industrial Analytics Section - Only for industrial clients */}
+
+
+      {/* Floating Chat Button - Only for industrial clients */}
       {currentClient?.client_type === "industrial" && (
-        <div className="space-y-6">
-          <div className="border-t border-gray-200 pt-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Industrial Asset Analytics
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Focus on asset management, component performance, and system maintenance insights.
-            </p>
-          </div>
-
-          {/* Asset Performance Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <MetricCard
-              title="Total Assets"
-              value={stats?.assets?.total?.toString() || "0"}
-              change="Active in system"
-              trend="up"
-              icon={<Package className="h-6 w-6" />}
-              color="text-blue-600"
-            />
-            <MetricCard
-              title="Active Components"
-              value={stats?.components?.operational?.toString() || "0"}
-              change="Operational status"
-              trend="up"
-              icon={<Wrench className="h-6 w-6" />}
-              color="text-green-600"
-            />
-            <MetricCard
-              title="Maintenance Due"
-              value={stats?.components?.maintenance_due?.toString() || "0"}
-              change="Within 7 days"
-              trend="down"
-              icon={<Clock className="h-6 w-6" />}
-              color="text-yellow-600"
-            />
-            <MetricCard
-              title="Critical Issues"
-              value={stats?.components?.critical?.toString() || "0"}
-              change="Require attention"
-              trend="down"
-              icon={<AlertTriangle className="h-6 w-6" />}
-              color="text-red-600"
-            />
-          </div>
-
-          {/* Asset and Component Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Asset Status Distribution */}
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Asset Status Distribution
-              </h3>
-              <div className="h-64">
-                {assets.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={[
-                          { name: 'Active', value: stats?.assets?.active || 0, color: '#10b981' },
-                          { name: 'Maintenance', value: stats?.assets?.maintenance || 0, color: '#f59e0b' },
-                          { name: 'Inactive', value: (stats?.assets?.total || 0) - (stats?.assets?.active || 0) - (stats?.assets?.maintenance || 0), color: '#6b7280' }
-                        ]}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                        label={({ name, value }) => `${name}: ${value}`}
-                      >
-                        {[
-                          { name: 'Active', value: stats?.assets?.active || 0, color: '#10b981' },
-                          { name: 'Maintenance', value: stats?.assets?.maintenance || 0, color: '#f59e0b' },
-                          { name: 'Inactive', value: (stats?.assets?.total || 0) - (stats?.assets?.active || 0) - (stats?.assets?.maintenance || 0), color: '#6b7280' }
-                        ].map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-gray-500">
-                    No asset data available
-                  </div>
-                )}
-              </div>
-            </Card>
-
-            {/* Component Performance */}
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Component Performance
-              </h3>
-              <div className="h-64">
-                {components.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={[
-                      { name: 'Operational', value: stats?.components?.operational || 0, color: '#10b981' },
-                      { name: 'Critical', value: stats?.components?.critical || 0, color: '#ef4444' },
-                      { name: 'Maintenance Due', value: stats?.components?.maintenance_due || 0, color: '#f59e0b' }
-                    ]}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" opacity={0.5} />
-                      <XAxis dataKey="name" stroke="#6b7280" fontSize={12} />
-                      <YAxis stroke="#6b7280" fontSize={12} />
-                      <Tooltip />
-                      <Bar dataKey="value" fill="#0d9488">
-                        {[
-                          { name: 'Operational', value: stats?.components?.operational || 0, color: '#10b981' },
-                          { name: 'Critical', value: stats?.components?.critical || 0, color: '#ef4444' },
-                          { name: 'Maintenance Due', value: stats?.components?.maintenance_due || 0, color: '#f59e0b' }
-                        ].map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-gray-500">
-                    No component data available
-                  </div>
-                )}
-              </div>
-            </Card>
-          </div>
-
-          {/* Maintenance Insights */}
-          {maintenanceLogs.length > 0 && (
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Recent Maintenance Activities
-              </h3>
-              <div className="space-y-3 max-h-64 overflow-y-auto">
-                {maintenanceLogs.slice(0, 10).map((log, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Wrench className="h-4 w-4 text-blue-600" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          Component {log.component_id}
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          {log.description || 'Maintenance performed'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-gray-500">
-                        {new Date(log.created_at).toLocaleDateString()}
-                      </p>
-                      <p className="text-xs font-medium text-gray-700">
-                        {log.status}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-        </div>
+        <FloatingChatButton
+          messages={chatMessages}
+          onSendMessage={handleChatMessage}
+          isLoading={isChatLoading}
+        />
       )}
-
-      {/* Floating Chat Button */}
-      <FloatingChatButton
-        messages={chatMessages}
-        onSendMessage={handleChatMessage}
-        isLoading={isChatLoading}
-      />
     </div>
   );
 }
