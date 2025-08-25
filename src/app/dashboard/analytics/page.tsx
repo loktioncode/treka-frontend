@@ -18,6 +18,17 @@ import {
   MetricCard,
   GroupedMonthlyEarningsChart,
 } from "@/components/ui/charts";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+} from "recharts";
 import { MultiSearchableSelect } from "@/components/ui/multi-searchable-select";
 import { Input } from "@/components/ui/input";
 import {
@@ -4030,7 +4041,7 @@ export default function AnalyticsPage() {
         isOpen={showDriverDetailModal}
         onClose={() => setShowDriverDetailModal(false)}
         title={`${selectedDriverForDetail?.full_name} - ${dataViewType === "monthly" ? "Monthly" : "Weekly"} Performance Details`}
-        size="lg"
+        size="2xl"
       >
         <div className="space-y-6">
           {selectedDriverForDetail && (
@@ -4088,81 +4099,674 @@ export default function AnalyticsPage() {
                 </div>
               </div>
 
+              {/* Earning Trajectory Chart */}
+              <div className="mb-6">
+                <Card className="p-4">
+                  <h4 className="font-semibold text-gray-900 mb-3">
+                    Overall Driver Performance - All Weekly Data
+                  </h4>
+                  {(() => {
+                    if (dataViewType === "weekly" && weekFilter === "all") {
+                      // Get all weekly data across all drivers when filter is "all"
+                      const allWeeklyData = memoizedWeeklyData.flatMap((driver: any) => 
+                        (driver.weekly_payments || []).map((weekly: any) => ({
+                          week_start: weekly.week_start,
+                          week_end: weekly.week_end,
+                          total_earnings: weekly.total_earnings || 0,
+                          driver_name: driver.full_name || `${driver.first_name} ${driver.surname}`,
+                          driver_id: driver.uuid,
+                          paid_to_driver: weekly.metadata?.paid_to_driver || 0
+                        }))
+                      );
+                      
+                      // Debug the raw data
+                      console.log('Raw Weekly Data Debug:', {
+                        memoizedWeeklyData: memoizedWeeklyData.slice(0, 2), // First 2 drivers
+                        allWeeklyData: allWeeklyData.slice(0, 5), // First 5 weekly entries
+                        sampleDriver: memoizedWeeklyData[0],
+                        sampleWeeklyPayments: memoizedWeeklyData[0]?.weekly_payments?.[0],
+                        totalDrivers: memoizedWeeklyData.length,
+                        totalWeeklyEntries: allWeeklyData.length
+                      });
+                      
+                      if (allWeeklyData.length > 0) {
+                        // Debug the raw data
+                        console.log('Raw Weekly Data:', {
+                          allWeeklyData: allWeeklyData.slice(0, 5), // First 5 entries
+                          sampleEntry: allWeeklyData[0],
+                          totalEntries: allWeeklyData.length,
+                          earningsValues: allWeeklyData.map((w: any) => ({
+                            week_start: w.week_start,
+                            total_earnings: w.total_earnings,
+                            type: typeof w.total_earnings,
+                            parsed: Number(w.total_earnings)
+                          }))
+                        });
+                        
+                        // Sort by week_start date
+                        const sortedWeeklyData = allWeeklyData.sort((a: any, b: any) => 
+                          new Date(a.week_start).getTime() - new Date(b.week_start).getTime()
+                        );
+                        
+                        // Group by week and aggregate earnings across all drivers
+                        const weeklyAggregated = sortedWeeklyData.reduce((acc: any, weekly: any) => {
+                          const weekKey = `${weekly.week_start} - ${weekly.week_end}`;
+                          const earnings = Number(weekly.total_earnings) || 0;
+                          
+                          // Skip client withdrawals (they have large negative values, specific metadata, or special driver UUIDs)
+                          if (earnings < -10000 || 
+                              (weekly.metadata?.raw_data?.paid_to_you_trip_balance_payouts_transferred_to_bank_account && 
+                               weekly.metadata.raw_data.paid_to_you_trip_balance_payouts_transferred_to_bank_account < 0) ||
+                              weekly.driver_uuid === '00000000-0000-0000-0000-000000000000' ||
+                              (weekly.driver_first_name === 'Client' && weekly.driver_surname === 'Withdrawal')) {
+                            return acc;
+                          }
+                          
+                          if (!acc[weekKey]) {
+                            acc[weekKey] = {
+                              week: weekKey,
+                              total_earnings: 0,
+                              driver_count: 0,
+                              avg_earnings: 0,
+                              top_driver: '',
+                              top_earnings: 0,
+                              week_start: weekly.week_start
+                            };
+                          }
+                          
+                          acc[weekKey].total_earnings += earnings;
+                          acc[weekKey].driver_count += 1;
+                          
+                          if (earnings > acc[weekKey].top_earnings) {
+                            acc[weekKey].top_earnings = earnings;
+                            acc[weekKey].top_driver = weekly.driver_name || `${weekly.driver_first_name || ''} ${weekly.driver_surname || ''}`.trim() || 'Unknown Driver';
+                          }
+                          
+                          return acc;
+                        }, {} as Record<string, any>);
+                        
+                        // Calculate average earnings for each week
+                        Object.values(weeklyAggregated).forEach((week: any) => {
+                          week.avg_earnings = week.total_earnings / Math.max(week.driver_count, 1);
+                        });
+                        
+                        // Debug the aggregation process
+                        console.log('Aggregation Debug:', {
+                          sortedWeeklyData: sortedWeeklyData.slice(0, 3), // First 3 entries
+                          weeklyAggregated,
+                          sampleWeekData: sortedWeeklyData.filter((w: any) => w.week_start === '2024-12-09'),
+                          totalEarningsSum: sortedWeeklyData
+                            .filter((w: any) => w.week_start === '2024-12-09')
+                            .reduce((sum: number, w: any) => sum + (Number(w.total_earnings) || 0), 0),
+                          filteredData: sortedWeeklyData.filter((w: any) => {
+                            const earnings = Number(w.total_earnings) || 0;
+                            return earnings >= -10000 && 
+                                   !(w.metadata?.raw_data?.paid_to_you_trip_balance_payouts_transferred_to_bank_account && 
+                                     w.metadata.raw_data.paid_to_you_trip_balance_payouts_transferred_to_bank_account < 0) &&
+                                   w.driver_uuid !== '00000000-0000-0000-0000-000000000000' &&
+                                   !(w.driver_first_name === 'Client' && w.driver_surname === 'Withdrawal');
+                          }),
+                          excludedData: sortedWeeklyData.filter((w: any) => {
+                            const earnings = Number(w.total_earnings) || 0;
+                            return earnings < -10000 || 
+                                   (w.metadata?.raw_data?.paid_to_you_trip_balance_payouts_transferred_to_bank_account && 
+                                    w.metadata.raw_data.paid_to_you_trip_balance_payouts_transferred_to_bank_account < 0) ||
+                                   w.driver_uuid === '00000000-0000-0000-0000-000000000000' ||
+                                   (w.driver_first_name === 'Client' && w.driver_surname === 'Withdrawal');
+                          })
+                        });
+                        
+                        // Prepare chart data for individual driver (not aggregated company data)
+                        const driverWeeklyData = memoizedWeeklyData.find(
+                          (d: any) => d.uuid === selectedDriverForDetail?.uuid
+                        );
+                        
+                        let chartData = [];
+                        if (driverWeeklyData?.weekly_payments) {
+                          // Sort weekly payments by week_start date
+                          const sortedDriverPayments = [...driverWeeklyData.weekly_payments].sort((a, b) => 
+                            new Date(a.week_start).getTime() - new Date(b.week_start).getTime()
+                          );
+                          
+                          chartData = sortedDriverPayments.map((weekly, index) => ({
+                            week: `Week ${index + 1}`,
+                            total_earnings: weekly.total_earnings || 0,
+                            week_range: `${weekly.week_start} - ${weekly.week_end}`,
+                            // For comparison, we'll use the top driver from aggregated data
+                            top_driver_earnings: weeklyAggregated[weekly.week_start + ' - ' + weekly.week_end]?.top_earnings || 0
+                          }));
+                        } else {
+                          // Fallback to aggregated data if no driver data found
+                          chartData = Object.values(weeklyAggregated).map((week: any, index) => ({
+                            week: `Week ${index + 1}`,
+                            total_earnings: week.total_earnings,
+                            week_range: week.week,
+                            top_driver_earnings: week.top_earnings
+                          }));
+                        }
+                        
+                        // Debug logging
+                        console.log('Chart Data for Overall Performance:', {
+                          weeklyAggregated,
+                          chartData,
+                          sampleWeek: chartData[0],
+                          totalEarnings: chartData.map(d => d.total_earnings),
+                          maxEarnings: Math.max(...chartData.map(d => Number(d.total_earnings) || 0)),
+                          minEarnings: Math.min(...chartData.map(d => Number(d.total_earnings) || 0)),
+                          avgEarnings: chartData.reduce((sum, d) => sum + (Number(d.total_earnings) || 0), 0) / Math.max(chartData.length, 1)
+                        });
+                        
+                        return (
+                          <div className="space-y-4">
+                            <div className="h-64">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" opacity={0.5} />
+                                  <XAxis 
+                                    dataKey="week" 
+                                    stroke="#6b7280"
+                                    fontSize={11}
+                                    tickLine={false}
+                                    axisLine={false}
+                                  />
+                                  <YAxis 
+                                    stroke="#6b7280"
+                                    fontSize={11}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickFormatter={(value) => `$${value.toLocaleString()}`}
+                                  />
+                                  <Tooltip 
+                                    content={({ active, payload, label }) => {
+                                      if (active && payload && payload.length) {
+                                        const data = payload[0].payload;
+                                        return (
+                                          <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                                            <p className="font-medium text-gray-900 mb-2">{label}</p>
+                                            <div className="space-y-1 text-sm">
+                                              <div className="flex justify-between">
+                                                <span className="text-gray-600">Period:</span>
+                                                <span className="font-medium">{data.week_range}</span>
+                                              </div>
+                                              <div className="flex justify-between">
+                                                <span className="text-gray-600">Total Earnings:</span>
+                                                <span className="font-medium text-teal-600">
+                                                  {formatCurrency(data.total_earnings)}
+                                                </span>
+                                              </div>
+                                              <div className="flex justify-between">
+                                                <span className="text-gray-600">Top Driver Earnings:</span>
+                                                <span className="font-medium text-indigo-600">
+                                                  {formatCurrency(data.top_driver_earnings)}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      }
+                                      return null;
+                                    }}
+                                  />
+                                  <Line 
+                                    type="monotone" 
+                                    dataKey="total_earnings" 
+                                    stroke="#0d9488" 
+                                    strokeWidth={3}
+                                    dot={{ fill: '#0d9488', strokeWidth: 2, r: 4 }}
+                                    activeDot={{ r: 6, stroke: '#0d9488', strokeWidth: 2 }}
+                                    name="Total Earnings"
+                                  />
+                                  <Line 
+                                    type="monotone" 
+                                    dataKey="top_driver_earnings" 
+                                    stroke="#6366f1" 
+                                    strokeWidth={2}
+                                    strokeDasharray="5 5"
+                                    dot={{ fill: '#6366f1', strokeWidth: 2, r: 3 }}
+                                    activeDot={{ r: 5, stroke: '#6366f1', strokeWidth: 2 }}
+                                    name="Top Driver Earnings"
+                                  />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            </div>
+                            
+                            {/* Performance Insights */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
+                              <div className="text-center">
+                                <div className="text-lg font-semibold text-teal-600">
+                                  {chartData.length}
+                                </div>
+                                <div className="text-xs text-gray-600">Total Weeks</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-lg font-semibold text-blue-600">
+                                  {(() => {
+                                    if (selectedDriverForDetail?.uuid) {
+                                      // Show driver-specific best week
+                                      const driverWeeklyData = memoizedWeeklyData.find(
+                                        (d: any) => d.uuid === selectedDriverForDetail.uuid
+                                      );
+                                      if (driverWeeklyData?.weekly_payments) {
+                                        const driverEarnings = driverWeeklyData.weekly_payments
+                                          .filter((w: any) => Number(w.total_earnings) >= -10000)
+                                          .map((w: any) => Number(w.total_earnings) || 0);
+                                        return formatCurrency(Math.max(...driverEarnings));
+                                      }
+                                    }
+                                    // Fallback to overall best week
+                                    return formatCurrency(Math.max(...chartData.map(d => Number(d.total_earnings) || 0)));
+                                  })()}
+                                </div>
+                                <div className="text-xs text-gray-600">Best Week</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-lg font-semibold text-orange-600">
+                                  {(() => {
+                                    if (selectedDriverForDetail?.uuid) {
+                                      // Show driver-specific lowest week
+                                      const driverWeeklyData = memoizedWeeklyData.find(
+                                        (d: any) => d.uuid === selectedDriverForDetail.uuid
+                                      );
+                                      if (driverWeeklyData?.weekly_payments) {
+                                        const driverEarnings = driverWeeklyData.weekly_payments
+                                          .filter((w: any) => Number(w.total_earnings) >= -10000)
+                                          .map((w: any) => Number(w.total_earnings) || 0);
+                                        return formatCurrency(Math.min(...driverEarnings));
+                                      }
+                                    }
+                                    // Fallback to overall lowest week
+                                    return formatCurrency(Math.min(...chartData.map(d => Number(d.total_earnings) || 0)));
+                                  })()}
+                                </div>
+                                <div className="text-xs text-gray-600">Lowest Week</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-lg font-semibold text-green-600">
+                                  {(() => {
+                                    if (selectedDriverForDetail?.uuid) {
+                                      // Show driver-specific average per week
+                                      const driverWeeklyData = memoizedWeeklyData.find(
+                                        (d: any) => d.uuid === selectedDriverForDetail.uuid
+                                      );
+                                      if (driverWeeklyData?.weekly_payments) {
+                                        const driverEarnings = driverWeeklyData.weekly_payments
+                                          .filter((w: any) => Number(w.total_earnings) >= -10000)
+                                          .map((w: any) => Number(w.total_earnings) || 0);
+                                        const totalEarnings = driverEarnings.reduce((sum, earnings) => sum + earnings, 0);
+                                        return formatCurrency(totalEarnings / Math.max(driverEarnings.length, 1));
+                                      }
+                                    }
+                                    // Fallback to overall average per week
+                                    return formatCurrency(
+                                      chartData.reduce((sum, d) => sum + (Number(d.total_earnings) || 0), 0) / 
+                                      Math.max(chartData.length, 1)
+                                    );
+                                  })()}
+                                </div>
+                                <div className="text-xs text-gray-600">Avg/Week</div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                    } else if (dataViewType === "weekly" && selectedDriverForDetail?.uuid) {
+                      // Individual driver weekly view
+                      const weeklyData = memoizedWeeklyData.find(
+                        (d: { uuid: string; weekly_payments: any[] }) =>
+                          d.uuid === selectedDriverForDetail.uuid,
+                      );
+                      
+                      if (weeklyData?.weekly_payments && weeklyData.weekly_payments.length > 0) {
+                        // Sort weekly payments by week_start date
+                        const sortedWeeklyPayments = [...weeklyData.weekly_payments].sort((a, b) => 
+                          new Date(a.week_start).getTime() - new Date(b.week_start).getTime()
+                        );
+                        
+                        // Prepare chart data
+                        const chartData = sortedWeeklyPayments.map((weekly, index) => ({
+                          week: `Week ${index + 1}`,
+                          earnings: weekly.total_earnings || 0,
+                          weekRange: `${weekly.week_start} - ${weekly.week_end}`,
+                          paidToDriver: weekly.metadata?.paid_to_driver || 0
+                        }));
+                        
+                        // Debug logging
+                        console.log('Chart Data for Individual Driver:', {
+                          weeklyData,
+                          sortedWeeklyPayments,
+                          chartData,
+                          sampleWeekly: sortedWeeklyPayments[0],
+                          earnings: chartData.map(d => d.earnings),
+                          maxEarnings: Math.max(...chartData.map(d => Number(d.earnings) || 0)),
+                          minEarnings: Math.min(...chartData.map(d => Number(d.earnings) || 0)),
+                          avgEarnings: chartData.reduce((sum, d) => sum + (Number(d.earnings) || 0), 0) / Math.max(chartData.length, 1)
+                        });
+                        
+                        return (
+                          <div className="space-y-4">
+                            <div className="h-64">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" opacity={0.5} />
+                                  <XAxis 
+                                    dataKey="week" 
+                                    stroke="#6b7280"
+                                    fontSize={11}
+                                    tickLine={false}
+                                    axisLine={false}
+                                  />
+                                  <YAxis 
+                                    stroke="#6b7280"
+                                    fontSize={11}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickFormatter={(value) => `$${value.toLocaleString()}`}
+                                  />
+                                  <Tooltip 
+                                    content={({ active, payload, label }) => {
+                                      if (active && payload && payload.length) {
+                                        const data = payload[0].payload;
+                                        return (
+                                          <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                                            <p className="font-medium text-gray-900 mb-2">{label}</p>
+                                            <div className="space-y-1 text-sm">
+                                              <div className="flex justify-between">
+                                                <span className="text-gray-600">Period:</span>
+                                                <span className="font-medium">{data.weekRange}</span>
+                                              </div>
+                                              <div className="flex justify-between">
+                                                <span className="text-gray-600">Total Earnings:</span>
+                                                <span className="font-medium text-teal-600">
+                                                  {formatCurrency(data.earnings)}
+                                                </span>
+                                              </div>
+                                              {data.paidToDriver > 0 && (
+                                                <div className="flex justify-between">
+                                                  <span className="text-gray-600">Paid to Driver:</span>
+                                                  <span className="font-medium text-green-600">
+                                                    {formatCurrency(data.paidToDriver)}
+                                                  </span>
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      }
+                                      return null;
+                                    }}
+                                  />
+                                  <Line 
+                                    type="monotone" 
+                                    dataKey="earnings" 
+                                    stroke="#0d9488" 
+                                    strokeWidth={3}
+                                    dot={{ fill: '#0d9488', strokeWidth: 2, r: 4 }}
+                                    activeDot={{ r: 6, stroke: '#0d9488', strokeWidth: 2 }}
+                                  />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            </div>
+                            
+                            {/* Performance Insights */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
+                              <div className="text-center">
+                                <div className="text-lg font-semibold text-teal-600">
+                                  {weeklyData.weekly_payments.length}
+                                </div>
+                                <div className="text-xs text-gray-600">Total Weeks</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-lg font-semibold text-blue-600">
+                                  {formatCurrency(Math.max(...chartData.map(d => Number(d.earnings) || 0)))}
+                                </div>
+                                <div className="text-xs text-gray-600">Best Week</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-lg font-semibold text-orange-600">
+                                  {formatCurrency(Math.min(...chartData.map(d => Number(d.earnings) || 0)))}
+                                </div>
+                                <div className="text-xs text-gray-600">Lowest Week</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-lg font-semibold text-green-600">
+                                  {formatCurrency(
+                                    chartData.reduce((sum, d) => sum + (Number(d.earnings) || 0), 0) / 
+                                    Math.max(chartData.length, 1)
+                                  )}
+                                </div>
+                                <div className="text-xs text-gray-600">Avg/Week</div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                    }
+                    
+                    return (
+                      <div className="text-center py-8 text-gray-500">
+                        <TrendingUp className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                        <p>No weekly data available for earning trajectory</p>
+                        <p className="text-sm mt-1">Upload weekly reports to see performance trends</p>
+                      </div>
+                    );
+                  })()}
+                </Card>
+              </div>
+
+              {/* Weekly Breakdown Table */}
+              <div className="col-span-1 md:col-span-2">
+                <Card className="p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-semibold text-gray-900">
+                      Weekly Breakdown Details
+                    </h4>
+                    {(() => {
+                      if (dataViewType === "weekly" && selectedDriverForDetail?.uuid) {
+                        const weeklyData = memoizedWeeklyData.find(
+                          (d: { uuid: string; weekly_payments: any[] }) =>
+                            d.uuid === selectedDriverForDetail.uuid,
+                        );
+                        
+                        if (weeklyData?.weekly_payments && weeklyData.weekly_payments.length > 0) {
+                          // Get unique week ranges for the dropdown
+                          const weekRanges = weeklyData.weekly_payments
+                            .sort((a, b) => new Date(a.week_start).getTime() - new Date(b.week_start).getTime())
+                            .map((weekly, index) => ({
+                              value: `${weekly.week_start}_${weekly.week_end}`,
+                              label: `Week ${index + 1}: ${weekly.week_start} - ${weekly.week_end}`,
+                              week_start: weekly.week_start,
+                              week_end: weekly.week_end
+                            }));
+                          
+                          // Add "Latest 3 Weeks" option (default)
+                          weekRanges.unshift({
+                            value: 'all',
+                            label: `Latest 3 Weeks (${Math.min(3, weekRanges.length)})`,
+                            week_start: null,
+                            week_end: null
+                          });
+                          
+                          return (
+                            <div className="flex items-center gap-2">
+                              <label htmlFor="weekFilter" className="text-sm font-medium text-gray-700">
+                                Filter by Week:
+                              </label>
+                              <select
+                                id="weekFilter"
+                                className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                                onChange={(e) => {
+                                  const selectedWeek = weekRanges.find(w => w.value === e.target.value);
+                                  if (selectedWeek && selectedWeek.value !== 'all') {
+                                    // Filter table to show only the selected week
+                                    setWeekFilter(selectedWeek.value);
+                                  } else {
+                                    // Show latest 3 weeks in table
+                                    setWeekFilter('all');
+                                  }
+                                }}
+                                value={weekFilter === 'all' ? 'all' : weekFilter}
+                              >
+                                {weekRanges.map((week) => (
+                                  <option key={week.value} value={week.value}>
+                                    {week.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        }
+                      }
+                      return null;
+                    })()}
+                  </div>
+                  {(() => {
+                    if (dataViewType === "weekly" && selectedDriverForDetail?.uuid) {
+                      const weeklyData = memoizedWeeklyData.find(
+                        (d: { uuid: string; weekly_payments: any[] }) =>
+                          d.uuid === selectedDriverForDetail.uuid,
+                      );
+                      
+                      if (weeklyData?.weekly_payments && weeklyData.weekly_payments.length > 0) {
+                        // Sort weekly payments by week_start date
+                        let sortedWeeklyPayments = [...weeklyData.weekly_payments].sort((a, b) => 
+                          new Date(a.week_start).getTime() - new Date(b.week_start).getTime()
+                        );
+                        
+                        // Apply week filter to table display only (doesn't affect chart)
+                        if (weekFilter !== 'all') {
+                          const [selectedWeekStart, selectedWeekEnd] = weekFilter.split('_');
+                          sortedWeeklyPayments = sortedWeeklyPayments.filter(weekly => 
+                            weekly.week_start === selectedWeekStart && weekly.week_end === selectedWeekEnd
+                          );
+                        } else {
+                          // Default: Show only the latest 3 weeks for the table
+                          sortedWeeklyPayments = sortedWeeklyPayments.slice(-3);
+                        }
+                        
+                        return (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-gray-200">
+                                  <th className="text-left py-2 px-3 font-medium text-gray-700">Week</th>
+                                  <th className="text-left py-2 px-3 font-medium text-gray-700">Total Earnings</th>
+                                  <th className="text-left py-2 px-3 font-medium text-gray-700">Your Earnings</th>
+                                  <th className="text-left py-2 px-3 font-medium text-gray-700">Fare</th>
+                                  <th className="text-left py-2 px-3 font-medium text-gray-700">Service Fee</th>
+                                  <th className="text-left py-2 px-3 font-medium text-gray-700">Taxes</th>
+                                  <th className="text-left py-2 px-3 font-medium text-gray-700">Tips</th>
+                                  <th className="text-left py-2 px-3 font-medium text-gray-700">Cash Collected</th>
+                                  <th className="text-left py-2 px-3 font-medium text-gray-700" title="Additional details available in tooltip">
+                                    <div className="flex items-center gap-1">
+                                      <span>Other</span>
+                                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      </svg>
+                                    </div>
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {sortedWeeklyPayments.map((weekly, index) => {
+                                  const rawData = weekly.metadata?.raw_data || {};
+                                  return (
+                                    <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
+                                      <td className="py-3 px-3">
+                                        <div className="font-medium text-gray-900">
+                                          {weekly.week_start} - {weekly.week_end}
+                                        </div>
+                                      </td>
+                                      <td className="py-3 px-3">
+                                        <span className="font-semibold text-teal-600">
+                                          {formatCurrency(weekly.total_earnings)}
+                                        </span>
+                                      </td>
+                                      <td className="py-3 px-3">
+                                        <span className="text-blue-600">
+                                          {formatCurrency(Number(rawData.paid_to_you_your_earnings) || 0)}
+                                        </span>
+                                      </td>
+                                      <td className="py-3 px-3">
+                                        <span className="text-green-600">
+                                          {formatCurrency(Number(rawData.paid_to_you_your_earnings_fare) || 0)}
+                                        </span>
+                                      </td>
+                                      <td className="py-3 px-3">
+                                        <span className="text-red-600">
+                                          {formatCurrency(Number(rawData.paid_to_you_your_earnings_service_fee) || 0)}
+                                        </span>
+                                      </td>
+                                      <td className="py-3 px-3">
+                                        <span className="text-orange-600">
+                                          {formatCurrency(
+                                            (Number(rawData.paid_to_you_your_earnings_taxes_tax_on_booking_fee) || 0) +
+                                            (Number(rawData.paid_to_you_your_earnings_taxes_tax_on_service_fee) || 0)
+                                          )}
+                                        </span>
+                                      </td>
+                                      <td className="py-3 px-3">
+                                        <span className="text-purple-600">
+                                          {formatCurrency(Number(rawData.paid_to_you_your_earnings_tip) || 0)}
+                                        </span>
+                                      </td>
+                                      <td className="py-3 px-3">
+                                        <span className="text-indigo-600">
+                                          {formatCurrency(Number(rawData.paid_to_you_trip_balance_payouts_cash_collected) || 0)}
+                                        </span>
+                                      </td>
+                                      <td className="py-3 px-3">
+                                        <div className="group relative">
+                                          <span className="text-gray-600 cursor-help">
+                                            {formatCurrency(
+                                              (Number(rawData.paid_to_you_your_earnings_fare_surge) || 0) +
+                                              (Number(rawData.paid_to_you_your_earnings_fare_wait_time_at_pickup) || 0) +
+                                              (Number(rawData.paid_to_you_your_earnings_fare_adjustment) || 0) +
+                                              (Number(rawData.paid_to_you_your_earnings_fare_service_fee_adjustment) || 0)
+                                            )}
+                                          </span>
+                                          {/* Tooltip */}
+                                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                                            <div className="space-y-1">
+                                              <div className="font-medium">Additional Details:</div>
+                                              <div>Surge: {formatCurrency(Number(rawData.paid_to_you_your_earnings_fare_surge) || 0)}</div>
+                                              <div>Wait Time: {formatCurrency(Number(rawData.paid_to_you_your_earnings_fare_wait_time_at_pickup) || 0)}</div>
+                                              <div>Fare Adjustments: {formatCurrency(Number(rawData.paid_to_you_your_earnings_fare_adjustment) || 0)}</div>
+                                              <div>Service Fee Adjustments: {formatCurrency(Number(rawData.paid_to_you_your_earnings_fare_service_fee_adjustment) || 0)}</div>
+                                            </div>
+                                            {/* Arrow */}
+                                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                                          </div>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        );
+                      }
+                      
+                      return (
+                        <div className="text-center py-8 text-gray-500">
+                          <p>No weekly data available for this driver</p>
+                        </div>
+                      );
+                    }
+                    
+                    return (
+                      <div className="text-center py-8 text-gray-500">
+                        <p>Select a driver to view weekly breakdown details</p>
+                      </div>
+                    );
+                  })()}
+                </Card>
+              </div>
+
               {/* Performance Details */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Left Column */}
                 <div className="space-y-4">
-                  <Card className="p-4">
-                    <h4 className="font-semibold text-gray-900 mb-3">
-                      Performance Summary
-                    </h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Total Earnings:</span>
-                        <span className="font-medium">
-                          {(() => {
-                            if (dataViewType === "weekly") {
-                              const weeklyData = memoizedWeeklyData.find(
-                                (d: { uuid: string; total_earnings: number }) =>
-                                  d.uuid === selectedDriverForDetail.uuid,
-                              );
-                              return formatCurrency(
-                                weeklyData?.total_earnings || 0,
-                              );
-                            } else {
-                              return formatCurrency(
-                                selectedDriverForDetail.total_earnings || 0,
-                              );
-                            }
-                          })()}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">
-                          {dataViewType === "weekly"
-                            ? "Weekly Reports:"
-                            : "Total Payments:"}
-                        </span>
-                        <span className="font-medium">
-                          {(() => {
-                            if (dataViewType === "weekly") {
-                              const weeklyData = memoizedWeeklyData.find(
-                                (d: { uuid: string; payment_count: number }) =>
-                                  d.uuid === selectedDriverForDetail.uuid,
-                              );
-                              return weeklyData?.payment_count || 0;
-                            } else {
-                              return selectedDriverForDetail.payment_count || 0;
-                            }
-                          })()}
-                        </span>
-                      </div>
-                      {dataViewType === "weekly" && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Average Weekly:</span>
-                          <span className="font-medium">
-                            {(() => {
-                              const weeklyData = memoizedWeeklyData.find(
-                                (d: {
-                                  uuid: string;
-                                  total_earnings: number;
-                                  payment_count: number;
-                                }) => d.uuid === selectedDriverForDetail.uuid,
-                              );
-                              if (weeklyData && weeklyData.payment_count > 0) {
-                                return formatCurrency(
-                                  weeklyData.total_earnings /
-                                    weeklyData.payment_count,
-                                );
-                              }
-                              return formatCurrency(0);
-                            })()}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </Card>
-
                   {/* Period Earnings for Monthly View */}
                   {dataViewType === "monthly" &&
                     selectedDriverForDetail.period_earnings && (
@@ -4206,79 +4810,6 @@ export default function AnalyticsPage() {
 
                 {/* Right Column */}
                 <div className="space-y-4">
-                  {/* Weekly Breakdown for Weekly View */}
-                  {dataViewType === "weekly" && (
-                    <Card className="p-4">
-                      <h4 className="font-semibold text-gray-900 mb-3">
-                        Weekly Breakdown
-                      </h4>
-                      {(() => {
-                        const weeklyData = memoizedWeeklyData.find(
-                          (d: { uuid: string; total_earnings: number }) =>
-                            d.uuid === selectedDriverForDetail.uuid,
-                        );
-                        if (
-                          weeklyData?.weekly_payments &&
-                          weeklyData.weekly_payments.length > 0
-                        ) {
-                          return (
-                            <div className="space-y-2">
-                              {weeklyData.weekly_payments.map(
-                                (
-                                  weekly: {
-                                    week_start: string;
-                                    week_end: string;
-                                    total_earnings: number;
-                                    metadata?: Record<string, unknown>;
-                                  },
-                                  index: number,
-                                ) => (
-                                  <div
-                                    key={index}
-                                    className="flex justify-between items-center p-2 bg-gray-50 rounded"
-                                  >
-                                    <div className="flex-1">
-                                      <div className="text-sm font-medium text-gray-900">
-                                        {weekly.week_start} to {weekly.week_end}
-                                      </div>
-                                      <div className="text-xs text-gray-500">
-                                        Week {index + 1}
-                                      </div>
-                                      {weekly.metadata && (
-                                        <div className="text-xs text-gray-600 mt-1">
-                                          {(() => {
-                                            const paidToDriver = weekly.metadata.paid_to_driver;
-                                            if (paidToDriver && typeof paidToDriver === 'number') {
-                                              return <div>Paid to driver: {formatCurrency(paidToDriver)}</div>;
-                                            }
-                                            return null;
-                                          })()}
-
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className="text-right ml-2">
-                                      <div className="font-medium text-teal-600">
-                                        {formatCurrency(
-                                          weekly.total_earnings || 0,
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ),
-                              )}
-                            </div>
-                          );
-                        }
-                        return (
-                          <div className="text-center py-4 text-gray-500">
-                            No weekly data available
-                          </div>
-                        );
-                      })()}
-                    </Card>
-                  )}
-
                   {/* Payment Details for Monthly View */}
                   {dataViewType === "monthly" &&
                     selectedDriverForDetail.payments && (
