@@ -53,10 +53,8 @@ export function ChartCard({ title, subtitle, children, className = '', actions }
           </div>
         )}
       </div>
-      <div className="h-full w-full overflow-hidden relative">
-        <div className="absolute inset-0">
-          {children}
-        </div>
+      <div className="h-64 w-full overflow-hidden">
+        {children}
       </div>
     </Card>
   );

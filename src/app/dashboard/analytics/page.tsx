@@ -19,7 +19,6 @@ import {
   GroupedMonthlyEarningsChart,
   DriverPerformanceChart,
 } from "@/components/ui/charts";
-import { DashboardChartCard } from "@/components/ui/dashboard-charts";
 import {
   LineChart,
   Line,
@@ -341,7 +340,7 @@ export default function AnalyticsPage() {
   const uploadEarningsMutation = useUploadEarnings();
 
   // Helper functions to separate monthly and weekly data calculations
-  const getMonthlyEarningsData = () => {
+  const getMonthlyEarningsData = useCallback(() => {
     if (!earningsData?.data?.drivers) return [];
 
     return earningsData.data.drivers.map((driver: DriverEarnings) => {
@@ -366,7 +365,7 @@ export default function AnalyticsPage() {
         };
       }
     });
-  };
+  }, [earningsData]);
 
   const getWeeklyEarningsData = useCallback(() => {
     if (!earningsData?.data?.drivers) return [];
@@ -413,12 +412,12 @@ export default function AnalyticsPage() {
     });
   }, [earningsData, weekFilter]);
 
-  const getCurrentEarningsData = () => {
+  const getCurrentEarningsData = useCallback(() => {
     if (dataViewType === "weekly") {
-      return memoizedWeeklyData;
+      return getWeeklyEarningsData();
     }
     return getMonthlyEarningsData();
-  };
+  }, [dataViewType, getWeeklyEarningsData, getMonthlyEarningsData]);
 
   const getWeeklyChartData = useCallback(() => {
     if (!earningsData?.data?.drivers) return [];
@@ -436,7 +435,7 @@ export default function AnalyticsPage() {
       earningsData.data.drivers.forEach((driver: DriverEarnings) => {
         if (driver.weekly_payments && Array.isArray(driver.weekly_payments)) {
           // Find the payment for the selected week
-          const weekPayment = driver.weekly_payments.find((weekly: any) => {
+          const weekPayment = driver.weekly_payments.find((weekly: { week_start: string; week_end: string; total_earnings: number }) => {
             const weekKey = `${weekly.week_start}_${weekly.week_end}`;
             return weekKey === weekFilter;
           });
@@ -466,7 +465,7 @@ export default function AnalyticsPage() {
       console.log('getWeeklyChartData - driver.weekly_payments:', driver.weekly_payments);
       
       if (driver.weekly_payments && Array.isArray(driver.weekly_payments)) {
-        driver.weekly_payments.forEach((weekly: any) => {
+        driver.weekly_payments.forEach((weekly: { week_start: string; week_end: string; total_earnings: number }) => {
           console.log('getWeeklyChartData - weekly payment:', weekly);
           allWeeklyPayments.push({
             week_start: weekly.week_start,
@@ -513,12 +512,12 @@ export default function AnalyticsPage() {
     
     // Filter drivers with positive earnings and sort by earnings (highest first)
     const topDrivers = currentData
-      .filter((driver: any) => driver.total_earnings > 0)
-      .sort((a: any, b: any) => b.total_earnings - a.total_earnings)
+      .filter((driver: { total_earnings: number }) => driver.total_earnings > 0)
+      .sort((a: { total_earnings: number }, b: { total_earnings: number }) => b.total_earnings - a.total_earnings)
       .slice(0, 10); // Get top 10
 
     // Format data for DriverPerformanceChart component
-    return topDrivers.map((driver: any) => ({
+    return topDrivers.map((driver: { uuid: string; full_name: string; total_earnings: number }) => ({
       driver_id: driver.uuid,
       driver_name: driver.full_name,
       monthly_earnings: [{
@@ -2775,7 +2774,7 @@ export default function AnalyticsPage() {
               </div>
 
               {/* Weekly Data Summary */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
                 {/* Top 10 Drivers Performance Chart */}
                 {getCurrentEarningsData().length > 0 && (
                   <DriverPerformanceChart
@@ -3033,7 +3032,7 @@ export default function AnalyticsPage() {
           {dataViewType === "monthly" ? (
             <>
               
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
               {/* Monthly Earnings Chart */}
               {/* Always show charts, even with no data - they will display empty for the selected date range */}
               {(() => {
