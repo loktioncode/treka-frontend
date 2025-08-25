@@ -10,13 +10,14 @@ export interface DashboardAnalyticsData {
 
 export type DateRangeFilter = '7d' | '30d' | '1y' | '5y';
 
-export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDemoData: boolean = false) => {
+export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDemoData: boolean = false, isLogisticsClient: boolean = true) => {
   // For real data, we always fetch ALL data from the database
   // The date range filtering happens on the frontend to show the appropriate subset
   // This ensures we show data from the very first payout document in the database
 
-  // Check if user is authenticated before making API calls
+  // Check if user is authenticated and is a logistics client before making API calls
   const isAuthenticated = typeof window !== 'undefined' && !!localStorage.getItem('auth_token');
+  const shouldFetchData = isAuthenticated && isLogisticsClient;
 
   // Fetch driver earnings data for overall earnings and leaderboard
   const driverEarningsQuery = useQuery({
@@ -26,7 +27,7 @@ export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDe
     gcTime: 10 * 60 * 1000, // 10 minutes
     retry: 2,
     retryDelay: 1000,
-    enabled: isAuthenticated, // Only run when authenticated
+    enabled: shouldFetchData, // Only run when authenticated and is logistics client
   });
 
   // Fetch logistics performance metrics
@@ -37,7 +38,7 @@ export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDe
     gcTime: 10 * 60 * 1000, // 10 minutes
     retry: 2,
     retryDelay: 1000,
-    enabled: isAuthenticated, // Only run when authenticated
+    enabled: shouldFetchData, // Only run when authenticated and is logistics client
   });
 
   // Fetch all payouts for payment distribution
@@ -48,7 +49,7 @@ export const useDashboardAnalytics = (dateRange: DateRangeFilter = '30d', showDe
     gcTime: 10 * 60 * 1000, // 10 minutes
     retry: 2,
     retryDelay: 1000,
-    enabled: isAuthenticated, // Only run when authenticated
+    enabled: shouldFetchData, // Only run when authenticated and is logistics client
   });
 
   // Transform data for charts with frontend date filtering

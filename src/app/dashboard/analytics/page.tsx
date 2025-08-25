@@ -27,6 +27,11 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
 } from "recharts";
 import { MultiSearchableSelect } from "@/components/ui/multi-searchable-select";
 import { Input } from "@/components/ui/input";
@@ -46,6 +51,7 @@ import {
   TrendingUp,
   DollarSign,
   Eye,
+  Wrench,
 } from "lucide-react";
 import {
   analyticsAPI,
@@ -282,7 +288,7 @@ export default function AnalyticsPage() {
     useState<DriverEarnings | null>(null);
   const [showDriverDetailModal, setShowDriverDetailModal] = useState(false);
 
-  // React Query hooks for logistics analytics
+  // React Query hooks for logistics analytics - only enabled for logistics clients
   const {
     data: earningsData,
     isLoading: earningsLoading,
@@ -655,11 +661,21 @@ export default function AnalyticsPage() {
     try {
       setLoading(true);
 
-      // Load dashboard stats
-      const statsData = await analyticsAPI.getDashboardStats(
-        user?.role === "super_admin" ? filters.clientId : undefined,
-      );
-      setStats(statsData);
+      // Load dashboard stats - only for logistics clients or super admins
+      if (currentClient?.client_type === "logistics" || user?.role === "super_admin") {
+        const statsData = await analyticsAPI.getDashboardStats(
+          user?.role === "super_admin" ? filters.clientId : undefined,
+        );
+        setStats(statsData);
+      } else {
+        // For industrial clients, set default stats
+        setStats({
+          assets: { total: 0, active: 0, maintenance: 0, total_value: 0 },
+          components: { total: 0, operational: 0, critical: 0, maintenance_due: 0 },
+          notifications: { pending: 0 },
+          recent_activities: [],
+        });
+      }
 
       // Skip loading assets and components data for logistics clients
       if (currentClient?.client_type === "logistics") {
@@ -4935,6 +4951,170 @@ export default function AnalyticsPage() {
           )}
         </div>
       </Modal>
+
+      {/* Industrial Analytics Section - Only for industrial clients */}
+      {currentClient?.client_type === "industrial" && (
+        <div className="space-y-6">
+          <div className="border-t border-gray-200 pt-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              Industrial Asset Analytics
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Focus on asset management, component performance, and system maintenance insights.
+            </p>
+          </div>
+
+          {/* Asset Performance Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <MetricCard
+              title="Total Assets"
+              value={stats?.assets?.total?.toString() || "0"}
+              change="Active in system"
+              trend="up"
+              icon={<Package className="h-6 w-6" />}
+              color="text-blue-600"
+            />
+            <MetricCard
+              title="Active Components"
+              value={stats?.components?.operational?.toString() || "0"}
+              change="Operational status"
+              trend="up"
+              icon={<Wrench className="h-6 w-6" />}
+              color="text-green-600"
+            />
+            <MetricCard
+              title="Maintenance Due"
+              value={stats?.components?.maintenance_due?.toString() || "0"}
+              change="Within 7 days"
+              trend="down"
+              icon={<Clock className="h-6 w-6" />}
+              color="text-yellow-600"
+            />
+            <MetricCard
+              title="Critical Issues"
+              value={stats?.components?.critical?.toString() || "0"}
+              change="Require attention"
+              trend="down"
+              icon={<AlertTriangle className="h-6 w-6" />}
+              color="text-red-600"
+            />
+          </div>
+
+          {/* Asset and Component Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Asset Status Distribution */}
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Asset Status Distribution
+              </h3>
+              <div className="h-64">
+                {assets.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Active', value: stats?.assets?.active || 0, color: '#10b981' },
+                          { name: 'Maintenance', value: stats?.assets?.maintenance || 0, color: '#f59e0b' },
+                          { name: 'Inactive', value: (stats?.assets?.total || 0) - (stats?.assets?.active || 0) - (stats?.assets?.maintenance || 0), color: '#6b7280' }
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                        label={({ name, value }) => `${name}: ${value}`}
+                      >
+                        {[
+                          { name: 'Active', value: stats?.assets?.active || 0, color: '#10b981' },
+                          { name: 'Maintenance', value: stats?.assets?.maintenance || 0, color: '#f59e0b' },
+                          { name: 'Inactive', value: (stats?.assets?.total || 0) - (stats?.assets?.active || 0) - (stats?.assets?.maintenance || 0), color: '#6b7280' }
+                        ].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-gray-500">
+                    No asset data available
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {/* Component Performance */}
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Component Performance
+              </h3>
+              <div className="h-64">
+                {components.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={[
+                      { name: 'Operational', value: stats?.components?.operational || 0, color: '#10b981' },
+                      { name: 'Critical', value: stats?.components?.critical || 0, color: '#ef4444' },
+                      { name: 'Maintenance Due', value: stats?.components?.maintenance_due || 0, color: '#f59e0b' }
+                    ]}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" opacity={0.5} />
+                      <XAxis dataKey="name" stroke="#6b7280" fontSize={12} />
+                      <YAxis stroke="#6b7280" fontSize={12} />
+                      <Tooltip />
+                      <Bar dataKey="value" fill="#0d9488">
+                        {[
+                          { name: 'Operational', value: stats?.components?.operational || 0, color: '#10b981' },
+                          { name: 'Critical', value: stats?.components?.critical || 0, color: '#ef4444' },
+                          { name: 'Maintenance Due', value: stats?.components?.maintenance_due || 0, color: '#f59e0b' }
+                        ].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-gray-500">
+                    No component data available
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
+
+          {/* Maintenance Insights */}
+          {maintenanceLogs.length > 0 && (
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Recent Maintenance Activities
+              </h3>
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {maintenanceLogs.slice(0, 10).map((log, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Wrench className="h-4 w-4 text-blue-600" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          Component {log.component_id}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          {log.description || 'Maintenance performed'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500">
+                        {new Date(log.created_at).toLocaleDateString()}
+                      </p>
+                      <p className="text-xs font-medium text-gray-700">
+                        {log.status}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Floating Chat Button */}
       <FloatingChatButton

@@ -76,11 +76,15 @@ export default function Dashboard() {
     return false;
   });
   
-  // Fetch analytics data for charts - only when user is authenticated
-  const { data: analyticsData, isLoading: analyticsLoading, isError: analyticsError, refetch: refetchAnalytics } = useDashboardAnalytics(selectedDateRange, showDemoData);
-
   // Get current user's client information to determine if they're a logistics client
   const { data: currentClient } = useClient(user?.client_id || '', !!user?.client_id);
+  
+  // Fetch analytics data for charts - only when user is authenticated and is a logistics client
+  const { data: analyticsData, isLoading: analyticsLoading, isError: analyticsError, refetch: refetchAnalytics } = useDashboardAnalytics(
+    selectedDateRange, 
+    showDemoData, 
+    !!currentClient && currentClient.client_type === 'logistics'
+  );
 
   const loadDashboardStats = useCallback(async (isRefresh = false) => {
     try {
@@ -90,8 +94,22 @@ export default function Dashboard() {
         setLoading(true);
       }
       setError(null);
-      const stats = await analyticsAPI.getDashboardStats();
-      setDashboardStats(stats);
+      
+      // Only call analytics API for logistics clients
+      if (currentClient?.client_type === 'logistics') {
+        const stats = await analyticsAPI.getDashboardStats();
+        setDashboardStats(stats);
+      } else {
+        // For industrial clients, set default stats without calling analytics API
+        setDashboardStats({
+          assets: { total: 0, active: 0, maintenance: 0, total_value: 0 },
+          components: { total: 0, operational: 0, critical: 0, maintenance_due: 0 },
+          notifications: { pending: 0 },
+          recent_activities: [],
+          total_clients: user?.role === 'super_admin' ? 0 : undefined,
+          total_users: user?.role === 'super_admin' ? 0 : undefined
+        });
+      }
     } catch (err) {
       console.error('Error loading dashboard stats:', err);
       setError('Failed to load dashboard statistics');
@@ -108,7 +126,7 @@ export default function Dashboard() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, setLoading, setRefreshing, setError, setDashboardStats]);
+  }, [user, currentClient, setLoading, setRefreshing, setError, setDashboardStats]);
 
   useEffect(() => {
     // Only make API calls if user is authenticated
@@ -307,8 +325,8 @@ export default function Dashboard() {
       {/* Stats Grid */}
       <QuickStats stats={allStats} />
 
-      {/* Analytics Charts Section - Replace Recent Activity for logistics clients */}
-      {user?.role !== 'super_admin' && (
+      {/* Analytics Charts Section - Only for logistics clients */}
+      {currentClient?.client_type === 'logistics' && (
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
