@@ -26,8 +26,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
 } from "recharts";
 import { MultiSearchableSelect } from "@/components/ui/multi-searchable-select";
 import { Input } from "@/components/ui/input";
@@ -98,6 +96,88 @@ interface DashboardStats {
   }>;
   total_clients?: number;
   total_users?: number;
+}
+
+// Type definitions for analytics
+interface WeeklyPayment {
+  week_start: string;
+  week_end: string;
+  total_earnings: string | number;
+  paid_to_you_your_earnings: string | number;
+  paid_to_you_your_earnings_fare: string | number;
+  paid_to_you_your_earnings_service_fee: string | number;
+  paid_to_you_your_earnings_tip: string | number;
+  paid_to_you_trip_balance_payouts_cash_collected: string | number;
+  paid_to_you_your_earnings_fare_surge: string | number;
+  paid_to_you_your_earnings_fare_wait_time_at_pickup: string | number;
+  paid_to_you_your_earnings_fare_adjustment: string | number;
+  paid_to_you_your_earnings_fare_service_fee_adjustment: string | number;
+  paid_to_driver?: number;
+  metadata?: {
+    raw_data?: {
+      paid_to_you_trip_balance_payouts_transferred_to_bank_account?: number;
+      paid_to_you_your_earnings?: number;
+      paid_to_you_your_earnings_fare?: number;
+      paid_to_you_your_earnings_service_fee?: number;
+      paid_to_you_your_earnings_tip?: number;
+      paid_to_you_trip_balance_payouts_cash_collected?: number;
+      paid_to_you_your_earnings_fare_surge?: number;
+      paid_to_you_your_earnings_fare_wait_time_at_pickup?: number;
+      paid_to_you_your_earnings_fare_adjustment?: number;
+      paid_to_you_your_earnings_fare_service_fee_adjustment?: number;
+      paid_to_you_your_earnings_taxes_tax_on_booking_fee?: number;
+      paid_to_you_your_earnings_taxes_tax_on_service_fee?: number;
+    };
+  };
+}
+
+interface DriverData {
+  uuid: string;
+  full_name: string;
+  first_name?: string;
+  surname?: string;
+  weekly_payments: WeeklyPayment[];
+}
+
+interface WeeklyAggregated {
+  week: string;
+  total_earnings: number;
+  driver_count: number;
+  avg_earnings: number;
+  top_driver: string;
+  top_earnings: number;
+  week_start: string;
+}
+
+interface ChartDataPoint {
+  week: string;
+  total_earnings: number;
+  week_range: string;
+  top_driver_earnings: number;
+}
+
+interface WeekRange {
+  value: string;
+  label: string;
+  week_start: string | null;
+  week_end: string | null;
+}
+
+interface WeeklyDataEntry {
+  week_start: string;
+  week_end: string;
+  total_earnings: string | number;
+  driver_name: string;
+  driver_id: string;
+  paid_to_driver: number;
+  metadata?: {
+    raw_data?: {
+      paid_to_you_trip_balance_payouts_transferred_to_bank_account?: number;
+    };
+  };
+  driver_uuid?: string;
+  driver_first_name?: string;
+  driver_surname?: string;
 }
 
 interface Asset {
@@ -216,23 +296,7 @@ export default function AnalyticsPage() {
     !!currentClient && currentClient.client_type === "logistics",
   );
 
-  // Debug logging for earnings data
-  useEffect(() => {
-    if (earningsData && currentClient?.client_type === "logistics") {
-      console.log('Earnings data received:', {
-        hasSummary: !!earningsData.summary,
-        hasMonthlyEarnings: !!earningsData.summary?.monthly_earnings,
-        hasDrivers: !!earningsData.data?.drivers,
-        hasPerformanceTrends: !!earningsData.summary?.driver_performance_trends,
-        monthlyEarningsCount: earningsData.summary?.monthly_earnings?.length || 0,
-        driversCount: earningsData.data?.drivers?.length || 0,
-        performanceTrendsCount: earningsData.summary?.driver_performance_trends?.length || 0,
-        filters,
-        currentClient: currentClient.client_type,
-        rawData: earningsData
-      });
-    }
-  }, [earningsData, currentClient, filters]);
+
 
   // Debug logging for filter changes and manual refetch
   useEffect(() => {
@@ -305,17 +369,7 @@ export default function AnalyticsPage() {
   const getWeeklyEarningsData = useCallback(() => {
     if (!earningsData?.data?.drivers) return [];
 
-    console.log('=== getWeeklyEarningsData DEBUG ===');
-    console.log('earningsData.data.drivers:', earningsData.data.drivers);
-
     return earningsData.data.drivers.map((driver: DriverEarnings) => {
-      console.log(`Processing driver ${driver.uuid}:`, {
-        hasWeeklyPayments: !!driver.weekly_payments,
-        weeklyPaymentsType: typeof driver.weekly_payments,
-        weeklyPaymentsLength: Array.isArray(driver.weekly_payments) ? driver.weekly_payments.length : 'not array',
-        weeklyPayments: driver.weekly_payments
-      });
-      
       if (driver.weekly_payments && Array.isArray(driver.weekly_payments)) {
         let weeklyPayments = driver.weekly_payments;
 
@@ -399,9 +453,6 @@ export default function AnalyticsPage() {
   const getWeeklySummary = useCallback(() => {
     if (!earningsData?.summary) return null;
 
-    console.log('=== getWeeklySummary DEBUG ===');
-    console.log('earningsData.data.drivers:', earningsData.data.drivers);
-
     // Get filtered weekly data for display purposes
     const weeklyDrivers = getWeeklyEarningsData();
 
@@ -434,8 +485,6 @@ export default function AnalyticsPage() {
         (driver: DriverEarnings) => driver.weekly_payments || [],
       );
 
-      console.log('allWeeklyPayments:', allWeeklyPayments);
-
       // Create unique week ranges and count them
       const uniqueWeeks = new Set();
       allWeeklyPayments.forEach(
@@ -446,9 +495,6 @@ export default function AnalyticsPage() {
         },
       );
       totalWeeklyReports = uniqueWeeks.size; // Total unique weeks
-
-      console.log('uniqueWeeks:', Array.from(uniqueWeeks));
-      console.log('totalWeeklyReports:', totalWeeklyReports);
 
       // Count active drivers from filtered data for the selected period
       activeDriversCount = weeklyDrivers.filter(
@@ -465,7 +511,6 @@ export default function AnalyticsPage() {
       type: "weekly" as const,
     };
 
-    console.log('Weekly summary result:', result);
     return result;
   }, [earningsData, getWeeklyEarningsData]);
 
@@ -1429,14 +1474,6 @@ export default function AnalyticsPage() {
 
   // Helper function to get grouped monthly earnings data for multiple drivers
   const getGroupedMonthlyEarningsData = () => {
-    console.log('getGroupedMonthlyEarningsData called with:', {
-      hasPerformanceTrends: !!earningsData?.summary?.driver_performance_trends,
-      hasDrivers: !!earningsData?.data?.drivers,
-      driverFilter,
-      filters,
-      performanceTrends: earningsData?.summary?.driver_performance_trends
-    });
-    
     if (
       !earningsData?.summary?.driver_performance_trends ||
       !earningsData?.data?.drivers
@@ -1500,19 +1537,10 @@ export default function AnalyticsPage() {
 
   // Helper function to get selected drivers' monthly earnings
   const getSelectedDriversMonthlyEarnings = () => {
-    console.log('getSelectedDriversMonthlyEarnings called with:', {
-      hasMonthlyEarnings: !!earningsData?.summary?.monthly_earnings,
-      hasDrivers: !!earningsData?.data?.drivers,
-      driverFilter,
-      filters,
-      earningsData: earningsData?.summary?.monthly_earnings
-    });
-    
     if (
       !earningsData?.summary?.monthly_earnings ||
       !earningsData?.data?.drivers
     ) {
-      console.log('Returning empty array - missing data');
       return [];
     }
 
@@ -4108,48 +4136,29 @@ export default function AnalyticsPage() {
                   {(() => {
                     if (dataViewType === "weekly" && weekFilter === "all") {
                       // Get all weekly data across all drivers when filter is "all"
-                      const allWeeklyData = memoizedWeeklyData.flatMap((driver: any) => 
-                        (driver.weekly_payments || []).map((weekly: any) => ({
+                      const allWeeklyData: WeeklyDataEntry[] = memoizedWeeklyData.flatMap((driver: DriverData) => 
+                        (driver.weekly_payments || []).map((weekly: WeeklyPayment) => ({
                           week_start: weekly.week_start,
                           week_end: weekly.week_end,
                           total_earnings: weekly.total_earnings || 0,
                           driver_name: driver.full_name || `${driver.first_name} ${driver.surname}`,
                           driver_id: driver.uuid,
-                          paid_to_driver: weekly.metadata?.paid_to_driver || 0
+                          paid_to_driver: weekly.paid_to_driver || 0
                         }))
                       );
                       
-                      // Debug the raw data
-                      console.log('Raw Weekly Data Debug:', {
-                        memoizedWeeklyData: memoizedWeeklyData.slice(0, 2), // First 2 drivers
-                        allWeeklyData: allWeeklyData.slice(0, 5), // First 5 weekly entries
-                        sampleDriver: memoizedWeeklyData[0],
-                        sampleWeeklyPayments: memoizedWeeklyData[0]?.weekly_payments?.[0],
-                        totalDrivers: memoizedWeeklyData.length,
-                        totalWeeklyEntries: allWeeklyData.length
-                      });
+                      
                       
                       if (allWeeklyData.length > 0) {
-                        // Debug the raw data
-                        console.log('Raw Weekly Data:', {
-                          allWeeklyData: allWeeklyData.slice(0, 5), // First 5 entries
-                          sampleEntry: allWeeklyData[0],
-                          totalEntries: allWeeklyData.length,
-                          earningsValues: allWeeklyData.map((w: any) => ({
-                            week_start: w.week_start,
-                            total_earnings: w.total_earnings,
-                            type: typeof w.total_earnings,
-                            parsed: Number(w.total_earnings)
-                          }))
-                        });
+
                         
                         // Sort by week_start date
-                        const sortedWeeklyData = allWeeklyData.sort((a: any, b: any) => 
+                        const sortedWeeklyData = allWeeklyData.sort((a: WeeklyDataEntry, b: WeeklyDataEntry) => 
                           new Date(a.week_start).getTime() - new Date(b.week_start).getTime()
                         );
                         
                         // Group by week and aggregate earnings across all drivers
-                        const weeklyAggregated = sortedWeeklyData.reduce((acc: any, weekly: any) => {
+                        const weeklyAggregated = sortedWeeklyData.reduce((acc: Record<string, WeeklyAggregated>, weekly: WeeklyDataEntry) => {
                           const weekKey = `${weekly.week_start} - ${weekly.week_end}`;
                           const earnings = Number(weekly.total_earnings) || 0;
                           
@@ -4183,10 +4192,10 @@ export default function AnalyticsPage() {
                           }
                           
                           return acc;
-                        }, {} as Record<string, any>);
+                        }, {} as Record<string, WeeklyAggregated>);
                         
                         // Calculate average earnings for each week
-                        Object.values(weeklyAggregated).forEach((week: any) => {
+                        Object.values(weeklyAggregated).forEach((week: WeeklyAggregated) => {
                           week.avg_earnings = week.total_earnings / Math.max(week.driver_count, 1);
                         });
                         
@@ -4194,11 +4203,11 @@ export default function AnalyticsPage() {
                         console.log('Aggregation Debug:', {
                           sortedWeeklyData: sortedWeeklyData.slice(0, 3), // First 3 entries
                           weeklyAggregated,
-                          sampleWeekData: sortedWeeklyData.filter((w: any) => w.week_start === '2024-12-09'),
+                          sampleWeekData: sortedWeeklyData.filter((w: WeeklyDataEntry) => w.week_start === '2024-12-09'),
                           totalEarningsSum: sortedWeeklyData
-                            .filter((w: any) => w.week_start === '2024-12-09')
-                            .reduce((sum: number, w: any) => sum + (Number(w.total_earnings) || 0), 0),
-                          filteredData: sortedWeeklyData.filter((w: any) => {
+                            .filter((w: WeeklyDataEntry) => w.week_start === '2024-12-09')
+                            .reduce((sum: number, w: WeeklyDataEntry) => sum + (Number(w.total_earnings) || 0), 0),
+                          filteredData: sortedWeeklyData.filter((w: WeeklyDataEntry) => {
                             const earnings = Number(w.total_earnings) || 0;
                             return earnings >= -10000 && 
                                    !(w.metadata?.raw_data?.paid_to_you_trip_balance_payouts_transferred_to_bank_account && 
@@ -4206,7 +4215,7 @@ export default function AnalyticsPage() {
                                    w.driver_uuid !== '00000000-0000-0000-0000-000000000000' &&
                                    !(w.driver_first_name === 'Client' && w.driver_surname === 'Withdrawal');
                           }),
-                          excludedData: sortedWeeklyData.filter((w: any) => {
+                          excludedData: sortedWeeklyData.filter((w: WeeklyDataEntry) => {
                             const earnings = Number(w.total_earnings) || 0;
                             return earnings < -10000 || 
                                    (w.metadata?.raw_data?.paid_to_you_trip_balance_payouts_transferred_to_bank_account && 
@@ -4218,31 +4227,34 @@ export default function AnalyticsPage() {
                         
                         // Prepare chart data for individual driver (not aggregated company data)
                         const driverWeeklyData = memoizedWeeklyData.find(
-                          (d: any) => d.uuid === selectedDriverForDetail?.uuid
+                          (d: DriverData) => d.uuid === selectedDriverForDetail?.uuid
                         );
                         
-                        let chartData = [];
+                        let chartData: ChartDataPoint[] = [];
                         if (driverWeeklyData?.weekly_payments) {
                           // Sort weekly payments by week_start date
-                          const sortedDriverPayments = [...driverWeeklyData.weekly_payments].sort((a, b) => 
+                          const sortedDriverPayments = [...driverWeeklyData.weekly_payments].sort((a: WeeklyPayment, b: WeeklyPayment) => 
                             new Date(a.week_start).getTime() - new Date(b.week_start).getTime()
                           );
                           
-                          chartData = sortedDriverPayments.map((weekly, index) => ({
+                          chartData = sortedDriverPayments.map((weekly: WeeklyPayment, index: number) => ({
                             week: `Week ${index + 1}`,
-                            total_earnings: weekly.total_earnings || 0,
+                            total_earnings: Number(weekly.total_earnings) || 0,
                             week_range: `${weekly.week_start} - ${weekly.week_end}`,
                             // For comparison, we'll use the top driver from aggregated data
                             top_driver_earnings: weeklyAggregated[weekly.week_start + ' - ' + weekly.week_end]?.top_earnings || 0
                           }));
                         } else {
                           // Fallback to aggregated data if no driver data found
-                          chartData = Object.values(weeklyAggregated).map((week: any, index) => ({
-                            week: `Week ${index + 1}`,
-                            total_earnings: week.total_earnings,
-                            week_range: week.week,
-                            top_driver_earnings: week.top_earnings
-                          }));
+                          chartData = Object.keys(weeklyAggregated).map((weekKey: string, index: number) => {
+                            const week = weeklyAggregated[weekKey];
+                            return {
+                              week: `Week ${index + 1}`,
+                              total_earnings: week.total_earnings,
+                              week_range: week.week,
+                              top_driver_earnings: week.top_earnings
+                            };
+                          });
                         }
                         
                         // Debug logging
@@ -4344,12 +4356,12 @@ export default function AnalyticsPage() {
                                     if (selectedDriverForDetail?.uuid) {
                                       // Show driver-specific best week
                                       const driverWeeklyData = memoizedWeeklyData.find(
-                                        (d: any) => d.uuid === selectedDriverForDetail.uuid
+                                        (d: DriverData) => d.uuid === selectedDriverForDetail.uuid
                                       );
                                       if (driverWeeklyData?.weekly_payments) {
                                         const driverEarnings = driverWeeklyData.weekly_payments
-                                          .filter((w: any) => Number(w.total_earnings) >= -10000)
-                                          .map((w: any) => Number(w.total_earnings) || 0);
+                                          .filter((w: WeeklyPayment) => Number(w.total_earnings) >= -10000)
+                                          .map((w: WeeklyPayment) => Number(w.total_earnings) || 0);
                                         return formatCurrency(Math.max(...driverEarnings));
                                       }
                                     }
@@ -4365,12 +4377,12 @@ export default function AnalyticsPage() {
                                     if (selectedDriverForDetail?.uuid) {
                                       // Show driver-specific lowest week
                                       const driverWeeklyData = memoizedWeeklyData.find(
-                                        (d: any) => d.uuid === selectedDriverForDetail.uuid
+                                        (d: DriverData) => d.uuid === selectedDriverForDetail.uuid
                                       );
                                       if (driverWeeklyData?.weekly_payments) {
                                         const driverEarnings = driverWeeklyData.weekly_payments
-                                          .filter((w: any) => Number(w.total_earnings) >= -10000)
-                                          .map((w: any) => Number(w.total_earnings) || 0);
+                                          .filter((w: WeeklyPayment) => Number(w.total_earnings) >= -10000)
+                                          .map((w: WeeklyPayment) => Number(w.total_earnings) || 0);
                                         return formatCurrency(Math.min(...driverEarnings));
                                       }
                                     }
@@ -4386,19 +4398,19 @@ export default function AnalyticsPage() {
                                     if (selectedDriverForDetail?.uuid) {
                                       // Show driver-specific average per week
                                       const driverWeeklyData = memoizedWeeklyData.find(
-                                        (d: any) => d.uuid === selectedDriverForDetail.uuid
+                                        (d: DriverData) => d.uuid === selectedDriverForDetail.uuid
                                       );
                                       if (driverWeeklyData?.weekly_payments) {
                                         const driverEarnings = driverWeeklyData.weekly_payments
-                                          .filter((w: any) => Number(w.total_earnings) >= -10000)
-                                          .map((w: any) => Number(w.total_earnings) || 0);
-                                        const totalEarnings = driverEarnings.reduce((sum, earnings) => sum + earnings, 0);
+                                          .filter((w: WeeklyPayment) => Number(w.total_earnings) >= -10000)
+                                          .map((w: WeeklyPayment) => Number(w.total_earnings) || 0);
+                                        const totalEarnings = driverEarnings.reduce((sum: number, earnings: number) => sum + earnings, 0);
                                         return formatCurrency(totalEarnings / Math.max(driverEarnings.length, 1));
                                       }
                                     }
                                     // Fallback to overall average per week
                                     return formatCurrency(
-                                      chartData.reduce((sum, d) => sum + (Number(d.total_earnings) || 0), 0) / 
+                                      chartData.reduce((sum: number, d: ChartDataPoint) => sum + (Number(d.total_earnings) || 0), 0) / 
                                       Math.max(chartData.length, 1)
                                     );
                                   })()}
@@ -4412,7 +4424,7 @@ export default function AnalyticsPage() {
                     } else if (dataViewType === "weekly" && selectedDriverForDetail?.uuid) {
                       // Individual driver weekly view
                       const weeklyData = memoizedWeeklyData.find(
-                        (d: { uuid: string; weekly_payments: any[] }) =>
+                        (d: DriverData) =>
                           d.uuid === selectedDriverForDetail.uuid,
                       );
                       
@@ -4427,7 +4439,7 @@ export default function AnalyticsPage() {
                           week: `Week ${index + 1}`,
                           earnings: weekly.total_earnings || 0,
                           weekRange: `${weekly.week_start} - ${weekly.week_end}`,
-                          paidToDriver: weekly.metadata?.paid_to_driver || 0
+                          paidToDriver: weekly.paid_to_driver || 0
                         }));
                         
                         // Debug logging
@@ -4563,20 +4575,20 @@ export default function AnalyticsPage() {
                     {(() => {
                       if (dataViewType === "weekly" && selectedDriverForDetail?.uuid) {
                         const weeklyData = memoizedWeeklyData.find(
-                          (d: { uuid: string; weekly_payments: any[] }) =>
+                          (d: DriverData) =>
                             d.uuid === selectedDriverForDetail.uuid,
                         );
                         
                         if (weeklyData?.weekly_payments && weeklyData.weekly_payments.length > 0) {
                           // Get unique week ranges for the dropdown
-                          const weekRanges = weeklyData.weekly_payments
-                            .sort((a, b) => new Date(a.week_start).getTime() - new Date(b.week_start).getTime())
-                            .map((weekly, index) => ({
-                              value: `${weekly.week_start}_${weekly.week_end}`,
-                              label: `Week ${index + 1}: ${weekly.week_start} - ${weekly.week_end}`,
-                              week_start: weekly.week_start,
-                              week_end: weekly.week_end
-                            }));
+                                                      const weekRanges: WeekRange[] = weeklyData.weekly_payments
+                              .sort((a: WeeklyPayment, b: WeeklyPayment) => new Date(a.week_start).getTime() - new Date(b.week_start).getTime())
+                              .map((weekly: WeeklyPayment, index: number) => ({
+                                value: `${weekly.week_start}_${weekly.week_end}`,
+                                label: `Week ${index + 1}: ${weekly.week_start} - ${weekly.week_end}`,
+                                week_start: weekly.week_start,
+                                week_end: weekly.week_end
+                              }));
                           
                           // Add "Latest 3 Weeks" option (default)
                           weekRanges.unshift({
@@ -4595,7 +4607,7 @@ export default function AnalyticsPage() {
                                 id="weekFilter"
                                 className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                                 onChange={(e) => {
-                                  const selectedWeek = weekRanges.find(w => w.value === e.target.value);
+                                  const selectedWeek = weekRanges.find((w: WeekRange) => w.value === e.target.value);
                                   if (selectedWeek && selectedWeek.value !== 'all') {
                                     // Filter table to show only the selected week
                                     setWeekFilter(selectedWeek.value);
@@ -4606,7 +4618,7 @@ export default function AnalyticsPage() {
                                 }}
                                 value={weekFilter === 'all' ? 'all' : weekFilter}
                               >
-                                {weekRanges.map((week) => (
+                                {weekRanges.map((week: WeekRange) => (
                                   <option key={week.value} value={week.value}>
                                     {week.label}
                                   </option>
@@ -4622,7 +4634,7 @@ export default function AnalyticsPage() {
                   {(() => {
                     if (dataViewType === "weekly" && selectedDriverForDetail?.uuid) {
                       const weeklyData = memoizedWeeklyData.find(
-                        (d: { uuid: string; weekly_payments: any[] }) =>
+                        (d: DriverData) =>
                           d.uuid === selectedDriverForDetail.uuid,
                       );
                       
@@ -4635,7 +4647,7 @@ export default function AnalyticsPage() {
                         // Apply week filter to table display only (doesn't affect chart)
                         if (weekFilter !== 'all') {
                           const [selectedWeekStart, selectedWeekEnd] = weekFilter.split('_');
-                          sortedWeeklyPayments = sortedWeeklyPayments.filter(weekly => 
+                          sortedWeeklyPayments = sortedWeeklyPayments.filter((weekly: WeeklyPayment) => 
                             weekly.week_start === selectedWeekStart && weekly.week_end === selectedWeekEnd
                           );
                         } else {
@@ -4667,7 +4679,7 @@ export default function AnalyticsPage() {
                                 </tr>
                               </thead>
                               <tbody>
-                                {sortedWeeklyPayments.map((weekly, index) => {
+                                {sortedWeeklyPayments.map((weekly: WeeklyPayment, index: number) => {
                                   const rawData = weekly.metadata?.raw_data || {};
                                   return (
                                     <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
@@ -4678,7 +4690,7 @@ export default function AnalyticsPage() {
                                       </td>
                                       <td className="py-3 px-3">
                                         <span className="font-semibold text-teal-600">
-                                          {formatCurrency(weekly.total_earnings)}
+                                          {formatCurrency(Number(weekly.total_earnings) || 0)}
                                         </span>
                                       </td>
                                       <td className="py-3 px-3">
