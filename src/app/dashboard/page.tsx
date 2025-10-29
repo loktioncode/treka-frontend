@@ -28,6 +28,7 @@ import {
   PaymentDistributionChart, 
   PerformanceTrendsChart 
 } from '@/components/ui/dashboard-charts';
+import { MarketingCarousel } from '@/components/ui/marketing-carousel';
 import { useDashboardAnalytics, DateRangeFilter } from '@/hooks/useDashboardAnalytics';
 import { useClient } from '@/hooks/useClients';
 
@@ -480,12 +481,13 @@ export default function Dashboard() {
 
       {/* Quick Actions - Hide for logistics clients */}
       {currentClient?.client_type === 'industrial' && (
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-3">
           {/* Quick Actions - Show for all users with role-appropriate actions */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.7 }}
+            className="lg:col-span-2"
           >
             <Card>
               <CardHeader>
@@ -589,7 +591,28 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           </motion.div>
+          {/* Marketing Carousel - Show for all users */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.8 }}
+            className="w-full"
+          >
+            <MarketingCarousel />
+          </motion.div>
         </div>
+      )}
+
+      {/* Marketing Carousel - Show for logistics clients (full width) */}
+      {currentClient?.client_type === 'logistics' && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+          className="w-full"
+        >
+          <MarketingCarousel />
+        </motion.div>
       )}
     </div>
   );

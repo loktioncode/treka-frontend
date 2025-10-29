@@ -26,12 +26,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
+  ResponsiveContainer
 } from "recharts";
 import { MultiSearchableSelect } from "@/components/ui/multi-searchable-select";
 import { Input } from "@/components/ui/input";
@@ -50,8 +45,7 @@ import {
   Users,
   TrendingUp,
   DollarSign,
-  Eye,
-  Wrench,
+  Eye
 } from "lucide-react";
 import {
   analyticsAPI,
