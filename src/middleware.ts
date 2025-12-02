@@ -21,18 +21,23 @@ export function middleware(request: NextRequest) {
                       request.nextUrl.pathname.startsWith('/api/') ||
                       request.nextUrl.pathname.startsWith('/_next/');
 
-  // Redirect unauthenticated users to login (except for auth and public pages)
-  if (!isAuthenticated && !isAuthPage && !isPublicPage) {
+  // Always allow access to auth pages - let client-side handle validation
+  // This prevents issues with stale cookies blocking access to login
+  if (isAuthPage) {
+    return NextResponse.next();
+  }
+
+  // Always allow access to public pages
+  if (isPublicPage) {
+    return NextResponse.next();
+  }
+
+  // Redirect unauthenticated users to login for protected routes
+  if (!isAuthenticated) {
     const loginUrl = new URL('/login', request.url);
     // Preserve the intended destination
     loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);
-  }
-
-  // Redirect authenticated users away from auth pages
-  if (isAuthenticated && isAuthPage) {
-    const redirectTo = request.nextUrl.searchParams.get('redirect') || '/dashboard';
-    return NextResponse.redirect(new URL(redirectTo, request.url));
   }
 
   return NextResponse.next();

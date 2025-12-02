@@ -160,11 +160,11 @@ api.interceptors.response.use(
 );
 
 interface LoginResponse {
-  access_token: string;
-  token_type: string;
+  access_token?: string;
+  token_type?: string;
   user_id: string;
-  role: 'super_admin' | 'admin' | 'user';
-  expires_in: number;
+  role?: 'super_admin' | 'admin' | 'user';
+  expires_in?: number;
   require_password_change?: boolean;
   message?: string;
 }

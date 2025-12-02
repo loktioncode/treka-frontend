@@ -20,11 +20,11 @@ interface User {
 }
 
 interface LoginResponse {
-  access_token: string;
-  token_type: string;
+  access_token?: string;
+  token_type?: string;
   user_id: string;
-  role: 'super_admin' | 'admin' | 'user';
-  expires_in: number;
+  role?: 'super_admin' | 'admin' | 'user';
+  expires_in?: number;
   require_password_change?: boolean;
   message?: string;
 }
@@ -89,7 +89,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           try {
             setToken(storedToken);
             // Ensure cookie is also set for middleware
-            document.cookie = `auth_token=${storedToken}; path=/; secure; samesite=strict`;
+            // Only use secure flag in production (HTTPS)
+            const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
+            document.cookie = `auth_token=${storedToken}; path=/; ${isSecure ? 'secure;' : ''} samesite=strict`;
             await loadUser();
           } catch (error) {
             // Token is invalid, clear it
@@ -131,14 +133,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true);
       const response = await authAPI.login(email, password);
       
-      // Check if we got a first login response
+      // Check if we got a first login response - return early without setting token
       if (response.require_password_change) {
+        setIsLoading(false);
         return response;
       }
 
       // Store the access token
       const accessToken = response.access_token;
       if (!accessToken) {
+        setIsLoading(false);
         throw new Error('No access token received');
       }
       
@@ -148,7 +152,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (typeof window !== 'undefined') {
         localStorage.setItem('auth_token', accessToken);
         // Also set cookie for middleware detection
-        document.cookie = `auth_token=${accessToken}; path=/; secure; samesite=strict`;
+        // Only use secure flag in production (HTTPS)
+        const isSecure = window.location.protocol === 'https:';
+        document.cookie = `auth_token=${accessToken}; path=/; ${isSecure ? 'secure;' : ''} samesite=strict`;
       }
       
       // Load the full user data from /users/me endpoint

@@ -49,10 +49,12 @@ function LoginForm() {
     try {
       const response = await login(email, password);
       
-      // Handle first login case
-      if (response?.require_password_change) {
-        toast.success('Please check your email for verification code');
-        router.push(`/verify-otp/${encodeURIComponent(email)}`);
+      // Handle first login case - redirect to verification page
+      if (response && response.require_password_change) {
+        const message = response.message || 'Please check your email for verification code';
+        toast.success(message);
+        // Use replace instead of push to prevent back button issues
+        router.replace(`/verify-otp/${encodeURIComponent(email)}`);
         return;
       }
 
