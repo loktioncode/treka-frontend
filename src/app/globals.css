@@ -22,7 +22,7 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 176 84% 32%;
     --radius: 0.75rem;
-    
+
     /* Enterprise color palette */
     --success: 142.1 76.2% 36.3%;
     --success-foreground: 210 40% 98%;
@@ -30,17 +30,29 @@
     --warning-foreground: 26 83.3% 14.1%;
     --info: 199.89 89.12% 48.24%;
     --info-foreground: 210 40% 98%;
-    
+
     /* Status colors */
     --status-active: 142.1 76.2% 36.3%;
     --status-inactive: 215.4 16.3% 46.9%;
     --status-pending: 47.9 95.8% 53.1%;
     --status-critical: 0 72.2% 50.6%;
-    
+
     /* Role colors */
     --role-super-admin: 271.5 81.3% 55.9%;
     --role-admin: 176 84% 32%;
     --role-user: 142.1 76.2% 36.3%;
+
+    /* Chart colors (Vibrant Light Mode) */
+    --chart-1: 340 82% 52%;
+    /* Pink */
+    --chart-2: 262 83% 58%;
+    /* Purple */
+    --chart-3: 199 89% 48%;
+    /* Blue */
+    --chart-4: 142 76% 36%;
+    /* Emerald */
+    --chart-5: 45 93% 47%;
+    /* Amber */
   }
 
   .dark {
@@ -63,28 +75,71 @@
     --border: 215 27.9% 16.9%;
     --input: 215 27.9% 16.9%;
     --ring: 216 12.2% 83.9%;
+
+    /* Bright Status colors (Dark Mode overrides for maximum pop) */
+    --success: 142 80% 50%;
+    --warning: 45 100% 60%;
+    --info: 199 100% 60%;
+    --destructive: 0 100% 65%;
+
+    /* Chart colors (Vibrant Dark Mode Neon) */
+    --chart-1: 340 100% 65%;
+    /* Hot Pink */
+    --chart-2: 262 100% 70%;
+    /* Electric Purple */
+    --chart-3: 199 100% 60%;
+    /* Cyan/Blue */
+    --chart-4: 142 80% 50%;
+    /* Neon Green */
+    --chart-5: 45 100% 60%;
+    /* Bright Yellow */
   }
+}
+
+.glass-card {
+  background-color: color-mix(in srgb, var(--background) 50%, transparent);
+  backdrop-filter: blur(24px);
+  border: 1px solid color-mix(in srgb, white 10%, transparent);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+.glass-card:hover {
+  border-color: color-mix(in srgb, white 20%, transparent);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.15);
+}
+
+.glass-panel {
+  background-color: color-mix(in srgb, var(--secondary) 30%, transparent);
+  backdrop-filter: blur(12px);
+  border: 1px solid color-mix(in srgb, white 5%, transparent);
+  border-radius: 0.75rem;
 }
 
 @layer base {
   * {
     border-color: hsl(var(--border));
   }
+
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
-  
+
   /* Cursor styles for interactive elements */
-  a, 
-  button, 
-  [role="button"], 
+  a,
+  button,
+  [role="button"],
   [onclick],
   .cursor-pointer {
     cursor: pointer;
   }
-  
+
   button:disabled,
   [aria-disabled="true"] {
     cursor: not-allowed;
@@ -133,6 +188,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -143,6 +199,7 @@
     transform: translateY(-100%);
     opacity: 0;
   }
+
   to {
     transform: translateY(0%);
     opacity: 1;

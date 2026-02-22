@@ -1,11 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { userAPI } from '@/services/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useSearchParams } from 'next/navigation';
+import { userAPI, notificationGroupsAPI, clientAPI } from '@/services/api';
+import type { NotificationGroup, User } from '@/types/api';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { searchPlaces, type GeocodingResult } from '@/lib/mapbox-geocoding';
 import { RoleBadge, StatusBadge } from '@/components/ui/badge';
 import { 
   Form, 
@@ -16,7 +20,7 @@ import {
   Checkbox 
 } from '@/components/ui/form';
 import { 
-  User, 
+  User as UserIcon, 
   Mail, 
   Save,
   Edit,
@@ -24,13 +28,47 @@ import {
   MessageSquare,
   Calendar,
   Building,
+  Building2,
   Globe,
   Database,
-  LogOut
+  LogOut,
+  MapPin,
+  Bell,
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  Trash2,
+  Wrench,
+  UserCheck,
+  Crown,
+  Info
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
+
+type ProfileTab = 'profile' | 'notification-settings';
+
+const GROUP_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  workshop: Wrench,
+  supervisor: UserCheck,
+  management: Building2,
+  exco: Crown,
+};
+
+const GROUP_DESCRIPTIONS: Record<string, string> = {
+  workshop: "Mechanics, technicians – first to receive maintenance & service alerts",
+  supervisor: "Supervisors – escalated when workshop doesn't respond",
+  management: "Management – escalated when supervisor doesn't respond",
+  exco: "Executive – final escalation level",
+};
+
+const ESCALATION_HOURS_OPTIONS = [
+  { value: 12, label: '12 hours' },
+  { value: 24, label: '24 hours' },
+  { value: 48, label: '48 hours' },
+  { value: 72, label: '72 hours' },
+] as const;
 
 interface ProfileFormData {
   first_name: string;
@@ -41,12 +79,23 @@ interface ProfileFormData {
     whatsapp: boolean;
   };
   currency: string;
+  map_center?: { lat: number; lon: number };
+  country?: string;
+  city?: string;
 }
 
 export default function ProfilePage() {
   const { user, loadUser, logout } = useAuth();
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<ProfileTab>('profile');
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [groups, setGroups] = useState<NotificationGroup[]>([]);
+  const [clientUsers, setClientUsers] = useState<User[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
+  const [addingToGroup, setAddingToGroup] = useState<string | null>(null);
+  const [updatingEscalation, setUpdatingEscalation] = useState<string | null>(null);
   const [formData, setFormData] = useState<ProfileFormData>({
     first_name: '',
     last_name: '',
@@ -59,6 +108,112 @@ export default function ProfilePage() {
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [citySearch, setCitySearch] = useState('');
+  const [cityResults, setCityResults] = useState<GeocodingResult[]>([]);
+  const [citySearching, setCitySearching] = useState(false);
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
+
+  const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+
+  const searchCities = useCallback(async (q: string) => {
+    if (!MAPBOX_TOKEN || !q.trim()) {
+      setCityResults([]);
+      return;
+    }
+    setCitySearching(true);
+    try {
+      const results = await searchPlaces(q, MAPBOX_TOKEN, 6);
+      setCityResults(results);
+    } finally {
+      setCitySearching(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => searchCities(citySearch), 300);
+    return () => clearTimeout(t);
+  }, [citySearch, searchCities]);
+
+  // Sync active tab from URL
+  useEffect(() => {
+    const t = searchParams?.get('tab');
+    if (t === 'notification-settings' && user?.role === 'admin') {
+      setActiveTab('notification-settings');
+    } else if (t !== 'notification-settings') {
+      setActiveTab('profile');
+    }
+  }, [searchParams, user?.role]);
+
+  // Load notification groups when on that tab (admin only)
+  const loadNotificationGroups = useCallback(async () => {
+    if (!user?.client_id || user?.role !== 'admin') return;
+    try {
+      setGroupsLoading(true);
+      const [groupsData, usersData] = await Promise.all([
+        notificationGroupsAPI.getGroups(),
+        clientAPI.getClientUsers(user.client_id, { limit: 200 }),
+      ]);
+      setGroups(Array.isArray(groupsData) ? groupsData : []);
+      const users = Array.isArray(usersData) ? usersData : usersData?.items || [];
+      setClientUsers(users);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to load notification settings');
+    } finally {
+      setGroupsLoading(false);
+    }
+  }, [user?.client_id, user?.role]);
+
+  useEffect(() => {
+    if (activeTab === 'notification-settings' && user?.role === 'admin') {
+      loadNotificationGroups();
+    }
+  }, [activeTab, user?.role, loadNotificationGroups]);
+
+  const handleAddUserToGroup = async (groupId: string, userId: string) => {
+    try {
+      setAddingToGroup(groupId);
+      await notificationGroupsAPI.addUserToGroup(groupId, userId);
+      toast.success('User added to group');
+      loadNotificationGroups();
+    } catch (err: unknown) {
+      const msg = err && typeof err === 'object' && 'response' in err
+        ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+        : null;
+      toast.error(msg || 'Failed to add user');
+    } finally {
+      setAddingToGroup(null);
+    }
+  };
+
+  const handleRemoveUserFromGroup = async (groupId: string, userId: string) => {
+    try {
+      await notificationGroupsAPI.removeUserFromGroup(groupId, userId);
+      toast.success('User removed from group');
+      loadNotificationGroups();
+    } catch (err: unknown) {
+      const msg = err && typeof err === 'object' && 'response' in err
+        ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+        : null;
+      toast.error(msg || 'Failed to remove user');
+    }
+  };
+
+  const handleEscalationHoursChange = async (groupId: string, hours: number) => {
+    try {
+      setUpdatingEscalation(groupId);
+      await notificationGroupsAPI.updateGroup(groupId, { escalation_hours: hours });
+      toast.success('Escalation hours updated');
+      loadNotificationGroups();
+    } catch (err: unknown) {
+      const msg = err && typeof err === 'object' && 'response' in err
+        ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+        : null;
+      toast.error(msg || 'Failed to update escalation hours');
+    } finally {
+      setUpdatingEscalation(null);
+    }
+  };
 
   // Initialize form data when user loads
   useEffect(() => {
@@ -71,8 +226,16 @@ export default function ProfilePage() {
           email: user.notification_preferences?.email ?? true,
           whatsapp: user.notification_preferences?.whatsapp ?? false
         },
-        currency: 'ZAR' // Default currency, can be updated later
+        currency: 'ZAR',
+        map_center: user.map_center,
+        country: user.country,
+        city: user.city,
       });
+      if (user.map_center && (user.city || user.country)) {
+        setCitySearch([user.city, user.country].filter(Boolean).join(', '));
+      } else {
+        setCitySearch('');
+      }
     }
   }, [user]);
 
@@ -139,9 +302,18 @@ export default function ProfilePage() {
 
     setLoading(true);
     try {
-      // Note: The backend updateUser endpoint is not implemented yet
-      // For now, we'll show a success message and reset form
-      await userAPI.updateUser(user.id, formData);
+      const payload: Record<string, unknown> = {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        email: formData.email,
+        notification_preferences: formData.notification_preferences,
+      };
+      if (formData.map_center) {
+        payload.map_center = formData.map_center;
+        payload.country = formData.country;
+        payload.city = formData.city;
+      }
+      await userAPI.updateUser(user.id, payload);
       
       toast.success('Profile updated successfully!');
       setEditing(false);
@@ -163,7 +335,6 @@ export default function ProfilePage() {
   };
 
   const handleCancel = () => {
-    // Reset form data to original user data
     if (user) {
       setFormData({
         first_name: user.first_name || '',
@@ -173,18 +344,42 @@ export default function ProfilePage() {
           email: user.notification_preferences?.email ?? true,
           whatsapp: user.notification_preferences?.whatsapp ?? false
         },
-        currency: 'ZAR'
+        currency: 'ZAR',
+        map_center: user.map_center,
+        country: user.country,
+        city: user.city,
       });
     }
     setFormErrors({});
     setEditing(false);
   };
 
+  const handleSelectCity = (result: GeocodingResult) => {
+    setFormData(prev => ({
+      ...prev,
+      map_center: { lat: result.lat, lon: result.lon },
+      city: result.name,
+      country: result.country,
+    }));
+    setCitySearch(result.placeFormatted || `${result.name}${result.country ? `, ${result.country}` : ''}`);
+    setShowCityDropdown(false);
+  };
+
+  const handleClearMapLocation = () => {
+    setFormData(prev => ({
+      ...prev,
+      map_center: undefined,
+      country: undefined,
+      city: undefined,
+    }));
+    setCitySearch('');
+  };
+
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-96">
         <div className="text-center">
-          <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <UserIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading Profile</h3>
           <p className="text-gray-600">Please wait while we load your profile information...</p>
         </div>
@@ -252,6 +447,176 @@ export default function ProfilePage() {
         </div>
       </motion.div>
 
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-gray-200">
+        <button
+          type="button"
+          onClick={() => setActiveTab('profile')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            activeTab === 'profile'
+              ? 'border-teal-500 text-teal-700'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <UserIcon className="h-4 w-4" />
+          Profile
+        </button>
+        {user?.role === 'admin' && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('notification-settings')}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              activeTab === 'notification-settings'
+                ? 'border-teal-500 text-teal-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Bell className="h-4 w-4" />
+            Notification Settings
+          </button>
+        )}
+      </div>
+
+      {activeTab === 'notification-settings' ? (
+        /* Notification Settings tab - client admin only */
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5" />
+              Notification Escalation Groups
+            </CardTitle>
+            <CardDescription>
+              Alerts are sent to the first non-empty group (workshop → supervisor → management → exco).
+              Changes save automatically.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {groupsLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-24 bg-gray-100 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            ) : (
+              groups.map((group) => {
+                const Icon = GROUP_ICONS[group.group_type] || UserIcon;
+                const isExpanded = expandedGroup === group.id;
+                const members = clientUsers.filter((u) => group.user_ids.includes(u.id));
+                const availableUsers = clientUsers.filter((u) => !group.user_ids.includes(u.id));
+
+                return (
+                  <div key={group.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedGroup(isExpanded ? null : group.id)}
+                      className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-teal-100">
+                          <Icon className="h-5 w-5 text-teal-600" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900">{group.name}</p>
+                          <p className="text-xs text-gray-500">{GROUP_DESCRIPTIONS[group.group_type]}</p>
+                        </div>
+                        <Badge variant="secondary">
+                          {group.user_ids.length} member{group.user_ids.length !== 1 ? 's' : ''}
+                        </Badge>
+                      </div>
+                      {isExpanded ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
+                    </button>
+                    {isExpanded && (
+                      <div className="p-4 border-t border-gray-200 space-y-4">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <Info className="h-4 w-4" />
+                          Add or remove users. Escalation hours: time before alert escalates to next group if not acknowledged.
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <label htmlFor={`escalation-${group.id}`} className="text-sm font-medium text-gray-700 shrink-0">
+                            Escalation hours
+                          </label>
+                          <select
+                            id={`escalation-${group.id}`}
+                            value={group.escalation_hours ?? 24}
+                            onChange={(e) => handleEscalationHoursChange(group.id, Number(e.target.value))}
+                            disabled={updatingEscalation === group.id}
+                            className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50"
+                          >
+                            {ESCALATION_HOURS_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                          {updatingEscalation === group.id && (
+                            <span className="text-xs text-gray-500">Saving...</span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-700 mb-3">Members</p>
+                          {members.length === 0 ? (
+                            <p className="text-sm text-gray-500 italic">No members. Add users below.</p>
+                          ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                              {members.map((u) => (
+                                <div
+                                  key={u.id}
+                                  className="relative flex flex-col items-center p-3 rounded-lg border border-gray-200 bg-white shadow-sm hover:shadow-md hover:border-teal-200 transition-all group"
+                                >
+                                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center mb-2 shrink-0">
+                                    <UserIcon className="h-5 w-5 text-white" />
+                                  </div>
+                                  <p className="text-sm font-medium text-gray-900 truncate w-full text-center" title={`${u.first_name} ${u.last_name}`}>
+                                    {u.first_name} {u.last_name}
+                                  </p>
+                                  <p className="text-xs text-gray-500 truncate w-full text-center mb-1.5" title={u.email}>
+                                    {u.email}
+                                  </p>
+                                  <RoleBadge role={u.role} size="sm" className="mb-2" />
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="absolute top-2 right-2 h-7 w-7 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={() => handleRemoveUserFromGroup(group.id, u.id)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {availableUsers.length > 0 && (
+                          <div>
+                            <p className="text-sm font-medium text-gray-700 mb-2">Add user</p>
+                            <div className="flex flex-wrap gap-2">
+                              {availableUsers.map((u) => (
+                                <Button
+                                  key={u.id}
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={addingToGroup === group.id}
+                                  onClick={() => handleAddUserToGroup(group.id, u.id)}
+                                  className="flex items-center gap-2"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                  {u.first_name} {u.last_name}
+                                  <RoleBadge role={u.role} size="sm" />
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+      <>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Profile Overview */}
         <motion.div
@@ -263,7 +628,7 @@ export default function ProfilePage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
+                <UserIcon className="h-5 w-5" />
                 Profile Overview
               </CardTitle>
             </CardHeader>
@@ -271,7 +636,7 @@ export default function ProfilePage() {
               {/* Avatar */}
               <div className="flex flex-col items-center text-center">
                 <div className="h-24 w-24 rounded-full bg-gradient-to-r from-teal-600 to-teal-700 flex items-center justify-center mb-4">
-                  <User className="h-12 w-12 text-white" />
+                  <UserIcon className="h-12 w-12 text-white" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900">
                   {user.first_name} {user.last_name}
@@ -327,7 +692,7 @@ export default function ProfilePage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
+                <UserIcon className="h-5 w-5" />
                 Profile Details
               </CardTitle>
             </CardHeader>
@@ -500,6 +865,69 @@ export default function ProfilePage() {
                   </div>
                 </FormSection>
 
+                <FormSection title="Map Location">
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-500">
+                      Set your country and city to center all maps across the app. Defaults to Johannesburg if not set.
+                    </p>
+                    <div className="relative">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Country & City</label>
+                      <Input
+                        value={citySearch || (formData.map_center ? `${formData.city || ''}${formData.country ? `, ${formData.country}` : ''}`.trim() : '')}
+                        onChange={(e) => setCitySearch(e.target.value)}
+                        onFocus={() => setShowCityDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowCityDropdown(false), 200)}
+                        placeholder="Search for your city (e.g. Johannesburg, Nairobi)"
+                        disabled={!editing}
+                        className="pr-20"
+                      />
+                      {formData.map_center && editing && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleClearMapLocation}
+                          className="absolute right-2 top-9 text-xs text-gray-500"
+                        >
+                          Clear
+                        </Button>
+                      )}
+                      {showCityDropdown && editing && (citySearch.trim() || cityResults.length > 0) && (
+                        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-auto">
+                          {citySearching ? (
+                            <div className="p-3 text-sm text-gray-500">Searching...</div>
+                          ) : cityResults.length === 0 ? (
+                            <div className="p-3 text-sm text-gray-500">No results</div>
+                          ) : (
+                            cityResults.map((r, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm flex flex-col"
+                                onMouseDown={(e) => { e.preventDefault(); handleSelectCity(r); }}
+                              >
+                                <span className="font-medium">{r.name}</span>
+                                {r.placeFormatted && (
+                                  <span className="text-xs text-gray-500">{r.placeFormatted}</span>
+                                )}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {formData.map_center && (
+                      <div className="flex items-center gap-2 text-sm text-teal-700 bg-teal-50 px-3 py-2 rounded-lg">
+                        <MapPin className="h-4 w-4 flex-shrink-0" />
+                        <span>
+                          {formData.city}{formData.country ? `, ${formData.country}` : ''}
+                          {' '}({formData.map_center.lat.toFixed(4)}, {formData.map_center.lon.toFixed(4)})
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </FormSection>
+
                 <FormSection title="Regional Settings">
                   <div className="space-y-4">
                     <div>
@@ -601,6 +1029,8 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );

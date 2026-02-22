@@ -27,7 +27,9 @@ export default function NotificationsPage() {
     notifications, 
     loading, 
     markAsRead, 
-    markAllAsRead 
+    markAllAsRead,
+    acknowledge,
+    refreshNotifications,
   } = useNotifications();
   const [markingAllRead, setMarkingAllRead] = useState(false);
   // Date range filter: 'today' | '7' | '14' | '30'
@@ -65,6 +67,17 @@ export default function NotificationsPage() {
       toast.error('Failed to mark all notifications as read');
     } finally {
       setMarkingAllRead(false);
+    }
+  };
+
+  const handleAcknowledge = async (notificationId: string) => {
+    try {
+      await acknowledge(notificationId);
+      toast.success('Incident acknowledged');
+      refreshNotifications();
+    } catch (error) {
+      console.error('Error acknowledging notification:', error);
+      toast.error('Failed to acknowledge');
     }
   };
 
@@ -348,17 +361,30 @@ export default function NotificationsPage() {
                                 )}
                               </div>
                               
-                              {!notification.read_status && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleMarkAsRead(notification.id)}
-                                  className="flex items-center gap-1 text-gray-500 hover:text-gray-700"
-                                >
-                                  <Check className="h-3 w-3" />
-                                  Mark as read
-                                </Button>
-                              )}
+                              <div className="flex items-center gap-2">
+                                {(notification.type === 'incident' || notification.type === 'incident_escalated') && !notification.acknowledged_at && (
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    onClick={() => handleAcknowledge(notification.id)}
+                                    className="flex items-center gap-1 bg-teal-600 hover:bg-teal-700"
+                                  >
+                                    <CheckCircle className="h-3 w-3" />
+                                    Acknowledge
+                                  </Button>
+                                )}
+                                {!notification.read_status && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleMarkAsRead(notification.id)}
+                                    className="flex items-center gap-1 text-gray-500 hover:text-gray-700"
+                                  >
+                                    <Check className="h-3 w-3" />
+                                    Mark as read
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                             
                             <p className={`text-sm mb-3 ${

@@ -11,7 +11,8 @@ import {
 } from '@/services/api';
 import { useComponents, useCreateComponent, useUpdateComponent, useDeleteComponent } from '@/hooks/useComponents';
 import { useAssets } from '@/hooks/useAssets';
-import { useClients } from '@/hooks/useClients';
+import { useClients, useClient } from '@/hooks/useClients';
+import { useClientLabels } from '@/hooks/useClientLabels';
 import { ComponentStatus } from '@/types/api';
 import { DataTable, type Column, type DataTableAction } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
@@ -43,7 +44,9 @@ import { useRouter } from 'next/navigation';
 export default function ComponentsPage() {
   const { user } = useAuth();
   const router = useRouter();
-  
+  const { data: currentClient } = useClient(user?.client_id ?? '', !!user?.client_id);
+  const { componentLabel, componentLabelSingular, assetLabel, assetLabelSingular } = useClientLabels();
+
   // React Query hooks
   const { data: clients = [] } = useClients();
   const { data: assets = [] } = useAssets();
@@ -104,7 +107,7 @@ export default function ComponentsPage() {
   // Stats
   const stats = [
     {
-      title: 'Total Components',
+      title: `Total ${componentLabel}`,
       value: components.length.toString(),
       description: user?.role === 'super_admin' && selectedClient ? 'For selected client' : 'In system',
       icon: Wrench,
@@ -147,7 +150,7 @@ export default function ComponentsPage() {
   const columns: Column<Component>[] = [
     {
       key: 'name',
-      title: 'Component Name',
+      title: `${componentLabelSingular} Name`,
       sortable: true,
       render: (component) => (
         <div className="flex items-center gap-3">
@@ -169,7 +172,7 @@ export default function ComponentsPage() {
     },
     {
       key: 'asset_id',
-      title: 'Asset',
+      title: assetLabelSingular,
       render: (component) => {
         const asset = assets.find((a: Asset) => a.id === component.asset_id);
         return asset ? (
@@ -382,10 +385,10 @@ export default function ComponentsPage() {
         <div className="flex items-center justify-between">
           <div className="space-y-2">
             <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-              Components
+              {componentLabel}
             </h1>
             <p className="text-xl text-muted-foreground">
-              Manage asset components and maintenance schedules
+              Manage {assetLabel.toLowerCase()} {componentLabel.toLowerCase()} and maintenance schedules
             </p>
           </div>
           <Button onClick={() => setShowCreateModal(true)} className="gap-2">
@@ -428,7 +431,7 @@ export default function ComponentsPage() {
               value={selectedAsset}
               onChange={(e) => setSelectedAsset(e.target.value)}
               options={[
-                { value: '', label: 'All Assets' },
+                { value: '', label: `All ${assetLabel}` },
                 ...(assets.map((asset: Asset) => ({ value: asset.id, label: asset.name })))
               ]}
             />
@@ -439,7 +442,7 @@ export default function ComponentsPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
-                placeholder="Search components..."
+                placeholder={`Search ${componentLabel.toLowerCase()}...`}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -471,11 +474,11 @@ export default function ComponentsPage() {
         columns={columns}
         actions={actions}
         loading={loading}
-        searchPlaceholder="Search components by name or type..."
+        searchPlaceholder={`Search ${componentLabel.toLowerCase()} by name or type...`}
         searchFields={['name', 'description', 'component_type']}
         emptyState={{
-          title: 'No components found',
-          description: 'Create your first component to get started.',
+          title: `No ${componentLabel.toLowerCase()} found`,
+          description: `Create your first ${componentLabelSingular.toLowerCase()} to get started.`,
           action: {
             label: 'Add Component',
             onClick: () => setShowCreateModal(true)
@@ -509,7 +512,7 @@ export default function ComponentsPage() {
               </FormField>
 
               <FormField name="component_type">
-                <FormLabel htmlFor="component_type" required>Component Type</FormLabel>
+                <FormLabel htmlFor="component_type" required>{componentLabelSingular} Type</FormLabel>
                 <Input
                   id="component_type"
                   value={formData.component_type}
@@ -630,7 +633,7 @@ export default function ComponentsPage() {
           setShowDeleteModal(false);
           setSelectedComponent(null);
         }}
-        title="Delete Component"
+        title={`Delete ${componentLabelSingular}`}
         size="sm"
       >
         <div className="space-y-4">
@@ -654,7 +657,7 @@ export default function ComponentsPage() {
               loading={isSubmitting}
               onClick={handleDelete}
             >
-              Delete Component
+              Delete {componentLabelSingular}
             </Button>
           </div>
         </div>

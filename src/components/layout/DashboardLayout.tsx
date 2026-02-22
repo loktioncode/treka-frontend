@@ -18,7 +18,9 @@ import {
   Wrench,
   Home,
   ChevronDown,
-  FileText
+  FileText,
+  Cpu,
+  Route
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SkeletonProfile } from '@/components/ui/skeleton';
@@ -26,6 +28,7 @@ import { SmartLink } from '@/components/SmartLink';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useRoutePrefetch } from '@/hooks/useRoutePrefetch';
+import { useClientLabels } from '@/hooks/useClientLabels';
 import { Tooltip } from '@/components/ui/tooltip';
 import { getCurrencySymbol } from '@/lib/utils';
 import { DollarSign } from 'lucide-react';
@@ -68,6 +71,12 @@ const navigation: NavigationItem[] = [
     roles: ['admin', 'user']
   },
   {
+    name: 'Devices',
+    href: '/dashboard/devices',
+    icon: Cpu,
+    roles: ['admin', 'user']
+  },
+  {
     name: 'Components',
     href: '/dashboard/components',
     icon: Wrench,
@@ -78,6 +87,12 @@ const navigation: NavigationItem[] = [
     href: '/dashboard/analytics',
     icon: BarChart3,
     roles: ['admin']
+  },
+  {
+    name: 'Trip Planning',
+    href: '/dashboard/trip-plans',
+    icon: Route,
+    roles: ['super_admin', 'admin', 'user']
   },
   {
     name: 'Audit',
@@ -92,6 +107,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { navigateTo } = useNavigation();
+  const { assetLabel, componentLabel } = useClientLabels();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -103,9 +119,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return true;
   });
   
-  // Get notification state from context
   const { unreadCount: notificationCount, hasCriticalAlerts } = useNotifications();
-  
+
   // Enable automatic route prefetching
   useRoutePrefetch();
 
@@ -121,9 +136,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [sidebarCollapsed]);
 
   // Filter navigation based on user role
-  const filteredNavigation = navigation.filter(item => 
-    user?.role && item.roles.includes(user.role)
-  );
+  const filteredNavigation = navigation
+    .filter(item => user?.role && item.roles.includes(user.role))
+    .map(item => ({
+      ...item,
+      name: item.name === 'Assets' ? assetLabel : item.name === 'Components' ? componentLabel : item.name,
+    }));
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -239,7 +257,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   className="relative -m-2.5 p-2.5 text-gray-400 hover:text-gray-500 cursor-pointer"
                 >
                   <Bell className="h-6 w-6" />
-                  {/* Notification count badge */}
                   {notificationCount > 0 && (
                     <span className={cn(
                       "absolute -top-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center text-xs font-medium text-white",

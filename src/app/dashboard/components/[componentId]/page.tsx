@@ -24,6 +24,7 @@ import {
 import toast from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
 import type { Component, Asset, MaintenanceLog, CreateMaintenanceLogRequest } from '@/types/api';
+import { useClientLabels } from '@/hooks/useClientLabels';
 
 interface ComponentDetails {
   component: Component | null;
@@ -58,6 +59,7 @@ interface ComponentDetails {
 export default function ComponentDetailsPage() {
   const { componentId } = useParams();
   const router = useRouter();
+  const { componentLabelSingular } = useClientLabels();
   const [details, setDetails] = useState<ComponentDetails>({
     component: null,
     asset: null,
@@ -222,7 +224,7 @@ export default function ComponentDetailsPage() {
     return (
       <div className="text-center py-12">
         <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Component not found</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">{componentLabelSingular} not found</h3>
         <p className="text-gray-600">The component you&apos;re looking for doesn&apos;t exist.</p>
       </div>
     );
@@ -367,7 +369,7 @@ export default function ComponentDetailsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Package className="w-5 h-5" />
-                  Component Details
+                  {componentLabelSingular} Details
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">

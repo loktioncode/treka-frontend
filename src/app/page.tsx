@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { MarketingCarousel } from '@/components/ui/marketing-carousel';
 
 export default function Home() {
   const router = useRouter();
@@ -261,6 +262,16 @@ export default function Home() {
               </motion.div>
             </div>
           </div>
+        </motion.section>
+
+        {/* Marketing Carousel */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="mb-20"
+        >
+          <MarketingCarousel />
         </motion.section>
 
         {/* CTA Section */}

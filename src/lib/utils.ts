@@ -34,10 +34,32 @@ export function truncateText(text: string, maxLength: number) {
 
 export function formatDateForInput(date: string | Date | null | undefined): string {
   if (!date) return '';
+
+  // If it's already a plain YYYY-MM-DD string, return as-is
+  if (typeof date === 'string') {
+    const trimmed = date.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return trimmed;
+    }
+
+    // If it's an ISO string with time (e.g. 2025-02-20T00:00:00Z),
+    // strip everything after the date part
+    const isoMatch = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (isoMatch) {
+      return isoMatch[1];
+    }
+  }
+
+  // Fallback: handle Date objects or other parseable strings without using toISOString
   try {
-    const dateObj = new Date(date);
-    if (isNaN(dateObj.getTime())) return '';
-    return dateObj.toISOString().split('T')[0];
+    const d = date instanceof Date ? date : new Date(date);
+    if (isNaN(d.getTime())) return '';
+
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
   } catch {
     return '';
   }

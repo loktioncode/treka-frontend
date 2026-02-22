@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { type Asset, type Client, type CreateAssetRequest, type AssetFilters } from '@/services/api';
 import { useAssets, useCreateAsset, useUpdateAsset, useDeleteAsset } from '@/hooks/useAssets';
-import { useClients } from '@/hooks/useClients';
+import { useClients, useClient } from '@/hooks/useClients';
+import { useClientLabels } from '@/hooks/useClientLabels';
 import { type VehicleDetails, type MachineryDetails, type EquipmentDetails } from '@/types/api';
 
 import { DataTable, type Column, type DataTableAction } from '@/components/ui/data-table';
@@ -14,13 +15,13 @@ import { Modal } from '@/components/ui/modal';
 import { QuickStats } from '@/components/ui/stats-card';
 import { StatusBadge } from '@/components/ui/badge';
 import { Form, FormField, FormLabel, FormSection, FormGrid, FormActions, Select, Textarea } from '@/components/ui/form';
-import { 
-  Package, 
-  Edit, 
-  Trash2, 
-  Plus, 
-  TrendingUp, 
-  Search, 
+import {
+  Package,
+  Edit,
+  Trash2,
+  Plus,
+  TrendingUp,
+  Search,
   Filter,
   Building2,
   Car,
@@ -40,9 +41,12 @@ export default function AssetsPage() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   // React Query hooks
   const { data: clients = [] } = useClients();
+  const { data: currentClient } = useClient(user?.client_id ?? '', !!user?.client_id);
+  const isLogisticsClient = currentClient?.client_type === 'logistics';
+  const { assetLabel, assetLabelSingular, componentLabel } = useClientLabels();
   const createAssetMutation = useCreateAsset();
   const updateAssetMutation = useUpdateAsset();
   const deleteAssetMutation = useDeleteAsset();
@@ -50,7 +54,7 @@ export default function AssetsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Filters
   const [selectedClient, setSelectedClient] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -87,6 +91,7 @@ export default function AssetsPage() {
       engine_type: '',
       fuel_type: '',
       mileage: 0,
+      service_interval_km: 10000,
       driver_id: undefined
     },
     machinery_details: {
@@ -119,8 +124,10 @@ export default function AssetsPage() {
     vin: updates.vin || formData.vehicle_details?.vin || '',
     license_plate: updates.license_plate || formData.vehicle_details?.license_plate || '',
     engine_type: updates.engine_type || formData.vehicle_details?.engine_type || '',
+    device_id: updates.device_id || formData.vehicle_details?.device_id || '',
     fuel_type: updates.fuel_type || formData.vehicle_details?.fuel_type || '',
-    mileage: updates.mileage || formData.vehicle_details?.mileage || 0,
+    mileage: updates.mileage ?? formData.vehicle_details?.mileage ?? 0,
+    service_interval_km: updates.service_interval_km ?? formData.vehicle_details?.service_interval_km ?? 10000,
     driver_id: updates.driver_id || formData.vehicle_details?.driver_id || undefined
   });
 
@@ -138,6 +145,56 @@ export default function AssetsPage() {
     model: updates.model || formData.equipment_details?.model || '',
     serial_number: updates.serial_number || formData.equipment_details?.serial_number || ''
   });
+
+  // Default form state for create (logistics clients can only add vehicles)
+  const getDefaultCreateFormData = (): Partial<CreateAssetRequest> => ({
+    name: '',
+    description: '',
+    asset_type: isLogisticsClient ? 'vehicle' : 'equipment',
+    status: 'active',
+    purchase_date: '',
+    purchase_cost: undefined,
+    current_value: undefined,
+    location: '',
+    vehicle_details: {
+      make: '',
+      model: '',
+      year: 0,
+      vin: '',
+      license_plate: '',
+      engine_type: '',
+      fuel_type: '',
+      mileage: 0,
+      service_interval_km: 10000,
+      driver_id: undefined
+    },
+    machinery_details: {
+      make: '',
+      model: '',
+      year: 0,
+      serial_number: '',
+      operating_hours: 0,
+      capacity: '',
+      power_rating: ''
+    },
+    equipment_details: {
+      model: '',
+      serial_number: ''
+    },
+    infrastructure_details: {
+      type: '',
+      age: 0,
+      material: undefined,
+      condition: undefined
+    }
+  });
+
+  // When create modal opens without an asset (create mode), ensure logistics clients get vehicle as default
+  useEffect(() => {
+    if (showCreateModal && !selectedAsset && isLogisticsClient && formData.asset_type !== 'vehicle') {
+      setFormData((prev) => ({ ...prev, asset_type: 'vehicle' }));
+    }
+  }, [showCreateModal, selectedAsset, isLogisticsClient, formData.asset_type]);
 
   // React Query handles all data loading automatically
 
@@ -157,7 +214,9 @@ export default function AssetsPage() {
           purchase_cost: assetToEdit.purchase_cost,
           current_value: assetToEdit.current_value,
           location: assetToEdit.location,
-          vehicle_details: assetToEdit.vehicle_details,
+          vehicle_details: assetToEdit.vehicle_details
+            ? { ...assetToEdit.vehicle_details, service_interval_km: assetToEdit.vehicle_details.service_interval_km ?? 10000 }
+            : undefined,
           machinery_details: assetToEdit.machinery_details,
           equipment_details: assetToEdit.equipment_details,
           infrastructure_details: assetToEdit.infrastructure_details
@@ -172,7 +231,7 @@ export default function AssetsPage() {
   // Stats
   const stats = [
     {
-      title: 'Total Assets',
+      title: `Total ${assetLabel}`,
       value: assets.length.toString(),
       description: user?.role === 'super_admin' && selectedClient ? 'For selected client' : 'In system',
       icon: Package,
@@ -180,7 +239,7 @@ export default function AssetsPage() {
       trend: { value: '12%', isPositive: true, label: 'vs last month' }
     },
     {
-      title: 'Active Assets',
+      title: `Active ${assetLabel}`,
       value: assets.filter((asset: Asset) => asset.status === 'active').length.toString(),
       description: 'Operational',
       icon: TrendingUp,
@@ -209,14 +268,14 @@ export default function AssetsPage() {
   const columns: Column<Asset>[] = [
     {
       key: 'name',
-      title: 'Asset Name',
+      title: `${assetLabelSingular} Name`,
       sortable: true,
       render: (asset) => (
         <div className="flex items-center gap-3">
           <div className="p-2 bg-teal-50 rounded-lg">
-            {asset.asset_type === 'vehicle' ? <Car className="w-4 h-4 text-teal-600" /> : 
-             asset.asset_type === 'machinery' ? <Wrench className="w-4 h-4 text-green-600" /> :
-             <Package className="w-4 h-4 text-purple-600" />}
+            {asset.asset_type === 'vehicle' ? <Car className="w-4 h-4 text-teal-600" /> :
+              asset.asset_type === 'machinery' ? <Wrench className="w-4 h-4 text-green-600" /> :
+                <Package className="w-4 h-4 text-purple-600" />}
           </div>
           <div>
             <div className="font-medium text-gray-900">{asset.name}</div>
@@ -341,31 +400,18 @@ export default function AssetsPage() {
     try {
       if (selectedAsset) {
         // Update existing asset
-        await updateAssetMutation.mutateAsync({ 
-          assetId: selectedAsset.id, 
-          data: formData 
+        await updateAssetMutation.mutateAsync({
+          assetId: selectedAsset.id,
+          data: formData
         });
       } else {
         // Create new asset
         await createAssetMutation.mutateAsync(formData as CreateAssetRequest);
       }
-      
+
       setShowCreateModal(false);
       setSelectedAsset(null);
-      setFormData({
-        name: '',
-        description: '',
-        asset_type: 'equipment',
-        status: 'active',
-        purchase_date: '',
-        purchase_cost: undefined,
-        current_value: undefined,
-        location: '',
-        vehicle_details: undefined,
-        machinery_details: undefined,
-        equipment_details: undefined,
-        infrastructure_details: undefined
-      });
+      setFormData(getDefaultCreateFormData());
     } catch (error: unknown) {
       if (error && typeof error === 'object' && 'response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'detail' in error.response.data) {
         const detail = error.response.data.detail;
@@ -388,7 +434,7 @@ export default function AssetsPage() {
     setIsSubmitting(true);
     try {
       await deleteAssetMutation.mutateAsync(selectedAsset.id);
-      
+
       setShowDeleteModal(false);
       setSelectedAsset(null);
     } catch {
@@ -409,13 +455,20 @@ export default function AssetsPage() {
         <div className="flex items-center justify-between">
           <div className="space-y-2">
             <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-              Assets
+              {assetLabel}
             </h1>
             <p className="text-xl text-muted-foreground">
-              Manage your {user?.role === 'super_admin' && selectedClient ? 'client' : 'organization'} assets and equipment
+              Manage your {user?.role === 'super_admin' && selectedClient ? 'client' : 'organization'} {assetLabel.toLowerCase()} and equipment
             </p>
           </div>
-          <Button onClick={() => setShowCreateModal(true)} className="gap-2">
+          <Button
+            onClick={() => {
+              setFormData(getDefaultCreateFormData());
+              setSelectedAsset(null);
+              setShowCreateModal(true);
+            }}
+            className="gap-2"
+          >
             <Plus className="w-4 h-4" />
             Add Asset
           </Button>
@@ -431,7 +484,7 @@ export default function AssetsPage() {
           <Filter className="w-5 h-5" />
           Filters
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Client filter - only for super admin */}
           {user?.role === 'super_admin' && (
@@ -448,20 +501,20 @@ export default function AssetsPage() {
               />
             </div>
           )}
-          
+
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">Search</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
-                placeholder="Search assets..."
+                placeholder={`Search ${assetLabel.toLowerCase()}...`}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
           </div>
-          
+
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">Status</label>
             <Select
@@ -476,7 +529,7 @@ export default function AssetsPage() {
               ]}
             />
           </div>
-          
+
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">Type</label>
             <Select
@@ -500,14 +553,18 @@ export default function AssetsPage() {
         columns={columns}
         actions={actions}
         loading={loading}
-        searchPlaceholder="Search assets by name or description..."
+        searchPlaceholder={`Search ${assetLabel.toLowerCase()} by name or description...`}
         searchFields={['name', 'description', 'location']}
         emptyState={{
-          title: 'No assets found',
-          description: 'Create your first asset to get started.',
+          title: `No ${assetLabel.toLowerCase()} found`,
+          description: `Create your first ${assetLabelSingular.toLowerCase()} to get started.`,
           action: {
             label: 'Add Asset',
-            onClick: () => setShowCreateModal(true)
+            onClick: () => {
+              setFormData(getDefaultCreateFormData());
+              setSelectedAsset(null);
+              setShowCreateModal(true);
+            }
           }
         }}
       />
@@ -538,19 +595,23 @@ export default function AssetsPage() {
               </FormField>
 
               <FormField name="asset_type">
-                <FormLabel htmlFor="asset_type" required>Asset Type</FormLabel>
+                <FormLabel htmlFor="asset_type" required>{assetLabelSingular} Type</FormLabel>
                 <Select
                   id="asset_type"
                   value={formData.asset_type}
                   onChange={(e) => setFormData({ ...formData, asset_type: e.target.value as 'vehicle' | 'machinery' | 'equipment' | 'infrastructure' })}
-
                   required
-                  options={[
-                    { value: 'vehicle', label: 'Vehicle' },
-                    { value: 'machinery', label: 'Machinery' },
-                    { value: 'equipment', label: 'Equipment' },
-                    { value: 'infrastructure', label: 'Infrastructure' }
-                  ]}
+                  disabled={isLogisticsClient}
+                  options={
+                    isLogisticsClient
+                      ? [{ value: 'vehicle', label: 'Vehicle' }]
+                      : [
+                          { value: 'vehicle', label: 'Vehicle' },
+                          { value: 'machinery', label: 'Machinery' },
+                          { value: 'equipment', label: 'Equipment' },
+                          { value: 'infrastructure', label: 'Infrastructure' }
+                        ]
+                  }
                 />
               </FormField>
 
@@ -658,6 +719,20 @@ export default function AssetsPage() {
                   />
                 </FormField>
 
+                <FormField name="vehicle_device_id">
+                  <FormLabel htmlFor="vehicle_device_id">IoT Device ID</FormLabel>
+                  <Input
+                    id="vehicle_device_id"
+                    value={formData.vehicle_details?.device_id || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      vehicle_details: createCompleteVehicleDetails({ device_id: e.target.value })
+                    })}
+                    placeholder="e.g., OBDBLE_12345"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Required for telemetry and live tracking. Must match the device_id in the firmware Config (e.g. ESP32_OBD_001).</p>
+                </FormField>
+
                 <FormField name="vehicle_license_plate">
                   <FormLabel htmlFor="vehicle_license_plate">License Plate</FormLabel>
                   <Input
@@ -733,6 +808,24 @@ export default function AssetsPage() {
                     placeholder="e.g., 50000"
                     min="0"
                   />
+                </FormField>
+
+                <FormField name="vehicle_service_interval">
+                  <FormLabel htmlFor="vehicle_service_interval">Service Interval (km)</FormLabel>
+                  <Input
+                    type="number"
+                    id="vehicle_service_interval"
+                    value={formData.vehicle_details?.service_interval_km ?? ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      vehicle_details: createCompleteVehicleDetails({ service_interval_km: parseInt(e.target.value) || 10000 })
+                    })}
+                    placeholder="e.g., 10000"
+                    min="1000"
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Distance between scheduled services (default 10,000 km)
+                  </p>
                 </FormField>
 
 
@@ -1049,15 +1142,15 @@ export default function AssetsPage() {
           setShowDeleteModal(false);
           setSelectedAsset(null);
         }}
-        title="Delete Asset"
+        title={`Delete ${assetLabelSingular}`}
         size="sm"
       >
         <div className="space-y-4">
           <p className="text-gray-600">
-            Are you sure you want to delete <strong>{selectedAsset?.name}</strong>? 
-            This action cannot be undone and will also delete all associated components.
+            Are you sure you want to delete <strong>{selectedAsset?.name}</strong>?
+            This action cannot be undone and will also delete all associated {componentLabel.toLowerCase()}.
           </p>
-          
+
           <div className="flex gap-3 justify-end">
             <Button
               variant="outline"

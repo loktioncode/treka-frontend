@@ -1,9 +1,10 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { usePathname } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
-import { SmartLink } from '@/components/SmartLink';
+import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { useClientLabels } from "@/hooks/useClientLabels";
+import { SmartLink } from "@/components/SmartLink";
 import {
   Bars3Icon,
   XMarkIcon,
@@ -12,22 +13,36 @@ import {
   WrenchIcon,
   ChartBarIcon,
   UserGroupIcon,
-} from '@heroicons/react/24/outline';
+  MapIcon,
+  ShieldCheckIcon,
+  TrophyIcon,
+} from "@heroicons/react/24/outline";
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-  { name: 'Assets', href: '/dashboard/assets', icon: CubeIcon },
-  { name: 'Components', href: '/dashboard/components', icon: WrenchIcon },
-  { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
-  { name: 'Clients', href: '/dashboard/clients', icon: UserGroupIcon },
+const navigationItems = [
+  { name: "Dashboard", href: "/dashboard", icon: HomeIcon, labelKey: null as string | null },
+  { name: "Driver Leaderboard", href: "/dashboard/drivers/leaderboard", icon: TrophyIcon, labelKey: null },
+  { name: "Assets", href: "/dashboard/assets", icon: CubeIcon, labelKey: "asset" as const },
+  { name: "Components", href: "/dashboard/components", icon: WrenchIcon, labelKey: "component" as const },
+  { name: "Analytics", href: "/dashboard/analytics", icon: ChartBarIcon, labelKey: null },
+  { name: "Live Map", href: "/dashboard/map", icon: MapIcon, labelKey: null },
+  { name: "Trip Planning", href: "/dashboard/trip-plans", icon: MapIcon, labelKey: null },
+  { name: "Geofences", href: "/dashboard/geofences", icon: ShieldCheckIcon, labelKey: null },
+  { name: "Clients", href: "/dashboard/clients", icon: UserGroupIcon, labelKey: null },
 ];
 
 export default function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { assetLabel, componentLabel } = useClientLabels();
 
   const isActive = (path: string) => pathname === path;
+
+  const getDisplayName = (item: (typeof navigationItems)[0]) => {
+    if (item.labelKey === "asset") return assetLabel;
+    if (item.labelKey === "component") return componentLabel;
+    return item.name;
+  };
 
   return (
     <>
@@ -36,26 +51,28 @@ export default function Navigation() {
           <div className="flex h-16 justify-between">
             <div className="flex">
               <div className="flex flex-shrink-0 items-center">
-                <SmartLink href="/dashboard" className="text-2xl font-bold text-blue-900 cursor-pointer">
+                <SmartLink
+                  href="/dashboard"
+                  className="text-2xl font-bold text-blue-900 cursor-pointer"
+                >
                   TREKA
                 </SmartLink>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                {navigation.map((item) => {
+                {navigationItems.map((item) => {
                   const Icon = item.icon;
                   return (
                     <SmartLink
                       key={item.name}
                       href={item.href}
-                      className={`inline-flex items-center px-1 pt-1 text-sm font-medium cursor-pointer ${
-                        isActive(item.href)
-                          ? 'border-b-2 border-teal-500 text-gray-900'
-                          : 'border-b-2 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                      }`}
+                      className={`inline-flex items-center px-1 pt-1 text-sm font-medium cursor-pointer ${isActive(item.href)
+                          ? "border-b-2 border-teal-500 text-gray-900"
+                          : "border-b-2 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                        }`}
                       variant="nav"
                     >
                       <Icon className="h-5 w-5 mr-1" />
-                      {item.name}
+                      {getDisplayName(item)}
                     </SmartLink>
                   );
                 })}
@@ -92,25 +109,24 @@ export default function Navigation() {
         </div>
 
         {/* Mobile menu */}
-        <div className={`${mobileMenuOpen ? 'block' : 'hidden'} sm:hidden`}>
+        <div className={`${mobileMenuOpen ? "block" : "hidden"} sm:hidden`}>
           <div className="space-y-1 pb-3 pt-2">
-            {navigation.map((item) => {
+            {navigationItems.map((item) => {
               const Icon = item.icon;
               return (
                 <SmartLink
                   key={item.name}
                   href={item.href}
-                  className={`block py-2 pl-3 pr-4 text-base font-medium cursor-pointer ${
-                    isActive(item.href)
-                      ? 'bg-teal-50 border-l-4 border-teal-500 text-teal-700'
-                      : 'border-l-4 border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700'
-                  }`}
+                  className={`block py-2 pl-3 pr-4 text-base font-medium cursor-pointer ${isActive(item.href)
+                      ? "bg-teal-50 border-l-4 border-teal-500 text-teal-700"
+                      : "border-l-4 border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700"
+                    }`}
                   onClick={() => setMobileMenuOpen(false)}
                   variant="default"
                 >
                   <div className="flex items-center">
                     <Icon className="h-5 w-5 mr-2" />
-                    {item.name}
+                    {getDisplayName(item)}
                   </div>
                 </SmartLink>
               );
@@ -119,7 +135,9 @@ export default function Navigation() {
           <div className="border-t border-gray-200 pb-3 pt-4">
             <div className="flex items-center px-4">
               <div className="ml-3">
-                <div className="text-base font-medium text-gray-800">{user?.email}</div>
+                <div className="text-base font-medium text-gray-800">
+                  {user?.email}
+                </div>
               </div>
             </div>
             <div className="mt-3 space-y-1">
@@ -138,4 +156,4 @@ export default function Navigation() {
       </nav>
     </>
   );
-} 
+}

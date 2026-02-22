@@ -24,9 +24,22 @@ interface ChatProps {
   onSendMessage: (message: string) => void;
   isLoading?: boolean;
   className?: string;
+  title?: string;
+  subtitle?: string;
+  placeholder?: string;
+  examplePrompt?: string;
 }
 
-export function Chat({ messages, onSendMessage, isLoading = false, className = '' }: ChatProps) {
+export function Chat({
+  messages,
+  onSendMessage,
+  isLoading = false,
+  className = '',
+  title = 'AI Analytics Assistant',
+  subtitle = 'Ask questions about your data',
+  placeholder = 'Ask about your data, assets, or performance...',
+  examplePrompt = 'What are the top performing assets?',
+}: ChatProps) {
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -61,13 +74,10 @@ export function Chat({ messages, onSendMessage, isLoading = false, className = '
           <Bot className="h-5 w-5 text-teal-700" />
         </div>
         <div>
-          <h3 className="font-semibold text-teal-900">AI Analytics Assistant</h3>
-          <p className="text-sm text-teal-700">Ask questions about your data</p>
+          <h3 className="font-semibold text-teal-900">{title}</h3>
+          <p className="text-sm text-teal-700">{subtitle}</p>
         </div>
-        <Badge variant="secondary" className="ml-auto">
-          <Sparkles className="h-3 w-3 mr-1" />
-          Powered by Gemini
-        </Badge>
+        
       </div>
 
       {/* Messages */}
@@ -75,8 +85,8 @@ export function Chat({ messages, onSendMessage, isLoading = false, className = '
         {messages.length === 0 ? (
           <div className="text-center text-teal-700 py-8">
             <Bot className="h-12 w-12 mx-auto mb-3 text-teal-400" />
-            <p className="text-sm">Start a conversation to get insights about your data</p>
-            <p className="text-xs mt-1">Try asking: &quot;What are the top performing assets?&quot;</p>
+            <p className="text-sm">Start a conversation to get insights</p>
+            <p className="text-xs mt-1">Try: &quot;{examplePrompt}&quot;</p>
           </div>
         ) : (
           messages.map((message) => (
@@ -153,7 +163,7 @@ export function Chat({ messages, onSendMessage, isLoading = false, className = '
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Ask about your data, assets, or performance..."
+            placeholder={placeholder}
             disabled={isLoading}
             className="flex-1"
           />
@@ -168,7 +178,7 @@ export function Chat({ messages, onSendMessage, isLoading = false, className = '
         </div>
         
         <p className="text-xs text-gray-500 mt-2">
-          Examples: &quot;Show me asset performance trends&quot;, &quot;What components need maintenance?&quot;
+          e.g. &quot;{examplePrompt}&quot;
         </p>
       </form>
     </Card>

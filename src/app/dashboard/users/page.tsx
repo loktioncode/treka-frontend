@@ -3,23 +3,23 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  type User, 
+import {
+  type User,
   type Client,
-  type CreateUserRequest, 
-  type CreateAdminRequest 
+  type CreateUserRequest,
+  type CreateAdminRequest
 } from '@/services/api';
-import { 
-  useUsers, 
-  useCreateUser, 
-  useCreateAdmin, 
-  useUpdateUser, 
-  useUpdateUserRole, 
-  useToggleUserActivation, 
-  useDeleteUser 
+import {
+  useUsers,
+  useCreateUser,
+  useCreateAdmin,
+  useUpdateUser,
+  useUpdateUserRole,
+  useToggleUserActivation,
+  useDeleteUser
 } from '@/hooks/useUsers';
 import { useClients } from '@/hooks/useClients';
-import { usePayouts } from '@/hooks/usePayouts';
+
 import { DataTable, type Column, type DataTableAction } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,25 +27,25 @@ import { Modal } from '@/components/ui/modal';
 import { StatsCard } from '@/components/ui/stats-card';
 import { RoleBadge } from '@/components/ui/badge';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Form, 
-  FormField, 
-  FormLabel, 
-  FormSection, 
-  FormGrid, 
-  FormActions, 
-  Select, 
-  Checkbox 
+import {
+  Form,
+  FormField,
+  FormLabel,
+  FormSection,
+  FormGrid,
+  FormActions,
+  Select,
+  Checkbox
 } from '@/components/ui/form';
 import { VehicleAssignments } from '@/components/ui/vehicle-assignments';
 import { VehicleAssignmentsTooltip } from '@/components/ui/vehicle-assignments-tooltip';
-import { 
-  Users, 
-  Trash2, 
-  UserPlus, 
-  Mail, 
-  Shield, 
-  ToggleLeft, 
+import {
+  Users,
+  Trash2,
+  UserPlus,
+  Mail,
+  Shield,
+  ToggleLeft,
   ToggleRight,
   Eye,
   Edit,
@@ -93,23 +93,18 @@ const validateLicenseNumber = (licenseNumber: string, licenseType: string): { is
 
 export default function UsersPage() {
   const { user } = useAuth();
-  
+
   // React Query hooks - backend now handles role-based filtering
   const { data: users = [], isLoading: loading } = useUsers();
   const { data: clients = [] } = useClients();
-  
-  // Get current client to determine if user is logistics client
-  const currentClient = clients.find((c: Client) => c.id === user?.client_id);
-  const isLogisticsClient = currentClient?.client_type === 'logistics';
-  
-  const { data: payoutsData } = usePayouts(isLogisticsClient);
+
   const createUserMutation = useCreateUser();
   const createAdminMutation = useCreateAdmin();
   const updateUserMutation = useUpdateUser();
   const updateUserRoleMutation = useUpdateUserRole();
   const toggleUserActivationMutation = useToggleUserActivation();
   const deleteUserMutation = useDeleteUser();
-  
+
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
@@ -120,7 +115,7 @@ export default function UsersPage() {
   const [showRoleChangeModal, setShowRoleChangeModal] = useState(false);
   const [roleChangeData, setRoleChangeData] = useState<{ role: 'super_admin' | 'admin' | 'user' | 'technician' | 'driver' | ''; client_id?: string }>({ role: '' });
   const [showRoleChangeConfirmation, setShowRoleChangeConfirmation] = useState(false);
-  
+
   // Debug role change data changes
   useEffect(() => {
     // Role change data monitoring logic removed for production
@@ -139,6 +134,7 @@ export default function UsersPage() {
     specializations: [],
     license_number: undefined,
     license_type: undefined,
+    license_expiry_date: undefined,
     license_front_image: undefined,
     license_back_image: undefined,
     vehicle_assignments: [],
@@ -192,7 +188,7 @@ export default function UsersPage() {
           { value: 'technician', label: 'Technician' }
         ];
       }
-      
+
       // Technicians can be promoted to user or admin
       if (currentUserRole === 'technician') {
         return [
@@ -200,7 +196,7 @@ export default function UsersPage() {
           { value: 'admin', label: 'Admin' }
         ];
       }
-      
+
       // Regular users can be promoted to admin
       if (currentUserRole === 'user') {
         return [
@@ -209,7 +205,7 @@ export default function UsersPage() {
           { value: 'driver', label: 'Driver' }
         ];
       }
-      
+
       // Admins can be demoted to user or technician
       if (currentUserRole === 'admin') {
         return [
@@ -264,6 +260,7 @@ export default function UsersPage() {
       specializations: [],
       license_number: undefined,
       license_type: undefined,
+      license_expiry_date: undefined,
       license_front_image: undefined,
       license_back_image: undefined,
       vehicle_assignments: [],
@@ -319,6 +316,14 @@ export default function UsersPage() {
           }
         }
       }
+      if (!formData.license_expiry_date) {
+        errors.license_expiry_date = 'License expiry date is required for driver role';
+      } else {
+        const expiry = new Date(formData.license_expiry_date);
+        if (expiry <= new Date()) {
+          errors.license_expiry_date = 'License expiry date must be in the future';
+        }
+      }
     }
 
     // Validate role availability based on client type
@@ -343,7 +348,7 @@ export default function UsersPage() {
   // Check if there are any changes in the edit form
   const hasChanges = () => {
     if (!selectedUser) return false;
-    
+
     // Check basic fields
     if (editFormData.first_name !== selectedUser.first_name) return true;
     if (editFormData.last_name !== selectedUser.last_name) return true;
@@ -352,12 +357,12 @@ export default function UsersPage() {
     if (editFormData.industry !== selectedUser.industry) return true;
     if (JSON.stringify(editFormData.specializations) !== JSON.stringify(selectedUser.specializations)) return true;
     if (JSON.stringify(editFormData.notification_preferences) !== JSON.stringify(selectedUser.notification_preferences)) return true;
-    
+
     // Check driver fields
     if (editFormData.license_number !== selectedUser.license_number) return true;
     if (editFormData.license_type !== selectedUser.license_type) return true;
     if (JSON.stringify(editFormData.vehicle_assignments) !== JSON.stringify(selectedUser.vehicle_assignments)) return true;
-    
+
     return false;
   };
 
@@ -367,20 +372,20 @@ export default function UsersPage() {
     if (!editFormData.first_name?.trim()) return false;
     if (!editFormData.last_name?.trim()) return false;
     if (!editFormData.email?.trim()) return false;
-    
+
     // Check email format
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editFormData.email || '')) return false;
-    
+
     // Check driver-specific validation
     if (editFormData.role === 'driver') {
       if (!editFormData.license_number?.trim()) return false;
       if (!editFormData.license_type) return false;
-      
+
       // Validate license number format
       const validation = validateLicenseNumber(editFormData.license_number, editFormData.license_type);
       if (!validation.isValid) return false;
     }
-    
+
     return true;
   };
 
@@ -388,7 +393,7 @@ export default function UsersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Additional license number validation for drivers
     if (formData.role === 'driver' && formData.license_number?.trim() && formData.license_type) {
       const validation = validateLicenseNumber(formData.license_number, formData.license_type);
@@ -397,7 +402,7 @@ export default function UsersPage() {
         return;
       }
     }
-    
+
     if (!validateForm()) return;
 
     setIsSubmitting(true);
@@ -408,7 +413,7 @@ export default function UsersPage() {
           ...formData,
           role: 'admin'
         } as CreateAdminRequest;
-        
+
 
         await createAdminMutation.mutateAsync(adminData);
       } else if (user?.role === 'admin' && user.client_id) {
@@ -417,9 +422,9 @@ export default function UsersPage() {
           ...formData,
           role: formData.role || 'user'
         } as CreateUserRequest;
-        
 
-        
+
+
         await createUserMutation.mutateAsync(userData);
       } else if (user?.role === 'admin' && !user.client_id) {
         // Admin user doesn't have a client assigned
@@ -430,7 +435,7 @@ export default function UsersPage() {
         toast.error('Please specify if creating an admin or select a client');
         return;
       }
-      
+
       setShowCreateModal(false);
       resetForm();
     } catch (error: unknown) {
@@ -438,7 +443,7 @@ export default function UsersPage() {
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as { response?: { data?: { detail?: string } } };
         message = axiosError.response?.data?.detail || message;
-        
+
         // Provide better guidance for specific errors
         if (message.includes('Admin user must be assigned to a client')) {
           message = 'Admin user must be assigned to a client to create users. Please contact a super admin to assign you to a client.';
@@ -452,9 +457,9 @@ export default function UsersPage() {
 
   const handleToggleActivation = async (user: User) => {
     try {
-      await toggleUserActivationMutation.mutateAsync({ 
-        userId: user.id, 
-        activate: !user.is_active 
+      await toggleUserActivationMutation.mutateAsync({
+        userId: user.id,
+        activate: !user.is_active
       });
     } catch (error: unknown) {
       let message = 'Failed to update user status';
@@ -474,9 +479,9 @@ export default function UsersPage() {
       // Use the utility function to get a valid user ID
       const userId = getValidUserId(selectedUser);
 
-      
+
       await deleteUserMutation.mutateAsync(userId);
-      
+
       setShowDeleteModal(false);
       setSelectedUser(null);
     } catch (error: unknown) {
@@ -494,7 +499,7 @@ export default function UsersPage() {
   };
 
   const handleViewUser = (user: User) => {
-    
+
     setSelectedUser(user);
     setShowUserModal(true);
   };
@@ -524,24 +529,24 @@ export default function UsersPage() {
 
   const handleUpdateUser = async () => {
     if (!selectedUser) return;
-    
+
     // Validate the form data before submission
     const errors: Record<string, string> = {};
-    
+
     if (!editFormData.email?.trim()) {
       errors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editFormData.email)) {
       errors.email = 'Please enter a valid email address';
     }
-    
+
     if (!editFormData.first_name?.trim()) {
       errors.first_name = 'First name is required';
     }
-    
+
     if (!editFormData.last_name?.trim()) {
       errors.last_name = 'Last name is required';
     }
-    
+
     // License number validation for drivers
     if (editFormData.role === 'driver') {
       if (!editFormData.license_number?.trim()) {
@@ -557,23 +562,23 @@ export default function UsersPage() {
         }
       }
     }
-    
+
     // Check if email is being changed and if it's different from current
     if (editFormData.email && editFormData.email !== selectedUser.email) {
       // Email is being changed - check if it's unique (this might be a backend validation)
 
     }
-    
+
     if (Object.keys(errors).length > 0) {
       // Show validation errors
       Object.values(errors).forEach(error => toast.error(error));
       return;
     }
-    
+
     setIsSubmitting(true);
     try {
 
-      
+
       // Only send fields that have actually changed
       const changedFields: Partial<User> = {};
       if (editFormData.email !== selectedUser.email) changedFields.email = editFormData.email;
@@ -587,7 +592,7 @@ export default function UsersPage() {
       if (JSON.stringify(editFormData.notification_preferences) !== JSON.stringify(selectedUser.notification_preferences)) {
         changedFields.notification_preferences = editFormData.notification_preferences;
       }
-      
+
       // Check driver-specific fields
       if (editFormData.license_number !== selectedUser.license_number) {
         changedFields.license_number = editFormData.license_number;
@@ -601,15 +606,15 @@ export default function UsersPage() {
       if (editFormData.uber_driver_uuid !== selectedUser.uber_driver_uuid) {
         changedFields.uber_driver_uuid = editFormData.uber_driver_uuid;
       }
-      
-      
-      
+
+
+
       // If no fields have changed, show a message and return
       if (Object.keys(changedFields).length === 0) {
         toast.success('No changes detected');
         return;
       }
-      
+
       // Use the utility function to get a valid user ID
       let userId: string;
       try {
@@ -620,9 +625,9 @@ export default function UsersPage() {
         toast.error('Invalid user data - cannot update user');
         return;
       }
-      
+
       await updateUserMutation.mutateAsync({ userId, data: changedFields });
-      
+
       toast.success('User updated successfully');
       setShowEditModal(false);
       setSelectedUser(null);
@@ -632,7 +637,7 @@ export default function UsersPage() {
         const axiosError = error as { response?: { data?: { detail?: string } } };
         message = axiosError.response?.data?.detail || message;
         console.error('API Error Details:', axiosError.response?.data);
-        
+
         // Handle specific error cases based on error message
         if (message.includes('already exists') || message.includes('duplicate')) {
           message = 'Email address already exists. Please use a different email.';
@@ -657,13 +662,13 @@ export default function UsersPage() {
 
   const handleRoleChange = async () => {
     if (!selectedUser || !roleChangeData.role) return;
-    
+
     // Prevent users from changing their own role
     if (selectedUser.id === user?.id) {
       toast.error('You cannot change your own role');
       return;
     }
-    
+
     // Prevent downgrading super admin if there's only one
     if (selectedUser.role === 'super_admin' && roleChangeData.role !== 'super_admin') {
       const superAdmins = users.filter((u: User) => u.role === 'super_admin');
@@ -672,67 +677,67 @@ export default function UsersPage() {
         return;
       }
     }
-    
+
     // Prevent role escalation attacks
     if (user?.role === 'admin' && roleChangeData.role === 'super_admin') {
       toast.error('Admins cannot promote users to super admin');
       return;
     }
-    
+
     // Prevent drivers from being upgraded to admin (business rule)
     if (selectedUser.role === 'driver' && roleChangeData.role === 'admin') {
       toast.error('Drivers cannot be promoted to admin role. Drivers must first be upgraded to regular user, then to admin.');
       return;
     }
-    
+
     // Prevent changing super admin roles if not super admin
     if (user?.role !== 'super_admin' && selectedUser.role === 'super_admin') {
       toast.error('Only super admins can modify super admin roles');
       return;
     }
-    
+
     // Prevent admins from changing other admin roles within the same client
     // This prevents privilege escalation attacks where one admin could remove another's privileges
     if (user?.role === 'admin' && selectedUser.role === 'admin' && user.client_id === selectedUser.client_id) {
       toast.error('Admins cannot modify other admin roles within the same client');
       return;
     }
-    
+
     // Show confirmation for role changes
     setShowRoleChangeConfirmation(true);
   };
 
   const confirmRoleChange = async () => {
     if (!selectedUser || !roleChangeData.role) return;
-    
+
     // Additional validation before API call
     if (roleChangeData.role === selectedUser.role) {
       toast.error('No role change detected');
       return;
     }
-    
+
     // Validate client assignment for admin roles
     if (roleChangeData.role === 'admin' && user?.role === 'super_admin' && !roleChangeData.client_id) {
       toast.error('Client assignment is required for admin users');
       return;
     }
-    
+
     setIsSubmitting(true);
     try {
 
-      
-              // Validate client_id if it's being sent
-        if (roleChangeData.client_id) {
-          // Check if client_id is actually a valid client ID (not a name)
-          const client = clients.find((c: Client) => c.id === roleChangeData.client_id);
+
+      // Validate client_id if it's being sent
+      if (roleChangeData.client_id) {
+        // Check if client_id is actually a valid client ID (not a name)
+        const client = clients.find((c: Client) => c.id === roleChangeData.client_id);
         if (!client) {
-      
+
           toast.error('Invalid client selection. Please try again.');
           return;
         }
 
       }
-      
+
       // Use the utility function to get a valid user ID
       let userId: string;
       try {
@@ -742,14 +747,14 @@ export default function UsersPage() {
         toast.error('Invalid user data - cannot update role');
         return;
       }
-      
-      
-      await updateUserRoleMutation.mutateAsync({ 
-        userId, 
-        role: roleChangeData.role, 
-        clientId: roleChangeData.client_id 
+
+
+      await updateUserRoleMutation.mutateAsync({
+        userId,
+        role: roleChangeData.role,
+        clientId: roleChangeData.client_id
       });
-      
+
       setShowRoleChangeModal(false);
       setShowRoleChangeConfirmation(false);
       setSelectedUser(null);
@@ -760,7 +765,7 @@ export default function UsersPage() {
         const axiosError = error as { response?: { data?: { detail?: string } } };
         message = axiosError.response?.data?.detail || message;
         console.error('Role Update API Error Details:', axiosError.response?.data);
-        
+
         // Handle specific error cases for role updates based on error message
         if (message.includes('conflict') || message.includes('not allowed')) {
           message = 'Role change conflict. This role change is not allowed.';
@@ -886,8 +891,8 @@ export default function UsersPage() {
       key: 'is_active',
       title: 'Status',
       render: (user) => (
-        <Badge 
-          variant={user.is_active ? 'success' : 'destructive'} 
+        <Badge
+          variant={user.is_active ? 'success' : 'destructive'}
           className="text-xs"
         >
           {user.is_active ? 'Active' : 'Inactive'}
@@ -962,7 +967,7 @@ export default function UsersPage() {
     },
     {
       key: 'deactivate',
-      label: 'Deactivate', 
+      label: 'Deactivate',
       icon: ToggleRight,
       onClick: handleToggleActivation,
       show: (u) => u.is_active && u.id !== user?.id
@@ -973,7 +978,7 @@ export default function UsersPage() {
       icon: Trash2,
       variant: 'destructive',
       onClick: (u) => {
-        
+
         setSelectedUser(u);
         setShowDeleteModal(true);
       },
@@ -996,11 +1001,11 @@ export default function UsersPage() {
     return null;
   }
 
-  const userTypeOptions = user?.role === 'super_admin' 
+  const userTypeOptions = user?.role === 'super_admin'
     ? [
-        { key: 'user', value: 'user', label: 'Regular User' },
-        { key: 'admin', value: 'admin', label: 'Admin User' }
-      ]
+      { key: 'user', value: 'user', label: 'Regular User' },
+      { key: 'admin', value: 'admin', label: 'Admin User' }
+    ]
     : [];
 
   const clientOptions = clients.map((client: Client) => ({
@@ -1008,7 +1013,7 @@ export default function UsersPage() {
     value: client.id,
     label: client.name
   }));
-  
+
 
 
   return (
@@ -1095,7 +1100,7 @@ export default function UsersPage() {
                 </h3>
                 <div className="mt-2 text-sm text-amber-700">
                   <p>
-                    Your admin account is not yet assigned to a client organization. 
+                    Your admin account is not yet assigned to a client organization.
                     You need to be assigned to a client before you can create users.
                   </p>
                   <p className="mt-1">
@@ -1161,7 +1166,7 @@ export default function UsersPage() {
                   </h3>
                   <div className="mt-2 text-sm text-red-700">
                     <p>
-                      Your admin account is not assigned to a client organization. 
+                      Your admin account is not assigned to a client organization.
                       You need to be assigned to a client before you can create users.
                     </p>
                     <p className="mt-1">
@@ -1208,7 +1213,7 @@ export default function UsersPage() {
                   const newRole = e.target.value as CreateUserRequest['role'];
 
                   setFormData({ ...formData, role: newRole });
-                  
+
                   // Clear related errors when role changes
                   if (newRole !== 'driver') {
                     setFormErrors(prev => ({ ...prev, license_number: '', license_type: '' }));
@@ -1223,11 +1228,11 @@ export default function UsersPage() {
                 disabled={isSubmitting}
               />
               <p className="text-sm text-gray-500 mt-1">
-                {user?.role === 'admin' && user.client_id && clients.find((c: Client) => c.id === user.client_id)?.client_type === 'logistics' 
+                {user?.role === 'admin' && user.client_id && clients.find((c: Client) => c.id === user.client_id)?.client_type === 'logistics'
                   ? 'Logistics clients can have drivers and technician mechanics for vehicle maintenance'
                   : user?.role === 'admin' && user.client_id && clients.find((c: Client) => c.id === user.client_id)?.client_type === 'industrial'
-                  ? 'Industrial clients can have technicians for equipment maintenance'
-                  : 'Select the appropriate role for this user'
+                    ? 'Industrial clients can have technicians for equipment maintenance'
+                    : 'Select the appropriate role for this user'
                 }
               </p>
             </FormField>
@@ -1242,9 +1247,9 @@ export default function UsersPage() {
                     step="0.01"
                     min="0"
                     value={formData.hourly_rate || ''}
-                    onChange={(e) => setFormData({ 
-                      ...formData, 
-                      hourly_rate: e.target.value ? parseFloat(e.target.value) : undefined 
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      hourly_rate: e.target.value ? parseFloat(e.target.value) : undefined
                     })}
                     placeholder="Enter hourly rate for technician work"
                     disabled={isSubmitting}
@@ -1258,8 +1263,8 @@ export default function UsersPage() {
                   <FormLabel>Industry (Optional)</FormLabel>
                   <Select
                     value={formData.industry || ''}
-                    onChange={(e) => setFormData({ 
-                      ...formData, 
+                    onChange={(e) => setFormData({
+                      ...formData,
                       industry: e.target.value || undefined,
                       specializations: [] // Reset specializations when industry changes
                     })}
@@ -1361,7 +1366,7 @@ export default function UsersPage() {
                       if (formErrors.license_type) {
                         setFormErrors(prev => ({ ...prev, license_type: '' }));
                       }
-                      
+
                       // Validate license number when license type changes
                       if (formData.license_number?.trim() && e.target.value) {
                         const validation = validateLicenseNumber(formData.license_number, e.target.value);
@@ -1438,71 +1443,30 @@ export default function UsersPage() {
                   )}
                 </FormField>
 
-                {/* Driver Selection from Payouts - Only show for logistics clients */}
-                {user?.role === 'admin' && user.client_id && clients.find((c: Client) => c.id === user.client_id)?.client_type === 'logistics' && (
-                  <FormField name="uber_driver_uuid">
-                    <FormLabel>Linked Imported Driver</FormLabel>
-                    <Select
-                      value={formData.uber_driver_uuid || ''}
-                      onChange={(e) => {
-                        const selectedDriverUuid = e.target.value;
-                        setFormData({ ...formData, uber_driver_uuid: selectedDriverUuid || undefined });
-                        
-                        // If a driver is selected, pre-populate first and last name
-                        if (selectedDriverUuid && payoutsData?.payouts) {
-                          const selectedDriver = payoutsData.payouts.find(driver => driver.uuid === selectedDriverUuid);
-                          if (selectedDriver) {
-                            setFormData(prev => ({
-                              ...prev,
-                              first_name: selectedDriver.first_name,
-                              last_name: selectedDriver.surname
-                            }));
-                          }
-                        }
-                      }}
-                      options={[
-                        { value: '', label: 'No driver linked' },
-                        ...(payoutsData?.payouts
-                          ?.filter(driver => {
-                            // Filter out drivers that already have users (except current user)
-                            const hasExistingUser = users.some((user: User) => 
-                              user.uber_driver_uuid === driver.uuid && user.id !== selectedUser?.id
-                            );
-                            
-                            // Filter out documents with IDs containing a lot of zeros (test data)
-                            const hasManyZeros = driver.uuid && driver.uuid.match(/0{6,}/);
-                            
-                            return !hasExistingUser && !hasManyZeros;
-                          })
-                          .map(driver => ({
-                            value: driver.uuid,
-                            label: `${driver.full_name} (${driver.payment_count} payments, ${driver.total_earnings.toLocaleString('en-ZA', { style: 'currency', currency: 'ZAR' })})`
-                          })) || [])
-                      ]}
-                      disabled={isSubmitting || !payoutsData?.payouts}
-                      className={formData.uber_driver_uuid ? 'border-teal-600' : ''}
-                    />
+                <FormField name="license_expiry_date">
+                  <FormLabel required>License Expiry Date</FormLabel>
+                  <Input
+                    type="date"
+                    value={formData.license_expiry_date || ''}
+                    onChange={(e) => {
+                      setFormData({ ...formData, license_expiry_date: e.target.value || undefined });
+                      if (formErrors.license_expiry_date) {
+                        setFormErrors(prev => ({ ...prev, license_expiry_date: '' }));
+                      }
+                    }}
+                    min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                    disabled={isSubmitting}
+                    className={formErrors.license_expiry_date ? 'border-red-500' : ''}
+                  />
+                  {formErrors.license_expiry_date ? (
+                    <p className="text-sm text-red-500 mt-1">{formErrors.license_expiry_date}</p>
+                  ) : (
                     <p className="text-sm text-gray-500 mt-1">
-                      {payoutsData?.payouts ? (
-                        <>
-                          Link this user to an imported driver from your earnings data. 
-                          This will automatically populate the first and last name fields.
-                          {formData.uber_driver_uuid ? (
-                            <span className="text-teal-600 font-medium">
-                              {' '}Currently linked to: {payoutsData.payouts.find(driver => driver.uuid === formData.uber_driver_uuid)?.full_name}
-                            </span>
-                          ) : (
-                            <span className="text-gray-600">
-                              {' '}No driver currently linked.
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        'Loading available drivers...'
-                      )}
+                      Date when the driver&apos;s license expires (must be future date)
                     </p>
-                  </FormField>
-                )}
+                  )}
+                </FormField>
+
               </>
             )}
           </FormSection>
@@ -1594,8 +1558,8 @@ export default function UsersPage() {
             >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               loading={isSubmitting}
               disabled={user?.role === 'admin' && !user.client_id}
             >
@@ -1616,7 +1580,7 @@ export default function UsersPage() {
       >
         <div className="space-y-4">
           <p className="text-gray-600">
-            Are you sure you want to delete <strong>{selectedUser?.first_name} {selectedUser?.last_name}</strong>? 
+            Are you sure you want to delete <strong>{selectedUser?.first_name} {selectedUser?.last_name}</strong>?
             This action cannot be undone and will remove all associated data.
           </p>
           <div className="flex justify-end gap-3">
@@ -1754,12 +1718,18 @@ export default function UsersPage() {
                       <p className="text-gray-900">{selectedUser.license_type}</p>
                     </div>
                   )}
+                  {selectedUser.license_expiry_date && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">License Expiry Date</label>
+                      <p className="text-gray-900">{formatDate(selectedUser.license_expiry_date)}</p>
+                    </div>
+                  )}
                   {selectedUser.vehicle_assignments && selectedUser.vehicle_assignments.length > 0 && (
                     <div className="md:col-span-2">
                       <label className="text-sm font-medium text-gray-500">Vehicle Assignments</label>
                       <div className="mt-2">
-                        <VehicleAssignments 
-                          assetIds={selectedUser.vehicle_assignments} 
+                        <VehicleAssignments
+                          assetIds={selectedUser.vehicle_assignments}
                           className="border-teal-600"
                         />
                       </div>
@@ -1824,23 +1794,23 @@ export default function UsersPage() {
                     </>
                   )}
                 </Button>
-                
+
                 {/* Role Change Button - only show if user has permission */}
-                {((user?.role === 'super_admin') || 
+                {((user?.role === 'super_admin') ||
                   (user?.role === 'admin' && user.client_id === selectedUser.client_id && selectedUser.role !== 'super_admin' && selectedUser.role !== 'admin' && selectedUser.role !== 'driver')) && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowUserModal(false);
-                      setRoleChangeData({ role: selectedUser.role });
-                      setShowRoleChangeModal(true);
-                    }}
-                    className="flex items-center gap-2"
-                  >
-                    <Shield className="h-4 w-4" />
-                    Change Role
-                  </Button>
-                )}
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowUserModal(false);
+                        setRoleChangeData({ role: selectedUser.role });
+                        setShowRoleChangeModal(true);
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <Shield className="h-4 w-4" />
+                      Change Role
+                    </Button>
+                  )}
               </div>
               <div className="flex gap-2">
                 <Button
@@ -1913,9 +1883,9 @@ export default function UsersPage() {
                     step="0.01"
                     min="0"
                     value={editFormData.hourly_rate || ''}
-                    onChange={(e) => setEditFormData({ 
-                      ...editFormData, 
-                      hourly_rate: e.target.value ? parseFloat(e.target.value) : undefined 
+                    onChange={(e) => setEditFormData({
+                      ...editFormData,
+                      hourly_rate: e.target.value ? parseFloat(e.target.value) : undefined
                     })}
                     placeholder="Enter hourly rate for technician work"
                     disabled={isSubmitting}
@@ -1929,8 +1899,8 @@ export default function UsersPage() {
                   <FormLabel>Industry (Optional)</FormLabel>
                   <Select
                     value={editFormData.industry || ''}
-                    onChange={(e) => setEditFormData({ 
-                      ...editFormData, 
+                    onChange={(e) => setEditFormData({
+                      ...editFormData,
                       industry: e.target.value || undefined,
                       specializations: [] // Reset specializations when industry changes
                     })}
@@ -2054,9 +2024,9 @@ export default function UsersPage() {
                   <Select
                     value={editFormData.license_type || ''}
                     onChange={(e) => {
-                      setEditFormData({ 
-                        ...editFormData, 
-                        license_type: e.target.value || undefined 
+                      setEditFormData({
+                        ...editFormData,
+                        license_type: e.target.value || undefined
                       });
                       // Clear error when user starts typing
                       if (editLicenseNumberError) {
@@ -2135,72 +2105,6 @@ export default function UsersPage() {
                 </FormField>
               </FormGrid>
 
-              {/* Driver Selection from Payouts - Only show for logistics clients */}
-              {user?.role === 'admin' && user.client_id && clients.find((c: Client) => c.id === user.client_id)?.client_type === 'logistics' && (
-                <FormField name="uber_driver_uuid">
-                  <FormLabel>Linked Imported Driver</FormLabel>
-                  <Select
-                    value={editFormData.uber_driver_uuid || ''}
-                    onChange={(e) => {
-                      const selectedDriverUuid = e.target.value;
-                      setEditFormData({ ...editFormData, uber_driver_uuid: selectedDriverUuid || undefined });
-                      
-                      // If a driver is selected, pre-populate first and last name
-                      if (selectedDriverUuid && payoutsData?.payouts) {
-                        const selectedDriver = payoutsData.payouts.find(driver => driver.uuid === selectedDriverUuid);
-                        if (selectedDriver) {
-                          setEditFormData(prev => ({
-                            ...prev,
-                            first_name: selectedDriver.first_name,
-                            last_name: selectedDriver.surname
-                          }));
-                        }
-                      }
-                    }}
-                    options={[
-                      { value: '', label: 'No driver linked' },
-                      ...(payoutsData?.payouts
-                        ?.filter(driver => {
-                          // Filter out drivers that already have users (except current user)
-                          const hasExistingUser = users.some((user: User) => 
-                            user.uber_driver_uuid === driver.uuid && user.id !== selectedUser?.id
-                          );
-                          
-                          // Filter out documents with IDs containing a lot of zeros (test data)
-                          const hasManyZeros = driver.uuid && driver.uuid.match(/0{6,}/);
-                          
-                          return !hasExistingUser && !hasManyZeros;
-                        })
-                        .map(driver => ({
-                          value: driver.uuid,
-                          label: `${driver.full_name} (${driver.payment_count} payments, ${driver.total_earnings.toLocaleString('en-ZA', { style: 'currency', currency: 'ZAR' })})`
-                        })) || [])
-                    ]}
-                    disabled={isSubmitting || !payoutsData?.payouts}
-                    className={editFormData.uber_driver_uuid ? 'border-teal-600' : ''}
-                  />
-                  <p className="text-sm text-gray-500 mt-1">
-                    {payoutsData?.payouts ? (
-                      <>
-                        Link this user to an imported driver from your earnings data. 
-                        This will automatically populate the first and last name fields.
-                        {editFormData.uber_driver_uuid ? (
-                          <span className="text-teal-600 font-medium">
-                            {' '}Currently linked to: {payoutsData.payouts.find(driver => driver.uuid === editFormData.uber_driver_uuid)?.full_name}
-                          </span>
-                        ) : (
-                          <span className="text-gray-600">
-                            {' '}No driver currently linked.
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      'Loading available drivers...'
-                    )}
-                  </p>
-                </FormField>
-              )}
-
               {/* License Images */}
               <FormGrid cols={2}>
                 <FormField name="license_front_image">
@@ -2208,9 +2112,9 @@ export default function UsersPage() {
                   <div className="space-y-3">
                     {editFormData.license_front_image ? (
                       <div className="relative">
-                        <Image 
-                          src={editFormData.license_front_image} 
-                          alt="Front License" 
+                        <Image
+                          src={editFormData.license_front_image}
+                          alt="Front License"
                           width={400}
                           height={128}
                           className="w-full h-32 object-cover rounded-lg border border-gray-300"
@@ -2255,9 +2159,9 @@ export default function UsersPage() {
                   <div className="space-y-3">
                     {editFormData.license_back_image ? (
                       <div className="relative">
-                        <Image 
-                          src={editFormData.license_back_image} 
-                          alt="Back License" 
+                        <Image
+                          src={editFormData.license_back_image}
+                          alt="Back License"
                           width={400}
                           height={128}
                           className="w-full h-32 object-cover rounded-lg border border-gray-300"
@@ -2301,8 +2205,8 @@ export default function UsersPage() {
               <FormField name="vehicle_assignments">
                 <FormLabel>Current Vehicle Assignments</FormLabel>
                 <div className="mt-2">
-                  <VehicleAssignments 
-                    assetIds={editFormData.vehicle_assignments || []} 
+                  <VehicleAssignments
+                    assetIds={editFormData.vehicle_assignments || []}
                     className="border-teal-600"
                   />
                 </div>
@@ -2354,27 +2258,27 @@ export default function UsersPage() {
             >
               Cancel
             </Button>
-            
+
             {/* Role Change Button - only show if user has permission */}
-            {((user?.role === 'super_admin') || 
+            {((user?.role === 'super_admin') ||
               (user?.role === 'admin' && user.client_id === selectedUser?.client_id && selectedUser?.role !== 'super_admin' && selectedUser?.role !== 'admin')) && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowUserModal(false);
-                  setRoleChangeData({ role: selectedUser?.role || '' });
-                  setShowRoleChangeModal(true);
-                }}
-                disabled={isSubmitting}
-              >
-                <Shield className="h-4 w-4 mr-2" />
-                Change Role
-              </Button>
-            )}
-            
-            <Button 
-              type="submit" 
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowUserModal(false);
+                    setRoleChangeData({ role: selectedUser?.role || '' });
+                    setShowRoleChangeModal(true);
+                  }}
+                  disabled={isSubmitting}
+                >
+                  <Shield className="h-4 w-4 mr-2" />
+                  Change Role
+                </Button>
+              )}
+
+            <Button
+              type="submit"
               loading={isSubmitting}
               disabled={!hasChanges() || !isEditFormValid()}
             >
@@ -2476,12 +2380,12 @@ export default function UsersPage() {
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               type="button"
               onClick={handleRoleChange}
               loading={isSubmitting}
               disabled={
-                !roleChangeData.role || 
+                !roleChangeData.role ||
                 (roleChangeData.role === 'admin' && user?.role === 'super_admin' && !roleChangeData.client_id) ||
                 roleChangeData.role === selectedUser?.role
               }
@@ -2507,7 +2411,7 @@ export default function UsersPage() {
               <strong>Warning:</strong> Changing a user&apos;s role will affect their permissions and access to the system.
             </div>
           </div>
-          
+
           <div className="space-y-2">
             <p className="text-gray-600">
               Are you sure you want to change <strong>{selectedUser?.first_name} {selectedUser?.last_name}</strong>&apos;s role?
