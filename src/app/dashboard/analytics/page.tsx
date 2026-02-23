@@ -94,6 +94,12 @@ interface Component {
   updated_at?: string;
 }
 
+interface AIInsights {
+  insights?: string[];
+  recommendations?: string[];
+  data_summary?: string;
+}
+
 export default function AnalyticsPage() {
   const { user } = useAuth();
   const [stats] = useState<DashboardStats | null>(null);
@@ -105,9 +111,7 @@ export default function AnalyticsPage() {
   const isLogisticsClient = currentClient?.client_type === "logistics";
 
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
-  const [aiInsights, setAiInsights] = useState<Record<string, unknown> | null>(
-    null,
-  );
+  const [aiInsights, setAiInsights] = useState<AIInsights | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
 

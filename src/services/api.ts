@@ -832,6 +832,7 @@ export type {
   LoginResponse,
   PaginatedResponse,
   AssetFilters,
+  ComponentFilters,
   UserFilters,
   PaginationParams,
   DriverLeaderboardResponse,

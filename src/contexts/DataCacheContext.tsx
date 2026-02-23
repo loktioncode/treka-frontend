@@ -74,11 +74,11 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
   }, [queryClient]);
 
   const refetchUsers = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: userKeys.lists({}) });
+    queryClient.invalidateQueries({ queryKey: userKeys.lists() });
   }, [queryClient]);
 
   const refetchComponents = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: componentKeys.lists({}, {}) });
+    queryClient.invalidateQueries({ queryKey: componentKeys.lists() });
   }, [queryClient]);
 
   const refetchTripPlans = useCallback(() => {
@@ -86,7 +86,7 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
   }, [queryClient]);
 
   const refetchClients = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: clientKeys.lists({}) });
+    queryClient.invalidateQueries({ queryKey: clientKeys.lists() });
   }, [queryClient]);
 
   const refetchAll = useCallback(() => {

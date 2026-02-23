@@ -229,7 +229,7 @@ export function OverallEarningsChart({ data, title = 'Overall Earnings', subtitl
                 borderRadius: '8px',
                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
               }}
-              formatter={(value: number) => [`R${value.toLocaleString()}`, 'Earnings']}
+              formatter={(value: number | undefined) => [value != null ? `R${value.toLocaleString()}` : "", "Earnings"]}
             />
             <Area 
               type="monotone" 
@@ -284,7 +284,7 @@ export function OverallEarningsChart({ data, title = 'Overall Earnings', subtitl
                     borderRadius: '8px',
                     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                   }}
-                  formatter={(value: number) => [`R${value.toLocaleString()}`, 'Earnings']}
+                  formatter={(value: number | undefined) => [value != null ? `R${value.toLocaleString()}` : "", "Earnings"]}
                 />
                 <Area 
                   type="monotone" 
@@ -412,7 +412,7 @@ export function DriverLeaderboardChart({ data, title = 'Driver Leaderboard', sub
                 borderRadius: '8px',
                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
               }}
-              formatter={(value: number) => [`R${value.toLocaleString()}`, 'Earnings']}
+              formatter={(value: number | undefined) => [value != null ? `R${value.toLocaleString()}` : "", "Earnings"]}
             />
             <Bar 
               dataKey="total_earnings" 
@@ -457,7 +457,7 @@ export function DriverLeaderboardChart({ data, title = 'Driver Leaderboard', sub
                     borderRadius: '8px',
                     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                   }}
-                                     formatter={(value: number) => [`R${value.toLocaleString()}`, 'Earnings']}
+                                     formatter={(value: number | undefined) => [value != null ? `R${value.toLocaleString()}` : "", "Earnings"]}
                 />
                 <Bar 
                   dataKey="total_earnings" 
@@ -571,7 +571,7 @@ export function PaymentDistributionChart({ data, title = 'Payment Distribution',
                 borderRadius: '8px',
                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
               }}
-              formatter={(value: number) => [`R${value.toLocaleString()}`, 'Amount']}
+              formatter={(value: number | undefined) => [value != null ? `R${value.toLocaleString()}` : "", "Amount"]}
             />
           </PieChart>
         </ResponsiveContainer>
@@ -605,7 +605,7 @@ export function PaymentDistributionChart({ data, title = 'Payment Distribution',
                     borderRadius: '8px',
                     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                   }}
-                  formatter={(value: number) => [`R${value.toLocaleString()}`, 'Amount']}
+                  formatter={(value: number | undefined) => [value != null ? `R${value.toLocaleString()}` : "", "Amount"]}
                 />
                 <Legend />
               </PieChart>
@@ -721,9 +721,9 @@ export function PerformanceTrendsChart({ data, title = 'Performance Trends', sub
                 borderRadius: '8px',
                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
               }}
-              formatter={(value: number, name: string) => [
-                name === 'drivers' ? value.toString() : `R${value.toLocaleString()}`,
-                name === 'drivers' ? 'Active Drivers' : 'Total Earnings'
+              formatter={(value: number | undefined, name: string | undefined) => [
+                value != null ? (name === "drivers" ? value.toString() : `R${value.toLocaleString()}`) : "",
+                name === "drivers" ? "Active Drivers" : "Total Earnings",
               ]}
             />
             <Line 
@@ -789,9 +789,9 @@ export function PerformanceTrendsChart({ data, title = 'Performance Trends', sub
                     borderRadius: '8px',
                     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                   }}
-                  formatter={(value: number, name: string) => [
-                    name === 'drivers' ? value.toString() : `R${value.toLocaleString()}`,
-                    name === 'drivers' ? 'Active Drivers' : 'Total Earnings'
+                  formatter={(value: number | undefined, name: string | undefined) => [
+                    value != null ? (name === "drivers" ? value.toString() : `R${value.toLocaleString()}`) : "",
+                    name === "drivers" ? "Active Drivers" : "Total Earnings",
                   ]}
                 />
                 <Legend />

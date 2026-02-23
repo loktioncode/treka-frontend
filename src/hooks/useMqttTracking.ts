@@ -135,7 +135,7 @@ export function useMqttTracking(deviceId?: string) {
                         }
 
                         if (latestRecord) {
-                            const raw = latestRecord as Record<string, unknown>;
+                            const raw = latestRecord as unknown as Record<string, unknown>;
                             const record: TelemetryRecord = {
                                 ...latestRecord!,
                                 lon: (latestRecord!.lon ?? raw.lng) as number | undefined,
@@ -153,7 +153,7 @@ export function useMqttTracking(deviceId?: string) {
                                     status: 'online'
                                 }
                             }));
-                            const norm = (r: TelemetryRecord) => ({ ...r, lon: r.lon ?? (r as Record<string, unknown>).lng as number });
+                            const norm = (r: TelemetryRecord) => ({ ...r, lon: r.lon ?? (r as unknown as Record<string, unknown>).lng as number });
                             const withLatLon = (record.lat != null && (record.lon != null || raw.lng != null)) ? [norm(record)] : [];
                             const fromBatch = (data.records ?? [])
                                 .map((r: TelemetryRecord) => norm(r))
@@ -166,8 +166,8 @@ export function useMqttTracking(deviceId?: string) {
                                     const JUMP_KM = 15; // Only real teleports (e.g. route loop ~60km) start new path
                                     const last = list[list.length - 1];
                                     const firstNew = toAdd[0];
-                                    const lastLon = last?.lon ?? (last as Record<string, unknown>)?.lng;
-                                    const firstLon = firstNew.lon ?? (firstNew as Record<string, unknown>).lng;
+                                    const lastLon = last?.lon ?? (last as unknown as Record<string, unknown>)?.lng;
+                                    const firstLon = firstNew.lon ?? (firstNew as unknown as Record<string, unknown>).lng;
                                     const isJump =
                                         last &&
                                         firstNew.lat != null &&

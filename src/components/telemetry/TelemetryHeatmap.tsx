@@ -97,7 +97,7 @@ export const TelemetryHeatmap: React.FC<TelemetryHeatmapProps> = ({
                 type: "Feature" as const,
                 geometry: {
                     type: "Point" as const,
-                    coordinates: [d.lon as number, d.lat as number],
+                    coordinates: [d.lon as number, d.lat as number] as [number, number],
                 },
                 properties: {
                     mag: Number(d[metric]) || 0,

@@ -117,7 +117,7 @@ export const TelemetryCharts: React.FC<TelemetryChartsProps> = ({
                   }}
                 />
                 <Tooltip
-                  labelFormatter={(value: number) => formatTime(value)}
+                  labelFormatter={(label) => formatTime(Number(label))}
                   contentStyle={{
                     backgroundColor: "rgba(255, 255, 255, 0.9)",
                     borderRadius: "8px",
@@ -166,7 +166,7 @@ export const TelemetryCharts: React.FC<TelemetryChartsProps> = ({
                   label={{ value: xAxisLabel, position: "insideBottom", offset: -5 }}
                 />
                 <YAxis domain={[0, 150]} />
-                <Tooltip labelFormatter={(v: number) => formatTime(v)} />
+                <Tooltip labelFormatter={(label) => formatTime(Number(label))} />
                 <Legend verticalAlign="top" height={36} />
                 <Area
                   type="monotone"
@@ -215,7 +215,7 @@ export const TelemetryCharts: React.FC<TelemetryChartsProps> = ({
                   label={{ value: xAxisLabel, position: "insideBottom", offset: -5 }}
                 />
                 <YAxis domain={[10, 16]} ticks={[10, 11, 12, 13, 14, 15, 16]} />
-                <Tooltip labelFormatter={(v: number) => formatTime(v)} />
+                <Tooltip labelFormatter={(label) => formatTime(Number(label))} />
                 <Line
                   type="stepAfter"
                   dataKey="vlt"
@@ -313,7 +313,7 @@ export const TelemetryCharts: React.FC<TelemetryChartsProps> = ({
                     position: "insideRight",
                   }}
                 />
-                <Tooltip labelFormatter={(v: number) => formatTime(v)} />
+                <Tooltip labelFormatter={(label) => formatTime(Number(label))} />
                 <Legend verticalAlign="top" height={36} />
                 <Line
                   yAxisId="left"
@@ -367,7 +367,7 @@ export const TelemetryCharts: React.FC<TelemetryChartsProps> = ({
                   stroke="#f97316"
                   label={{ value: "MAF (g/s)", angle: 90, position: "insideRight" }}
                 />
-                <Tooltip labelFormatter={(v: number) => formatTime(v)} />
+                <Tooltip labelFormatter={(label) => formatTime(Number(label))} />
                 <Legend verticalAlign="top" height={36} />
                 <Line yAxisId="left" type="monotone" dataKey="fl" stroke="#22c55e" name="Fuel Level %" dot={false} strokeWidth={2} />
                 <Line yAxisId="right" type="monotone" dataKey="maf" stroke="#f97316" name="Mass Air Flow" dot={false} strokeWidth={2} />
@@ -395,7 +395,7 @@ export const TelemetryCharts: React.FC<TelemetryChartsProps> = ({
                   label={{ value: xAxisLabel, position: "insideBottom", offset: -5 }}
                 />
                 <YAxis domain={[0, 100]} label={{ value: "%", angle: -90, position: "insideLeft" }} />
-                <Tooltip labelFormatter={(v: number) => formatTime(v)} />
+                <Tooltip labelFormatter={(label) => formatTime(Number(label))} />
                 <Legend verticalAlign="top" height={36} />
                 <Area type="monotone" dataKey="thr" stroke="#8b5cf6" fill="#ede9fe" name="Throttle Position %" strokeWidth={2} />
                 <Area type="monotone" dataKey="lod" stroke="#ec4899" fill="#fce7f3" name="Engine Load %" strokeWidth={2} />
@@ -422,7 +422,7 @@ export const TelemetryCharts: React.FC<TelemetryChartsProps> = ({
                   label={{ value: xAxisLabel, position: "insideBottom", offset: -5 }}
                 />
                 <YAxis label={{ value: "Degrees (°)", angle: -90, position: "insideLeft" }} />
-                <Tooltip labelFormatter={(v: number) => formatTime(v)} />
+                <Tooltip labelFormatter={(label) => formatTime(Number(label))} />
                 <Legend verticalAlign="top" height={36} />
                 <Line type="monotone" dataKey="rol" stroke="#f59e0b" name="Roll" dot={false} strokeWidth={2} />
                 <Line type="monotone" dataKey="pit" stroke="#6366f1" name="Pitch" dot={false} strokeWidth={2} />
@@ -460,7 +460,7 @@ export const TelemetryCharts: React.FC<TelemetryChartsProps> = ({
                   stroke="#ef4444"
                   label={{ value: "G-Force", angle: 90, position: "insideRight" }}
                 />
-                <Tooltip labelFormatter={(v: number) => formatTime(v)} />
+                <Tooltip labelFormatter={(label) => formatTime(Number(label))} />
                 <Legend verticalAlign="top" height={36} />
                 <Line yAxisId="left" type="monotone" dataKey="spd" stroke="#10b981" name="Speed" dot={false} strokeWidth={2} />
                 <Line yAxisId="right" type="monotone" dataKey="ia_tot" stroke="#ef4444" name="Total G-Force" dot={false} strokeWidth={2} />

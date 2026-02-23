@@ -37,11 +37,13 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
+type NavRole = 'super_admin' | 'admin' | 'user' | 'technician' | 'driver';
+
 interface NavigationItem {
   name: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  roles: ('super_admin' | 'admin' | 'user')[];
+  roles: NavRole[];
   children?: NavigationItem[];
 }
 

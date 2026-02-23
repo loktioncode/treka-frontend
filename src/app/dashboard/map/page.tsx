@@ -72,7 +72,7 @@ export default function FleetMapPage() {
   }, [selectedVehicleId]);
 
   const fmt = (v: number | null | undefined) =>
-    v != null && v !== "" ? Number(v).toFixed(3) : null;
+    v != null ? Number(v).toFixed(3) : null;
 
   const handleChatMessage = async (message: string) => {
     if (!selectedVehicle) return;

@@ -90,6 +90,7 @@ export default function Dashboard() {
     refetch: refetchFleetTelemetry,
     isFetching: fleetTelemetryFetching,
   } = useFleetTelemetry(
+    undefined,
     !!currentClient && currentClient.client_type === "logistics",
   );
   const { vehicleList } = useMqttTracking();

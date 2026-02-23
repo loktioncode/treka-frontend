@@ -52,7 +52,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatDateForInput } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -122,7 +122,7 @@ export default function AssetViewPage() {
     const defined: Partial<TelemetryRecord> = {};
     for (const k of keys) {
       const v = displayTelemetry[k];
-      if (v != null && v !== "") defined[k] = v;
+      if (v != null && (typeof v !== "string" || v !== "")) defined[k] = v;
     }
     if (Object.keys(defined).length > 0) {
       setLastKnownTelemetry((prev) => ({ ...prev, ...defined }));
@@ -131,7 +131,7 @@ export default function AssetViewPage() {
 
   const cardTelemetry = displayTelemetry ?? lastKnownTelemetry;
   const fmt = (val: number | null | undefined, decimals = 3) =>
-    val != null && val !== "" ? Number(val).toFixed(decimals) : null;
+    val != null ? Number(val).toFixed(decimals) : null;
 
   const [, setLoadingTelemetry] = useState(false);
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -1947,18 +1947,6 @@ Provide a concise, actionable insight for a fleet manager.`;
                     </div>
                       </CardContent>
                     </Card>
-                  </div>
-                ) : asset.asset_type === "machinery" ? (
-                  <div className="text-center py-16">
-                    <div className="text-6xl mb-4">📡</div>
-                    <h3 className="text-xl font-semibold text-gray-700 mb-2">
-                      Sensor Data Not Available
-                    </h3>
-                    <p className="text-gray-500 max-w-md mx-auto">
-                      Real-time sensor data is currently only available for vehicles
-                      and machinery assets. Equipment and infrastructure assets will
-                      have sensor integration in future updates.
-                    </p>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 text-gray-500 bg-gray-50 rounded-xl">

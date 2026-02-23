@@ -849,6 +849,7 @@ export interface TripPlanUpdate {
   waypoints?: Waypoint[];
   asset_id?: string;
   scheduled_date?: string;
+  load_weight_kg?: number;
   is_active?: boolean;
 }
 

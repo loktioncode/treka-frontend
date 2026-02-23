@@ -26,6 +26,7 @@
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "framer-motion": "^12.23.12",
+    "geist": "^1.7.0",
     "lucide-react": "^0.539.0",
     "mapbox-gl": "^3.18.1",
     "mqtt": "^5.15.0",

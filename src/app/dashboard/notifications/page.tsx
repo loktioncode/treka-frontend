@@ -313,7 +313,7 @@ export default function NotificationsPage() {
           groupedNotifications.map((group, groupIndex) => (
             <div key={groupIndex} className="space-y-4">
               {group.map((notification, index) => {
-                const Icon = getNotificationIcon(notification.notification_type, notification.urgency);
+                const Icon = getNotificationIcon(notification.notification_type ?? "", notification.urgency);
                 const colorClasses = getNotificationColor(notification.urgency);
                 const escalationStatus = getEscalationStatus(notification);
                 
