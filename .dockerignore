@@ -1,0 +1,29 @@
+# Dependencies (reinstalled in container)
+node_modules
+.pnpm-store
+
+# Build output (rebuilt in container)
+.next
+out
+
+# Env files (inject at runtime or via compose)
+.env
+.env.*
+!.env.example
+
+# Git and IDE
+.git
+.gitignore
+.cursor
+.vscode
+*.md
+
+# Misc
+Dockerfile*
+.dockerignore
+*.log
+npm-debug.log*
+.DS_Store
+coverage
+.nyc_output
+.turbo

@@ -1,0 +1,13 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: treka_frontend
+    ports:
+      - "3001:3000"
+    env_file:
+      - .env.local
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
