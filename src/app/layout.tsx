@@ -11,7 +11,7 @@ export const viewport = "width=device-width, initial-scale=1";
 
 // Metadata must be in a server component
 export const metadata: Metadata = {
-  title: "TREKA - Asset Management System",
+  title: "TREKAMAN - Asset Management System",
   description: "Streamline your asset and component maintenance with our powerful management system",
   other: {
     "X-Content-Type-Options": "nosniff",

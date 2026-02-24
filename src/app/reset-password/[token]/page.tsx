@@ -61,7 +61,7 @@ export default function ResetPassword() {
       <div className="max-w-md w-full space-y-8 bg-white/10 backdrop-blur-lg p-8 rounded-xl border border-white/20">
         <div>
           <Link href="/" className="block text-center text-white text-3xl font-bold mb-2 cursor-pointer">
-            TREKA
+            TREKAMAN
           </Link>
           <h2 className="text-center text-2xl font-bold text-white">
             Reset your password

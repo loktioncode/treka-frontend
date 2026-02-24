@@ -55,7 +55,7 @@ export default function Navigation() {
                   href="/dashboard"
                   className="text-2xl font-bold text-blue-900 cursor-pointer"
                 >
-                  TREKA
+                  TREKAMAN
                 </SmartLink>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">

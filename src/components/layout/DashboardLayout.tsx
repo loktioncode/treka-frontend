@@ -392,7 +392,7 @@ function SidebarContent({ navigation, pathname, onClose, isMobile, collapsed = f
               <div className="h-8 w-8 rounded bg-gradient-to-r from-teal-700 flex items-center justify-center">
                 <Shield className="h-5 w-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-gray-900">TREKA</span>
+              <span className="text-xl font-bold text-gray-900">TREKAMAN</span>
             </SmartLink>
           )}
         </div>

@@ -102,7 +102,7 @@ function LoginForm() {
             </motion.div>
             <div className="space-y-2">
               <CardTitle className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                TREKA
+                TREKAMAN
               </CardTitle>
               <CardDescription className="text-base text-gray-600">
                 Asset Management System

@@ -93,7 +93,7 @@ export default function Home() {
               <Shield className="h-6 w-6 text-white" />
             </div>
             <div className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-              TREKA
+              TREKAMAN
             </div>
           </div>
           <Link href="/login">
@@ -124,12 +124,12 @@ export default function Home() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-              <Link href="/login" aria-label="Get started with TREKA - Sign up or login to your account">
+              <Link href="/login" aria-label="Get started with TREKAMAN - Sign up or login to your account">
                 <Button 
                   size="lg" 
                   variant="outline"
                   className="border-teal-700 text-teal-700 hover:bg-teal-700 hover:text-white flex items-center gap-2"
-                  aria-label="Get started with TREKA"
+                  aria-label="Get started with TREKAMAN"
                 >
                   Get Started
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -219,7 +219,7 @@ export default function Home() {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-                Why Choose TREKA?
+                Why Choose TREKAMAN?
               </h2>
               <p className="text-lg text-gray-600 mb-8">
                 Transform your asset management process with our proven platform trusted by organizations worldwide.
@@ -287,7 +287,7 @@ export default function Home() {
                 Ready to Transform Your Operations?
               </h2>
               <p className="text-teal-100 mb-8 text-lg max-w-2xl mx-auto">
-                Join thousands of organizations already using TREKA to optimize their asset management processes.
+                Join thousands of organizations already using TREKAMAN to optimize their asset management processes.
               </p>
               <Link href="/login">
                 <Button 
@@ -310,9 +310,9 @@ export default function Home() {
         >
           <div className="flex items-center justify-center gap-2 mb-4">
             <Shield className="h-4 w-4" />
-            <span className="font-semibold">TREKA</span>
+            <span className="font-semibold">TREKAMAN</span>
           </div>
-          <p>© {new Date().getFullYear()} TREKA Asset Management System. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} TREKAMAN Asset Management System. All rights reserved.</p>
         </motion.footer>
       </div>
     </div>
