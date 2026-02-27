@@ -32,22 +32,22 @@ const MAX_TRAIL_POINTS = 500;
 
 /** Approximate distance in km between two lat/lon points (Haversine-style). */
 function distanceKm(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number
 ): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
 }
 
 export function useMqttTracking(deviceId?: string) {
@@ -144,6 +144,23 @@ export function useMqttTracking(deviceId?: string) {
                                 rol: data.rol ?? latestRecord!.rol,
                                 pit: data.pit ?? latestRecord!.pit
                             };
+
+                            // Forward telemetry to the Next.js API route to be ingested by the backend
+                            // Fire-and-forget payload matching the backend expectations.
+                            const ingestPayload = {
+                                device_id: actualDeviceId,
+                                records: data.records ? data.records : [record]
+                            };
+                            fetch('/api/ingest', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(ingestPayload)
+                            }).catch(err => {
+                                console.error('Failed to forward telemetry to ingest API:', err);
+                            });
+
                             setVehicles(prev => ({
                                 ...prev,
                                 [actualDeviceId]: {
