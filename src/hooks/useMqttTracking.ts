@@ -145,21 +145,8 @@ export function useMqttTracking(deviceId?: string) {
                                 pit: data.pit ?? latestRecord!.pit
                             };
 
-                            // Forward telemetry to the Next.js API route to be ingested by the backend
-                            // Fire-and-forget payload matching the backend expectations.
-                            const ingestPayload = {
-                                device_id: actualDeviceId,
-                                records: data.records ? data.records : [record]
-                            };
-                            fetch('/front-api/ingest', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify(ingestPayload)
-                            }).catch(err => {
-                                console.error('Failed to forward telemetry to ingest API:', err);
-                            });
+                            // The Python backend is now ingesting data directly from the MQTT broker.
+                            // We only keep the local React state update here for the live UI.
 
                             setVehicles(prev => ({
                                 ...prev,
