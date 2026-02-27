@@ -151,7 +151,7 @@ export function useMqttTracking(deviceId?: string) {
                                 device_id: actualDeviceId,
                                 records: data.records ? data.records : [record]
                             };
-                            fetch('/api/ingest', {
+                            fetch('/front-api/ingest', {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json'
