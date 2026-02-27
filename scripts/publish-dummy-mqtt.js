@@ -209,15 +209,15 @@ function main() {
         else console.log(`[${new Date().toISOString()}] MQTT ok | spd=${payload.spd} rpm=${payload.rpm} scenario=${scenario.name} hbk=${payload.hbk} hac=${payload.hac} hco=${payload.hco} pot=${payload.pot}`);
       });
 
-      const apiOk = await postToApi(payload, () => {
-        if (!linkedWarningShown) {
-          linkedWarningShown = true;
-          console.warn("\n[API] Data NOT stored in telemetry DB: device_id is not linked to any vehicle.");
-          console.warn("      To store data: Dashboard → Assets → edit a vehicle → set 'IoT Device ID' to:", DEVICE_ID);
-          console.warn("");
-        }
-      });
-      if (apiOk) console.log("  -> API accepted (saved to DB)");
+      // const apiOk = await postToApi(payload, () => {
+      //   if (!linkedWarningShown) {
+      //     linkedWarningShown = true;
+      //     console.warn("\n[API] Data NOT stored in telemetry DB: device_id is not linked to any vehicle.");
+      //     console.warn("      To store data: Dashboard → Assets → edit a vehicle → set 'IoT Device ID' to:", DEVICE_ID);
+      //     console.warn("");
+      //   }
+      // });
+      // if (apiOk) console.log("  -> API accepted (saved to DB)");
       index++;
     }, INTERVAL_MS);
 
