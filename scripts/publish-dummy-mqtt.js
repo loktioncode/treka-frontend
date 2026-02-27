@@ -3,7 +3,7 @@
 
 const mqtt = require("mqtt");
 
-const DEVICE_ID = process.env.DEVICE_ID || "4444";
+const DEVICE_ID = process.env.DEVICE_ID || "004444";
 const TOPIC = `trekaman/telematrics/${DEVICE_ID}`;
 const BROKER = process.env.MQTT_BROKER || "mqtt://broker.hivemq.com:1883";
 const API_BASE = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
@@ -11,40 +11,40 @@ const INTERVAL_MS = 2000;
 
 // Johannesburg CBD → Midrand (N1/Ben Schoeman)
 const ROUTE_JHB_MIDRAND = [
-  {"lat": -26.2041, "lng": 28.0473, "label": "Start: Johannesburg CBD"},
-  {"lat": -26.1915, "lng": 28.0495},
-  {"lat": -26.1750, "lng": 28.0450, "label": "M1 North - Houghton"},
-  {"lat": -26.1520, "lng": 28.0720},
-  {"lat": -26.1280, "lng": 28.1020, "label": "M1/N3 Buccleuch Interchange"},
-  {"lat": -26.1050, "lng": 28.1150},
-  {"lat": -26.0820, "lng": 28.1250},
-  {"lat": -26.0550, "lng": 28.1380},
-  {"lat": -26.0250, "lng": 28.1550},
-  {"lat": -25.9980, "lng": 28.1680},
-  {"lat": -25.9890, "lng": 28.1720, "label": "Midrand - Halfway House"},
-  {"lat": -25.9750, "lng": 28.1810},
-  {"lat": -25.9620, "lng": 28.1750, "label": "New Road Interchange"},
-  {"lat": -25.9450, "lng": 28.1650},
-  {"lat": -25.9320, "lng": 28.1580},
-  {"lat": -25.9125, "lng": 28.1460, "label": "Samrand Ave"},
-  {"lat": -25.8820, "lng": 28.1630, "label": "Brakfontein Interchange"},
-  {"lat": -25.8750, "lng": 28.1780},
-  {"lat": -25.8670, "lng": 28.1880},
-  {"lat": -25.8610, "lng": 28.1920, "label": "Exit N1 for Centurion"},
-  {"lat": -25.8560, "lng": 28.1880},
-  {"lat": -25.8515, "lng": 28.1895, "label": "Centurion Gautrain Station"},
-  {"lat": -25.8480, "lng": 28.1950},
-  {"lat": -25.8450, "lng": 28.2070, "label": "Re-entering N1 via Jean Ave"},
-  {"lat": -25.8350, "lng": 28.2060},
-  {"lat": -25.8280, "lng": 28.2050},
-  {"lat": -25.8150, "lng": 28.2250},
-  {"lat": -25.8050, "lng": 28.2450},
-  {"lat": -25.7900, "lng": 28.2350, "label": "N1/N14 Interchange"},
-  {"lat": -25.7790, "lng": 28.1960, "label": "Entering Pretoria (Eeufees Rd)"},
-  {"lat": -25.7720, "lng": 28.1920},
-  {"lat": -25.7650, "lng": 28.1880},
-  {"lat": -25.7580, "lng": 28.1885, "label": "Pretoria Station Approach"},
-  {"lat": -25.7588, "lng": 28.1895, "label": "End: Pretoria Gautrain Station"}
+  { "lat": -26.2041, "lng": 28.0473, "label": "Start: Johannesburg CBD" },
+  { "lat": -26.1915, "lng": 28.0495 },
+  { "lat": -26.1750, "lng": 28.0450, "label": "M1 North - Houghton" },
+  { "lat": -26.1520, "lng": 28.0720 },
+  { "lat": -26.1280, "lng": 28.1020, "label": "M1/N3 Buccleuch Interchange" },
+  { "lat": -26.1050, "lng": 28.1150 },
+  { "lat": -26.0820, "lng": 28.1250 },
+  { "lat": -26.0550, "lng": 28.1380 },
+  { "lat": -26.0250, "lng": 28.1550 },
+  { "lat": -25.9980, "lng": 28.1680 },
+  { "lat": -25.9890, "lng": 28.1720, "label": "Midrand - Halfway House" },
+  { "lat": -25.9750, "lng": 28.1810 },
+  { "lat": -25.9620, "lng": 28.1750, "label": "New Road Interchange" },
+  { "lat": -25.9450, "lng": 28.1650 },
+  { "lat": -25.9320, "lng": 28.1580 },
+  { "lat": -25.9125, "lng": 28.1460, "label": "Samrand Ave" },
+  { "lat": -25.8820, "lng": 28.1630, "label": "Brakfontein Interchange" },
+  { "lat": -25.8750, "lng": 28.1780 },
+  { "lat": -25.8670, "lng": 28.1880 },
+  { "lat": -25.8610, "lng": 28.1920, "label": "Exit N1 for Centurion" },
+  { "lat": -25.8560, "lng": 28.1880 },
+  { "lat": -25.8515, "lng": 28.1895, "label": "Centurion Gautrain Station" },
+  { "lat": -25.8480, "lng": 28.1950 },
+  { "lat": -25.8450, "lng": 28.2070, "label": "Re-entering N1 via Jean Ave" },
+  { "lat": -25.8350, "lng": 28.2060 },
+  { "lat": -25.8280, "lng": 28.2050 },
+  { "lat": -25.8150, "lng": 28.2250 },
+  { "lat": -25.8050, "lng": 28.2450 },
+  { "lat": -25.7900, "lng": 28.2350, "label": "N1/N14 Interchange" },
+  { "lat": -25.7790, "lng": 28.1960, "label": "Entering Pretoria (Eeufees Rd)" },
+  { "lat": -25.7720, "lng": 28.1920 },
+  { "lat": -25.7650, "lng": 28.1880 },
+  { "lat": -25.7580, "lng": 28.1885, "label": "Pretoria Station Approach" },
+  { "lat": -25.7588, "lng": 28.1895, "label": "End: Pretoria Gautrain Station" }
 ]
 
 
@@ -152,7 +152,7 @@ function buildPayload(index) {
 }
 
 async function postToApi(payload, onNotLinked) {
-  const url = `${API_BASE.replace(/\/$/, "")}/telemetry/ingest`;
+  const url = `https://trekamanapi.apps.loktioncode.org/api/v1/telemetry/ingest`;
   try {
     const body = { device_id: DEVICE_ID, record: payload };
     const res = await fetch(url, {
