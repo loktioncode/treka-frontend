@@ -124,11 +124,12 @@ export default function AssetsPage() {
     vin: updates.vin || formData.vehicle_details?.vin || '',
     license_plate: updates.license_plate || formData.vehicle_details?.license_plate || '',
     engine_type: updates.engine_type || formData.vehicle_details?.engine_type || '',
-    device_id: updates.device_id || formData.vehicle_details?.device_id || '',
+    device_id: updates.device_id ?? formData.vehicle_details?.device_id ?? '',
     fuel_type: updates.fuel_type || formData.vehicle_details?.fuel_type || '',
     mileage: updates.mileage ?? formData.vehicle_details?.mileage ?? 0,
     service_interval_km: updates.service_interval_km ?? formData.vehicle_details?.service_interval_km ?? 10000,
-    driver_id: updates.driver_id || formData.vehicle_details?.driver_id || undefined
+    driver_id: updates.driver_id || formData.vehicle_details?.driver_id || undefined,
+    mqtt_provider: updates.mqtt_provider ?? formData.vehicle_details?.mqtt_provider ?? undefined
   });
 
   const createCompleteMachineryDetails = (updates: Partial<MachineryDetails>): MachineryDetails => ({
@@ -166,7 +167,8 @@ export default function AssetsPage() {
       fuel_type: '',
       mileage: 0,
       service_interval_km: 10000,
-      driver_id: undefined
+      driver_id: undefined,
+      mqtt_provider: undefined
     },
     machinery_details: {
       make: '',
@@ -719,6 +721,26 @@ export default function AssetsPage() {
                   />
                 </FormField>
 
+                <FormField name="vehicle_mqtt_provider">
+                  <FormLabel htmlFor="vehicle_mqtt_provider">Device / MQTT provider</FormLabel>
+                  <Select
+                    id="vehicle_mqtt_provider"
+                    value={formData.vehicle_details?.mqtt_provider ?? 'custom'}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      vehicle_details: createCompleteVehicleDetails({
+                        mqtt_provider: (e.target.value === 'teltonika' ? 'teltonika' : 'custom') as 'custom' | 'teltonika'
+                      })
+                    })}
+                    options={[
+                      { value: 'custom', label: 'Custom (HiveMQ — ESP32/firmware)' },
+                      { value: 'teltonika', label: 'Teltonika (Flespi)' }
+                    ]}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Teltonika devices use Flespi MQTT; custom devices use the default HiveMQ broker.
+                  </p>
+                </FormField>
                 <FormField name="vehicle_device_id">
                   <FormLabel htmlFor="vehicle_device_id">IoT Device ID</FormLabel>
                   <Input
@@ -728,9 +750,13 @@ export default function AssetsPage() {
                       ...formData,
                       vehicle_details: createCompleteVehicleDetails({ device_id: e.target.value })
                     })}
-                    placeholder="e.g., OBDBLE_12345"
+                    placeholder={formData.vehicle_details?.mqtt_provider === 'teltonika' ? 'e.g., 7763037 (Flespi device ID)' : 'e.g., OBDBLE_12345'}
                   />
-                  <p className="text-xs text-gray-500 mt-1">Required for telemetry and live tracking. Must match the device_id in the firmware Config (e.g. ESP32_OBD_001).</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.vehicle_details?.mqtt_provider === 'teltonika'
+                      ? 'Flespi device ID for live position (topic: flespi/state/gw/devices/{id}/telemetry/position).'
+                      : 'Required for telemetry and live tracking. Must match the device_id in the firmware Config (e.g. ESP32_OBD_001).'}
+                  </p>
                 </FormField>
 
                 <FormField name="vehicle_license_plate">

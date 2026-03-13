@@ -101,13 +101,17 @@ export default function AssetViewPage() {
     useState(false);
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");
   const [newDeviceId, setNewDeviceId] = useState("");
+  const [newMqttProvider, setNewMqttProvider] = useState<"custom" | "teltonika">("custom");
   const [savingDeviceId, setSavingDeviceId] = useState(false);
 
   // Machinery/Sensor data state
   const [telemetry, setTelemetry] = useState<TelemetryRecord[]>([]);
   const [latestTelemetry, setLatestTelemetry] =
     useState<TelemetryRecord | null>(null);
-  const { isConnected, vehicleList } = useMqttTracking(asset?.vehicle_details?.device_id);
+  const { isConnected, vehicleList } = useMqttTracking(
+    asset?.vehicle_details?.device_id,
+    asset?.vehicle_details?.mqtt_provider
+  );
   const liveVehicleRecord = asset?.vehicle_details?.device_id
     ? vehicleList.find((v) => v.device_id === asset.vehicle_details?.device_id)?.last_record
     : null;
@@ -492,10 +496,12 @@ Provide a concise, actionable insight for a fleet manager.`;
         vehicle_details: {
           ...asset.vehicle_details,
           device_id: newDeviceId.trim(),
+          mqtt_provider: newMqttProvider,
         },
       });
       toast.success("Device ID saved. Tracking will start when the device reports.");
       setNewDeviceId("");
+      setNewMqttProvider("custom");
       await loadAsset();
     } catch (error) {
       toast.error("Failed to save device ID");
@@ -503,7 +509,7 @@ Provide a concise, actionable insight for a fleet manager.`;
     } finally {
       setSavingDeviceId(false);
     }
-  }, [asset, newDeviceId, loadAsset]);
+  }, [asset, newDeviceId, newMqttProvider, loadAsset]);
 
   const loadComponents = useCallback(async () => {
     try {
@@ -900,15 +906,37 @@ Provide a concise, actionable insight for a fleet manager.`;
               <div className="space-y-4">
                 <div>
                   <FormLabel className="text-sm font-medium text-gray-700">
+                    Device / MQTT provider
+                  </FormLabel>
+                  <Select
+                    value={newMqttProvider}
+                    onChange={(e) => setNewMqttProvider(e.target.value as "custom" | "teltonika")}
+                    options={[
+                      { value: "custom", label: "Custom (HiveMQ — ESP32/firmware)" },
+                      { value: "teltonika", label: "Teltonika (Flespi)" },
+                    ]}
+                    className="mt-1.5 border-gray-200"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Teltonika uses Flespi MQTT; custom devices use HiveMQ.
+                  </p>
+                </div>
+                <div>
+                  <FormLabel className="text-sm font-medium text-gray-700">
                     Device ID
                   </FormLabel>
                   <Input
                     value={newDeviceId}
                     onChange={(e) => setNewDeviceId(e.target.value)}
-                    placeholder="e.g. ESP32_OBD_001"
+                    placeholder={newMqttProvider === "teltonika" ? "e.g. 7763037 (Flespi device ID)" : "e.g. ESP32_OBD_001"}
                     className="mt-1.5 border-gray-200 focus:border-teal-500 focus:ring-teal-500"
                     disabled={savingDeviceId}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {newMqttProvider === "teltonika"
+                      ? "Flespi device ID for live position (flespi/state/gw/devices/{id}/telemetry/position)."
+                      : "Must match the device_id in the firmware Config."}
+                  </p>
                 </div>
                 <Button
                   onClick={handleSaveDeviceId}

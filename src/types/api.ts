@@ -188,6 +188,8 @@ export interface VehicleDetails {
   last_service_at_km?: number; // odometer at last service (reset service alerts)
   driver_id?: string; // ID of assigned driver
   device_id?: string; // Hardware ID of the telematics device
+  /** When "teltonika", device uses Flespi MQTT; otherwise HiveMQ (custom/firmware). */
+  mqtt_provider?: 'custom' | 'teltonika';
 }
 
 export interface MachineryDetails {
