@@ -430,6 +430,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                     try {
                         const payload = message.toString();
                         const data = JSON.parse(payload) as FlespiStatePayload;
+                        console.log('Flespi raw data:', data);
                         const first = data.result?.[0];
                         if (!first) return;
                         const flespiDeviceId = String(first.id);
