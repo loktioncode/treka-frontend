@@ -153,8 +153,8 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
         } else {
             teltonikaDeviceIdsRef.current = new Set(
                 assets
-                    .filter((a: Asset) => a.vehicle_details?.device_id && a.vehicle_details?.mqtt_provider === 'teltonika')
-                    .map((a: Asset) => a.vehicle_details!.device_id!)
+                    .filter((a: Asset) => a.vehicle_details?.device_id)
+                    .map((a: Asset) => String(a.vehicle_details!.device_id!))
             );
         }
     }, [assets, deviceId]);
@@ -180,17 +180,26 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                 const updated = { ...prev };
                 let changed = false;
                 results.forEach((res, i) => {
-                    if (res.status === 'fulfilled' && res.value?.record) {
-                        const did = devicesToFetch[i];
-                        if (!updated[did]) { // Only add if MQTT hasn't already provided a live update
+                    const did = devicesToFetch[i];
+                    if (!updated[did]) { // Only add if MQTT hasn't already provided a live update
+                        if (res.status === 'fulfilled' && res.value?.record) {
                             const record = res.value.record;
                             updated[did] = {
                                 device_id: did,
                                 last_record: {
                                     ...record,
-                                    lon: record.lon ?? (record as any).lng
+                                    lon: record.lon ?? (record as Record<string, unknown>).lng as number | undefined
                                 },
                                 last_update: record.ts_server || new Date((record.ts || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
+                                status: 'offline'
+                            };
+                            changed = true;
+                        } else {
+                            // Dummy record so it shows up in the sidebar list even if it has no telemetry yet
+                            updated[did] = {
+                                device_id: did,
+                                last_record: { ts: Math.floor(Date.now() / 1000), spd: 0 },
+                                last_update: new Date().toISOString(),
                                 status: 'offline'
                             };
                             changed = true;
