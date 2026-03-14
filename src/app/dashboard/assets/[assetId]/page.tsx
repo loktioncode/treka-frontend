@@ -2112,7 +2112,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                               <th className="px-4 py-3">Latitude</th>
                               <th className="px-4 py-3">Longitude</th>
                               <th className="px-4 py-3 border-l">Speed</th>
-                              <th className="px-4 py-3">Heading</th>
+                              <th className="px-4 py-3">Fuel Level</th>
                               <th className="px-4 py-3 border-l">Voltage</th>
                             </tr>
                           </thead>
@@ -2133,7 +2133,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                                   <td className="px-4 py-3 font-mono">{r.lat?.toFixed(5)}</td>
                                   <td className="px-4 py-3 font-mono">{r.lon?.toFixed(5)}</td>
                                   <td className="px-4 py-3 border-l">{r.spd != null ? `${r.spd.toFixed(1)} km/h` : "—"}</td>
-                                  <td className="px-4 py-3">{r.hdg ?? "—"}°</td>
+                                  <td className="px-4 py-3">{r.fl != null ? `${r.fl.toFixed(1)}%` : "—"}</td>
                                   <td className="px-4 py-3 border-l text-blue-600">{r.vlt != null ? `${r.vlt.toFixed(1)}V` : "—"}</td>
                                 </tr>
                             ))}
