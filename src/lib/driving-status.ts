@@ -5,13 +5,16 @@ const ENGINE_ON_RPM_THRESHOLD = 350;
 
 export type DrivingStatus = "moving" | "stationary" | "off";
 
+/** Record shape needed for driving status (all fields used here are optional). */
+type TelemetryLike = Partial<TelemetryRecord> | null | undefined;
+
 /**
  * Derive driving status from CAN: speed + RPM.
  * - moving: speed > 0
  * - stationary: speed = 0 and engine on (RPM > threshold)
  * - off: speed = 0 and engine off or no RPM data
  */
-export function getDrivingStatus(record: TelemetryRecord | null | undefined): DrivingStatus {
+export function getDrivingStatus(record: TelemetryLike): DrivingStatus {
   if (!record) return "off";
   const spd = record.spd ?? 0;
   const rpm = record.rpm ?? 0;
@@ -21,7 +24,7 @@ export function getDrivingStatus(record: TelemetryRecord | null | undefined): Dr
 }
 
 /** Human-readable label for map/UI. */
-export function getDrivingStatusLabel(record: TelemetryRecord | null | undefined): string {
+export function getDrivingStatusLabel(record: TelemetryLike): string {
   switch (getDrivingStatus(record)) {
     case "moving":
       return "Moving";
@@ -34,7 +37,7 @@ export function getDrivingStatusLabel(record: TelemetryRecord | null | undefined
 }
 
 /** True if engine is considered on (RPM above threshold or speed > 0). */
-export function isEngineOn(record: TelemetryRecord | null | undefined): boolean {
+export function isEngineOn(record: TelemetryLike): boolean {
   if (!record) return false;
   const spd = record.spd ?? 0;
   const rpm = record.rpm ?? 0;

@@ -133,7 +133,7 @@ export function MarketingCarousel() {
                 initial={{ opacity: 0, x: 100 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -100 }}
-                transition={{ duration: 1.95, ease: "easeInOut" }}
+                transition={{ duration: 1.95, ease: "easeInOut" as const }}
                 className="absolute inset-0 flex items-center"
               >
                 <div className="grid grid-cols-1 gap-6 p-6 w-full h-full">
@@ -246,7 +246,7 @@ export function MarketingCarousel() {
           className="h-full bg-gradient-to-r from-teal-500 to-blue-500"
           initial={{ width: 0 }}
           animate={{ width: `${((currentSlide + 1) / slides.length) * 100}%` }}
-          transition={{ duration: 0.5, ease: "easeInOut" }}
+          transition={{ duration: 0.5, ease: "easeInOut" as const }}
         />
       </div>
     </div>

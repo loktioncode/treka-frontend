@@ -138,7 +138,7 @@ export function DriverScoreCard({ fleetAverageScore }: DriverScoreCardProps) {
                             strokeDasharray={circumference}
                             initial={{ strokeDashoffset: circumference }}
                             animate={{ strokeDashoffset: offset }}
-                            transition={{ duration: 1.5, ease: "easeOut" }}
+                            transition={{ duration: 1.5, ease: "easeOut" as const }}
                             strokeLinecap="round"
                         />
                     </svg>

@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import {
   Shield,
   MapPin,
-  Navigation,
   Compass,
   Globe,
   AlertTriangle,
@@ -13,7 +12,6 @@ import {
   Target,
   Clock,
   Eye,
-  Radio,
   Car,
   ArrowRight,
   CheckCircle,
@@ -25,7 +23,6 @@ import {
   ChevronRight,
   Smartphone,
   Satellite,
-  CircleDot,
   LocateFixed,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,7 +33,7 @@ const fadeUp = {
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: i * 0.1, duration: 0.5, ease: "easeOut" },
+    transition: { delay: i * 0.1, duration: 0.5, ease: "easeOut" as const },
   }),
 };
 
