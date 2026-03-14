@@ -58,8 +58,8 @@ const MAX_TRAIL_POINTS = 500;
 
 /** Flespi MQTT config (Teltonika devices) */
 const FLESPI_BROKER_URL = process.env.NEXT_PUBLIC_MQTT_FLESPI_URL || 'wss://mqtt.flespi.io';
-const FLESPI_USERNAME = process.env.NEXT_PUBLIC_MQTT_FLESPI_USERNAME || 'FlespiToken';
-const FLESPI_PASSWORD = process.env.NEXT_PUBLIC_MQTT_FLESPI_PASSWORD || 'ePTrtxhEDcdAZLHSAdp0yU0qs8MLEYNXo9gUU1q0EJmEN52l8axWMU2zoysxWef2';
+const FLESPI_USERNAME = process.env.NEXT_PUBLIC_MQTT_FLESPI_USERNAME || 'FlespiToken ePTrtxhEDcdAZLHSAdp0yU0qs8MLEYNXo9gUU1q0EJmEN52l8axWMU2zoysxWef2';
+const FLESPI_PASSWORD = process.env.NEXT_PUBLIC_MQTT_FLESPI_PASSWORD || '';
 const FLESPI_CLIENT_ID = process.env.NEXT_PUBLIC_MQTT_FLESPI_CLIENT_ID || 'mqttx_trekaman';
 
 /** Approximate distance in km between two lat/lon points (Haversine-style). */
