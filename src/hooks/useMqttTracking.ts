@@ -4,7 +4,7 @@ import { TelemetryRecord } from '@/types/api';
 import toast from 'react-hot-toast';
 import mqtt from 'mqtt';
 import { useAssets } from '@/hooks/useAssets';
-import type { Asset } from '@/services/api';
+import { telemetryAPI, type Asset } from '@/services/api';
 
 interface TrackingMessage {
     type?: 'telemetry' | 'incident' | 'geofence';
@@ -144,15 +144,65 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
     const trailByDeviceRef = useRef<Record<string, TelemetryRecord[]>>({});
 
     // When showing all vehicles, get assets to know which device IDs are Teltonika (Flespi)
-    const { data: assets = [] } = useAssets({ asset_type: 'vehicle' });
-    const teltonikaDeviceIds = useMemo(() => {
-        if (deviceId) return new Set<string>();
-        return new Set(
-            assets
-                .filter((a: Asset) => a.vehicle_details?.device_id && a.vehicle_details?.mqtt_provider === 'teltonika')
-                .map((a: Asset) => a.vehicle_details!.device_id!)
-        );
+    const { data: assets = [], isLoading: assetsLoading } = useAssets({ asset_type: 'vehicle' });
+    const teltonikaDeviceIdsRef = useRef<Set<string>>(new Set());
+
+    useEffect(() => {
+        if (deviceId) {
+            teltonikaDeviceIdsRef.current = new Set<string>();
+        } else {
+            teltonikaDeviceIdsRef.current = new Set(
+                assets
+                    .filter((a: Asset) => a.vehicle_details?.device_id && a.vehicle_details?.mqtt_provider === 'teltonika')
+                    .map((a: Asset) => a.vehicle_details!.device_id!)
+            );
+        }
     }, [assets, deviceId]);
+
+    // Fetch initial last-known positions so idle vehicles appear immediately
+    useEffect(() => {
+        if (!user || assetsLoading) return;
+        let mounted = true;
+
+        const devicesToFetch: string[] = deviceId
+            ? [deviceId]
+            : assets
+                .filter((a: Asset) => a.vehicle_details?.device_id)
+                .map((a: Asset) => a.vehicle_details!.device_id!);
+
+        if (devicesToFetch.length === 0) return;
+
+        Promise.allSettled(
+            devicesToFetch.map(did => telemetryAPI.getLatestTelemetry(did).catch(() => null))
+        ).then((results) => {
+            if (!mounted) return;
+            setVehicles((prev) => {
+                const updated = { ...prev };
+                let changed = false;
+                results.forEach((res, i) => {
+                    if (res.status === 'fulfilled' && res.value?.record) {
+                        const did = devicesToFetch[i];
+                        if (!updated[did]) { // Only add if MQTT hasn't already provided a live update
+                            const record = res.value.record;
+                            updated[did] = {
+                                device_id: did,
+                                last_record: {
+                                    ...record,
+                                    lon: record.lon ?? (record as any).lng
+                                },
+                                last_update: record.ts_server || new Date((record.ts || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
+                                status: 'offline'
+                            };
+                            changed = true;
+                        }
+                    }
+                });
+                return changed ? updated : prev;
+            });
+        });
+
+        return () => { mounted = false; };
+    }, [assets, assetsLoading, deviceId, user]);
 
     const applyFlespiPosition = useCallback((flespiDeviceId: string, record: TelemetryRecord) => {
         setVehicles((prev) => ({
@@ -377,7 +427,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                         const fromTopic = topic.split('/')[4]; // flespi/state/gw/devices/{id}/telemetry/position
                         const deviceIdStr = flespiDeviceId || fromTopic;
                         if (!deviceIdStr) return;
-                        if (!deviceId && !teltonikaDeviceIds.has(deviceIdStr)) return;
+                        if (!deviceId && !teltonikaDeviceIdsRef.current.has(deviceIdStr)) return;
                         const record = flespiTelemetryToRecord(deviceIdStr, first.telemetry);
                         if (record) applyFlespiPosition(deviceIdStr, record);
                     } catch (err) {
@@ -397,9 +447,10 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                 console.error('Failed to create Flespi MQTT connection:', err);
             }
         }
-    }, [user, deviceId, mqttProvider, teltonikaDeviceIds, applyFlespiPosition]);
+    }, [user, deviceId, mqttProvider, applyFlespiPosition]);
 
     useEffect(() => {
+        if (assetsLoading) return; // Wait for assets to load so teltonikaDeviceIds is populated for connect
         activeRef.current = true;
         connectedCountRef.current = { hive: 0, flespi: 0 };
         connect();
@@ -415,7 +466,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
             }
             setIsConnected(false);
         };
-    }, [connect]);
+    }, [connect, assetsLoading]);
 
     const sendMessage = (topic: string, message: string) => {
         if (clientRef.current?.connected) {
