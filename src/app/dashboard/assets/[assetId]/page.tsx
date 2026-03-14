@@ -60,7 +60,6 @@ import { TelemetryCharts } from "@/components/telemetry/TelemetryCharts";
 import { HarshEventsTimeline } from "@/components/telemetry/HarshEventsTimeline";
 import { TelemetryHeatmap } from "@/components/telemetry/TelemetryHeatmap";
 import LiveMap from "@/components/maps/LiveMap";
-import { DEMO_ROUTE_ENCODED } from "@/lib/demo-route-polyline";
 import TripReplayMap from "@/components/maps/TripReplayMap";
 import { TripReportModal } from "@/components/trips/TripReportModal";
 import { useMqttTracking } from "@/hooks/useMqttTracking";
@@ -1086,7 +1085,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                       encodedRoutes={
                         (selectedPlanId ? tripPlans.find((p) => p.id === selectedPlanId) : tripPlans[0])?.route_polyline
                           ? { planned: (selectedPlanId ? tripPlans.find((p) => p.id === selectedPlanId) : tripPlans[0])!.route_polyline! }
-                          : { planned: DEMO_ROUTE_ENCODED }
+                          : undefined
                       }
                       encodedRoutePrecision={(selectedPlanId ? tripPlans.find((p) => p.id === selectedPlanId) : tripPlans[0])?.route_polyline_precision ?? 5}
                     />
@@ -1167,14 +1166,14 @@ Provide a concise, actionable insight for a fleet manager.`;
                               Battery Voltage
                             </p>
                             <div className="flex items-end gap-2">
-                        <span className="text-2xl font-bold">
-                          {fmt(cardTelemetry?.vlt) ?? "—"}V
-                        </span>
-                        <span
-                          className={`text-xs mb-1 font-medium ${(cardTelemetry?.vlt ?? 0) > 12 ? "text-green-600" : "text-red-600"}`}
-                        >
-                          {(cardTelemetry?.vlt ?? 0) > 12 ? "Healthy" : "Low"}
-                        </span>
+                              <span className="text-2xl font-bold">
+                                {fmt(cardTelemetry?.vlt) ?? "—"}V
+                              </span>
+                              <span
+                                className={`text-xs mb-1 font-medium ${(cardTelemetry?.vlt ?? 0) > 12 ? "text-green-600" : "text-red-600"}`}
+                              >
+                                {(cardTelemetry?.vlt ?? 0) > 12 ? "Healthy" : "Low"}
+                              </span>
                             </div>
                           </div>
                           <div className="p-4 rounded-xl border bg-gray-50">
@@ -1227,25 +1226,25 @@ Provide a concise, actionable insight for a fleet manager.`;
                           {(asset.status === "maintenance" ||
                             (fleetMetrics?.km_until_next_service != null &&
                               fleetMetrics.km_until_next_service <= 1000)) && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-teal-600 border-teal-300 hover:bg-teal-50"
-                              onClick={async () => {
-                                if (!asset?.id) return;
-                                try {
-                                  await assetAPI.logService(asset.id);
-                                  toast.success("Service logged. Vehicle status set to active.");
-                                  await loadAsset();
-                                  fetchFleetMetrics(asset.id);
-                                } catch {
-                                  toast.error("Failed to log service");
-                                }
-                              }}
-                            >
-                              Log service
-                            </Button>
-                          )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-teal-600 border-teal-300 hover:bg-teal-50"
+                                onClick={async () => {
+                                  if (!asset?.id) return;
+                                  try {
+                                    await assetAPI.logService(asset.id);
+                                    toast.success("Service logged. Vehicle status set to active.");
+                                    await loadAsset();
+                                    fetchFleetMetrics(asset.id);
+                                  } catch {
+                                    toast.error("Failed to log service");
+                                  }
+                                }}
+                              >
+                                Log service
+                              </Button>
+                            )}
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-4">
@@ -1970,9 +1969,9 @@ Provide a concise, actionable insight for a fleet manager.`;
                                   {machinerySensorData.powerConsumption} kW
                                 </span>
                               </div>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
                       </CardContent>
                     </Card>
                   </div>
