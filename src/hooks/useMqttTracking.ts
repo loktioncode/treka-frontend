@@ -201,18 +201,16 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
     const connect = useCallback(() => {
         if (!user) return;
 
-        const useHiveMQ = !deviceId || mqttProvider !== 'teltonika';
-        const useFlespi = deviceId ? mqttProvider === 'teltonika' : teltonikaDeviceIds.size > 0 || true;
-
+        // Always connect to both brokers so we have real-time data from Hive (custom) and Flespi (Teltonika)
         const updateConnected = () => {
             if (activeRef.current) {
                 const { hive, flespi } = connectedCountRef.current;
-                setIsConnected((useHiveMQ && hive > 0) || (useFlespi && flespi > 0));
+                setIsConnected(hive > 0 || flespi > 0);
             }
         };
 
         // —— HiveMQ (custom devices) ——
-        if (useHiveMQ) {
+        {
             const envUrl = process.env.NEXT_PUBLIC_MQTT_BROKER_URL || '';
             const defaultWss = 'wss://broker.hivemq.com:8884/mqtt';
             let brokerUrl = envUrl || defaultWss;
@@ -347,7 +345,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
         }
 
         // —— Flespi (Teltonika devices) ——
-        if (useFlespi) {
+        {
             try {
                 const options: mqtt.IClientOptions = {
                     clientId: FLESPI_CLIENT_ID,
