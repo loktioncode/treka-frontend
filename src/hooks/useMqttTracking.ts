@@ -420,9 +420,9 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                     connectedCountRef.current.flespi = 1;
                     updateConnected();
                     if (deviceId) {
-                        client.subscribe(`flespi/state/gw/devices/${deviceId}/telemetry/position`, { qos: 0 });
+                        client.subscribe(`flespi/state/gw/devices/${deviceId}/telemetry/+`, { qos: 1 });
                     } else {
-                        client.subscribe('flespi/state/gw/devices/+/telemetry/position', { qos: 0 });
+                        client.subscribe('flespi/state/gw/devices/+/telemetry/+', { qos: 0 });
                     }
                 });
                 client.on('message', (topic: string, message: Buffer) => {
