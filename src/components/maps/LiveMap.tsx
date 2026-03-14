@@ -125,21 +125,24 @@ export default function LiveMap({
   }, []);
 
   useEffect(() => {
-    if (!deviceId) {
-      lastCenteredDeviceRef.current = null;
-      return;
-    }
+    if (!deviceId) return;
     if (!vehicles[deviceId]) return;
     const record = vehicles[deviceId].last_record;
     const lon = record.lon ?? (record as unknown as { lng?: number }).lng;
     if (record.lat == null || lon == null) return;
-    if (lastCenteredDeviceRef.current === deviceId) return;
-    lastCenteredDeviceRef.current = deviceId;
-    setViewState((prev) => ({
-      ...prev,
-      latitude: record.lat!,
-      longitude: lon,
-    }));
+    
+    // Continuously update the center if it changes significantly to avoid jitter
+    setViewState((prev) => {
+      // Only update if the distance is noticeable to avoid map jittering on tiny GPS fluctuations
+      if (Math.abs(prev.latitude - record.lat!) > 0.0001 || Math.abs(prev.longitude - lon) > 0.0001) {
+         return {
+          ...prev,
+          latitude: record.lat!,
+          longitude: lon,
+        };
+      }
+      return prev;
+    });
   }, [deviceId, vehicles]);
 
   const getLon = (p: TelemetryRecord) => p.lon ?? (p as unknown as { lng?: number }).lng;

@@ -1054,6 +1054,14 @@ Provide a concise, actionable insight for a fleet manager.`;
                     Trips
                   </TabsTrigger>
                 )}
+                {asset.asset_type === "vehicle" && (
+                  <TabsTrigger
+                    value="gps_logs"
+                    className="flex-1 data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200"
+                  >
+                    GPS Logs
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               {/* Overview Tab Content */}
@@ -2073,6 +2081,68 @@ Provide a concise, actionable insight for a fleet manager.`;
                     onReportLoaded={setTripReport}
                   />
                 )}
+              </TabsContent>
+
+              {/* GPS Logs Tab */}
+              <TabsContent value="gps_logs" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                       <MapPin className="w-5 h-5 text-teal-600" />
+                       GPS Telemetry Logs
+                    </CardTitle>
+                    <p className="text-sm text-gray-500">Historical location data for this vehicle</p>
+                  </CardHeader>
+                  <CardContent>
+                    {!asset?.vehicle_details?.device_id ? (
+                      <div className="text-center py-10 text-gray-500">
+                        <MapPin className="mx-auto h-12 w-12 opacity-20 mb-3" />
+                        <p>Assign a device ID in Vehicle Details to view GPS logs.</p>
+                      </div>
+                    ) : telemetry.length === 0 ? (
+                      <div className="text-center py-10 text-gray-500">
+                        <p>No GPS logs available yet.</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left border">
+                          <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+                            <tr>
+                              <th className="px-4 py-3">Timestamp</th>
+                              <th className="px-4 py-3">Latitude</th>
+                              <th className="px-4 py-3">Longitude</th>
+                              <th className="px-4 py-3 border-l">Speed</th>
+                              <th className="px-4 py-3">Heading</th>
+                              <th className="px-4 py-3 border-l">Voltage</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {telemetry
+                              .filter((r) => r.lat != null && r.lon != null)
+                              .sort((a, b) => {
+                                const ta = a.ts_server ? new Date(a.ts_server).getTime() : a.ts ?? 0;
+                                const tb = b.ts_server ? new Date(b.ts_server).getTime() : b.ts ?? 0;
+                                return tb - ta;
+                              })
+                              .slice(0, 100) // limit to recent 100 for performance
+                              .map((r, i) => (
+                                <tr key={i} className="bg-white border-b hover:bg-gray-50">
+                                  <td className="px-4 py-3 whitespace-nowrap">
+                                    {r.ts_server ? new Date(r.ts_server).toLocaleString() : r.ts ? new Date(r.ts * 1000).toLocaleString() : "Unknown"}
+                                  </td>
+                                  <td className="px-4 py-3 font-mono">{r.lat?.toFixed(5)}</td>
+                                  <td className="px-4 py-3 font-mono">{r.lon?.toFixed(5)}</td>
+                                  <td className="px-4 py-3 border-l">{r.spd != null ? `${r.spd.toFixed(1)} km/h` : "—"}</td>
+                                  <td className="px-4 py-3">{r.hdg ?? "—"}°</td>
+                                  <td className="px-4 py-3 border-l text-blue-600">{r.vlt != null ? `${r.vlt.toFixed(1)}V` : "—"}</td>
+                                </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </TabsContent>
 
 
