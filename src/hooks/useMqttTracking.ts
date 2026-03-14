@@ -110,7 +110,10 @@ function flespiTelemetryToRecord(
     const lod = flespiNum(telemetry['can.engine.load.level']);
     const lat = pos?.latitude ?? flespiNum(telemetry['position.latitude']);
     const lon = pos?.longitude ?? flespiNum(telemetry['position.longitude']);
-    if (lat == null && lon == null && spd == null && rpm == null) return null;
+    const movValue = telemetry['movement.status']?.value;
+    const mov = movValue !== undefined ? Boolean(movValue) : undefined;
+
+    if (lat == null && lon == null && spd == null && rpm == null && mov == null && tmp == null) return null;
     return {
         ts: Math.floor(ts),
         ts_server: new Date(ts * 1000).toISOString(),
@@ -126,6 +129,7 @@ function flespiTelemetryToRecord(
         tmp,
         fl,
         lod,
+        mov,
     };
 }
 

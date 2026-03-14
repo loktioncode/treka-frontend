@@ -623,6 +623,7 @@ export interface TelemetryRecord {
   cog?: number;
   hdg?: number;
   nsat?: number;
+  mov?: boolean;
 }
 
 export interface TelemetryHistoryResponse {

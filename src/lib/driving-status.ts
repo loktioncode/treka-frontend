@@ -10,14 +10,23 @@ type TelemetryLike = Partial<TelemetryRecord> | null | undefined;
 
 /**
  * Derive driving status from CAN: speed + RPM.
- * - moving: speed > 0
- * - stationary: speed = 0 and engine on (RPM > threshold)
- * - off: speed = 0 and engine off or no RPM data
+ * When movement.status is provided (e.g. Flespi): vehicle is "moving" only when mov === true.
+ * Otherwise: moving when speed > 0; stationary when engine on; off when engine off.
  */
 export function getDrivingStatus(record: TelemetryLike): DrivingStatus {
   if (!record) return "off";
+
   const spd = record.spd ?? 0;
   const rpm = record.rpm ?? 0;
+
+  // Explicit movement.status (e.g. flespi/state/gw/devices/.../telemetry/movement.status): only show moving when true
+  if (record.mov === true) return "moving";
+  if (record.mov === false) {
+    if (rpm > ENGINE_ON_RPM_THRESHOLD) return "stationary";
+    return "off";
+  }
+
+  // No movement.status: use speed and RPM
   if (spd > 0) return "moving";
   if (rpm > ENGINE_ON_RPM_THRESHOLD) return "stationary";
   return "off";
@@ -39,6 +48,7 @@ export function getDrivingStatusLabel(record: TelemetryLike): string {
 /** True if engine is considered on (RPM above threshold or speed > 0). */
 export function isEngineOn(record: TelemetryLike): boolean {
   if (!record) return false;
+  if (record.mov === true) return true;
   const spd = record.spd ?? 0;
   const rpm = record.rpm ?? 0;
   return spd > 0 || rpm > ENGINE_ON_RPM_THRESHOLD;
