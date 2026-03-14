@@ -9,6 +9,7 @@ import Map, {
   NavigationControl,
   FullscreenControl,
 } from "react-map-gl/mapbox";
+import type { MapRef } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useMqttTracking, LiveVehicle } from "@/hooks/useMqttTracking";
 import type { TelemetryRecord } from "@/types/api";
@@ -79,9 +80,11 @@ export default function LiveMap({
   const [viewState, setViewState] = useState({
     latitude: initialCenter.lat,
     longitude: initialCenter.lon,
-    zoom: 10,
+    zoom: 6,
   });
   const lastCenteredDeviceRef = useRef<string | null>(null);
+  const mapRef = useRef<MapRef>(null);
+  const hasFittedFleetRef = useRef(false);
 
   const vehicleListRef = useRef(vehicleList);
   vehicleListRef.current = vehicleList;
@@ -128,13 +131,47 @@ export default function LiveMap({
     };
   }, []);
 
+  // Fleet view: fit bounds to show all vehicle pins (once we have positions)
+  useEffect(() => {
+    if (deviceId || vehicleList.length === 0) return;
+    const positions = vehicleList
+      .map((v) => {
+        const lat = v.last_record.lat;
+        const lon = v.last_record.lon ?? (v.last_record as unknown as { lng?: number }).lng;
+        return lat != null && lon != null ? [lon, lat] as [number, number] : null;
+      })
+      .filter((p): p is [number, number] => p !== null);
+    if (positions.length === 0) return;
+
+    const map = mapRef.current?.getMap?.();
+    if (!map) return;
+
+    const lons = positions.map((p) => p[0]);
+    const lats = positions.map((p) => p[1]);
+    const minLon = Math.min(...lons);
+    const maxLon = Math.max(...lons);
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+    const padding = 80;
+    const singlePoint = minLon === maxLon && minLat === maxLat;
+    const bbox: [[number, number], [number, number]] = singlePoint
+      ? [[minLon - 0.01, minLat - 0.01], [maxLon + 0.01, maxLat + 0.01]]
+      : [[minLon, minLat], [maxLon, maxLat]];
+
+    if (!hasFittedFleetRef.current) {
+      hasFittedFleetRef.current = true;
+      map.fitBounds(bbox, { padding, maxZoom: 12, duration: 600 });
+    }
+  }, [deviceId, vehicleList]);
+
   useEffect(() => {
     if (!deviceId) return;
+    hasFittedFleetRef.current = false;
     if (!vehicles[deviceId]) return;
     const record = vehicles[deviceId].last_record;
     const lon = record.lon ?? (record as unknown as { lng?: number }).lng;
     if (record.lat == null || lon == null) return;
-    
+
     // Continuously update the center if it changes significantly to avoid jitter
     setViewState((prev) => {
       // Only update if the distance is noticeable to avoid map jittering on tiny GPS fluctuations
@@ -207,6 +244,7 @@ export default function LiveMap({
       </div>
 
       <Map
+        ref={mapRef}
         {...viewState}
         onMove={(evt) => setViewState(evt.viewState)}
         mapStyle="mapbox://styles/mapbox/streets-v12"
