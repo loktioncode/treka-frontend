@@ -16,8 +16,8 @@ import { decodeToGeoJSON } from "@/lib/polyline";
 import { Car, AlertTriangle, Info, MapPin } from "lucide-react";
 import { format } from "date-fns";
 
-/** Vehicle status for map icon: red = serious, orange = warning, blue/green = ok */
-function getVehicleStatus(record: TelemetryRecord): "serious" | "warning" | "ok" {
+/** Vehicle status for map icon: red = serious, orange = warning, gray = idle, green = active */
+function getVehicleStatus(record: TelemetryRecord): "serious" | "warning" | "ok" | "idle" {
   const vlt = record.vlt ?? 0;
   const tmp = record.tmp ?? 0;
   const hbk = record.hbk ?? 0;
@@ -31,6 +31,7 @@ function getVehicleStatus(record: TelemetryRecord): "serious" | "warning" | "ok"
   if (vlt >= 11.5 && vlt < 12) return "warning";
   if (tmp >= 95 && tmp <= 105) return "warning";
   if (spd > 120) return "warning";
+  if (spd === 0) return "idle";
   return "ok";
 }
 
@@ -241,6 +242,8 @@ export default function LiveMap({
               ? "bg-red-500 border-white"
               : status === "warning"
                 ? "bg-orange-500 border-white"
+                : status === "idle"
+                ? "bg-gray-400 border-white"
                 : "bg-green-600 border-white";
 
           return (
@@ -304,8 +307,8 @@ export default function LiveMap({
                       </div>
                       <div className="flex flex-col">
                         <span className="text-gray-500">Status</span>
-                        <span className="font-semibold text-green-600">
-                          Active
+                        <span className={`font-semibold ${(spd || 0) > 0 ? "text-green-600" : "text-gray-500"}`}>
+                          {(spd || 0) > 0 ? "Active" : "Idle"}
                         </span>
                       </div>
                     </div>
