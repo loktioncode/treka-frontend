@@ -64,6 +64,7 @@ import TripReplayMap from "@/components/maps/TripReplayMap";
 import { TripReportModal } from "@/components/trips/TripReportModal";
 import { useMqttTracking } from "@/hooks/useMqttTracking";
 import { useMapCenter } from "@/hooks/useMapCenter";
+import { isEngineOn, getDrivingStatusLabel } from "@/lib/driving-status";
 import { type Trip } from "@/types/api";
 import { FloatingChatButton } from "@/components/ui/floating-chat-button";
 import { type ChatMessage } from "@/components/ui/chat";
@@ -323,8 +324,7 @@ Provide a concise, actionable insight for a fleet manager.`;
     if (asset?.asset_type !== "vehicle" || !asset.vehicle_details?.device_id) {
       return null;
     }
-    const isCarOn = (r: TelemetryRecord) =>
-      (Number(r.spd ?? 0) > 0 || Number(r.rpm ?? 0) > 0);
+    const isCarOn = (r: TelemetryRecord) => isEngineOn(r);
     const liveVehicle = vehicleList.find(
       (v) => v.device_id === asset.vehicle_details?.device_id
     );
@@ -1148,7 +1148,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                             <div className="bg-gray-50 rounded-lg p-2 text-center">
                               <p className="text-[10px] uppercase text-gray-500 font-medium">Status</p>
                               <p className="text-lg font-bold text-green-600">
-                                {(cardTelemetry?.spd ?? 0) > 0 ? "Moving" : "Idle"}
+                                {getDrivingStatusLabel(cardTelemetry)}
                               </p>
                             </div>
                           </div>

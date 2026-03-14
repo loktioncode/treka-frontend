@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import LiveMap from "@/components/maps/LiveMap";
 import { useMapCenter } from "@/hooks/useMapCenter";
-import { useMqttTracking } from "@/hooks/useMqttTracking";
+import { useMqttTracking, LIVE_STALE_MINUTES } from "@/hooks/useMqttTracking";
+import { getDrivingStatus, getDrivingStatusLabel } from "@/lib/driving-status";
 import { useDataCache } from "@/contexts/DataCacheContext";
 import {
   Car,
@@ -35,7 +36,7 @@ import { analyticsAPI } from "@/services/api";
 
 export default function FleetMapPage() {
   const mapCenter = useMapCenter();
-  const { vehicleList, isConnected } = useMqttTracking();
+  const { vehicleList, isConnected, vehicles } = useMqttTracking();
   const { assets = [], tripPlans = [] } = useDataCache();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(
@@ -74,6 +75,13 @@ export default function FleetMapPage() {
   const fmt = (v: number | null | undefined) =>
     v != null ? Number(v).toFixed(3) : null;
 
+  /** Full date + time for last data (e.g. "14 Mar 2025, 15:32:10") */
+  const lastDataFmt = (iso: string) =>
+    format(new Date(iso), "d MMM yyyy, HH:mm:ss");
+
+  const liveCount = vehicleList.filter((v) => vehicles[v.device_id]?.status === "online").length;
+  const offlineCount = vehicleList.length - liveCount;
+
   const handleChatMessage = async (message: string) => {
     if (!selectedVehicle) return;
     const userMessage: ChatMessage = {
@@ -102,7 +110,7 @@ export default function FleetMapPage() {
         (r.hac ?? 0) > 0 ? `Harsh acceleration events: ${r.hac}` : null,
         (r.hco ?? 0) > 0 ? `Hard cornering events: ${r.hco}` : null,
         (r.pot ?? 0) > 0 ? `Pothole impacts: ${r.pot}` : null,
-        (r.spd ?? 0) > 0 ? "Status: Moving" : "Status: Idle",
+        `Status: ${getDrivingStatusLabel(r)}`,
       ].filter(Boolean) as string[];
 
       const fullPrompt = `Fleet manager is viewing the live map and selected vehicle ${selectedVehicle.device_id}. They asked: "${message}"
@@ -135,7 +143,7 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
       const fallbackMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: `Live snapshot for **${selectedVehicle.device_id}**: Speed ${fmt(r.spd) ?? "—"} km/h, RPM ${fmt(r.rpm) ?? "—"}, Battery ${fmt(r.vlt) ?? "—"} V. ${(r.spd ?? 0) > 0 ? "Vehicle is moving." : "Vehicle is idle."} Ask me anything about this vehicle's current status.`,
+        content: `Live snapshot for **${selectedVehicle.device_id}**: Speed ${fmt(r.spd) ?? "—"} km/h, RPM ${fmt(r.rpm) ?? "—"}, Battery ${fmt(r.vlt) ?? "—"} V. Status: ${getDrivingStatusLabel(r)}. Ask me anything about this vehicle's current status.`,
         timestamp: new Date(),
         metadata: {
           dataSource: "fleet_live",
@@ -144,7 +152,7 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
             `RPM: ${fmt(r.rpm) ?? "—"}`,
             `Battery: ${fmt(r.vlt) ?? "—"} V`,
             `Coolant: ${fmt(r.tmp) ?? "—"} °C`,
-            (r.spd ?? 0) > 0 ? "Moving" : "Idle",
+            getDrivingStatusLabel(r),
           ],
         },
       };
@@ -191,7 +199,7 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
               <Filter className="h-3 w-3" />
               <span>{filteredVehicles.length} Vehicles</span>
             </div>
-            <span>Sort by: Status</span>
+            <span className="text-[10px]">{liveCount} live · {offlineCount} offline</span>
           </div>
         </div>
 
@@ -212,8 +220,12 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-3">
                       <div
-                        className={`p-2 rounded-lg ${(vehicle.last_record.spd || 0) > 0
-                          ? "bg-green-100 text-green-600"
+                        className={`p-2 rounded-lg ${vehicles[vehicle.device_id]?.status === "online"
+                          ? getDrivingStatus(vehicle.last_record) === "moving"
+                            ? "bg-green-100 text-green-600"
+                            : getDrivingStatus(vehicle.last_record) === "stationary"
+                            ? "bg-blue-100 text-blue-600"
+                            : "bg-gray-100 text-gray-400"
                           : "bg-gray-100 text-gray-400"
                           }`}
                       >
@@ -223,10 +235,13 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
                         <h3 className="text-sm font-bold text-gray-900 group-hover:text-blue-700">
                           {vehicle.device_id}
                         </h3>
-                        <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                          <Clock className="h-3 w-3" />
-                          {format(new Date(vehicle.last_update), "HH:mm:ss")}
+                        <div className="flex items-center gap-1.5 text-[10px] text-gray-500" title={lastDataFmt(vehicle.last_update)}>
+                          <Clock className="h-3 w-3 shrink-0" />
+                          <span>{lastDataFmt(vehicle.last_update)}</span>
                         </div>
+                        {vehicles[vehicle.device_id]?.status === "online" && (
+                          <span className="inline-block mt-0.5 text-[9px] font-medium text-green-600">Live (last {LIVE_STALE_MINUTES} min)</span>
+                        )}
                       </div>
                     </div>
                     <ChevronRight
@@ -283,21 +298,19 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
           <div className="grid grid-cols-2 gap-3">
             <div className="text-center">
               <p className="text-[10px] text-gray-400 uppercase font-bold">
-                Active
+                Live
               </p>
-              <p className="text-lg font-bold text-gray-900">
-                {vehicleList.filter((v) => (v.last_record.spd || 0) > 0).length}
+              <p className="text-lg font-bold text-green-700">
+                {liveCount}
               </p>
+              <p className="text-[9px] text-gray-500">data in last {LIVE_STALE_MINUTES} min</p>
             </div>
             <div className="text-center">
               <p className="text-[10px] text-gray-400 uppercase font-bold">
-                Idle
+                Offline
               </p>
-              <p className="text-lg font-bold text-gray-900">
-                {
-                  vehicleList.filter((v) => (v.last_record.spd || 0) === 0)
-                    .length
-                }
+              <p className="text-lg font-bold text-gray-600">
+                {offlineCount}
               </p>
             </div>
           </div>
@@ -338,11 +351,52 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
             <p className="text-xs text-gray-500 mt-1 truncate" title={selectedVehicle.device_id}>
               {selectedVehicle.device_id}
             </p>
-            <p className="text-[10px] text-gray-400 mt-0.5">
-              {format(new Date(selectedVehicle.last_update), "HH:mm:ss")}
+            <p className="text-[10px] text-gray-600 mt-1 font-medium" title={selectedVehicle.last_update}>
+              Last data: {lastDataFmt(selectedVehicle.last_update)}
             </p>
+            {vehicles[selectedVehicle.device_id]?.status === "online" ? (
+              <Badge className="mt-1 bg-green-100 text-green-700 border-green-200 text-[10px]">Live (last {LIVE_STALE_MINUTES} min)</Badge>
+            ) : (
+              <Badge variant="outline" className="mt-1 text-gray-500 text-[10px]">Offline / stale</Badge>
+            )}
           </div>
           <div className="p-4 space-y-3 flex-1">
+            {/* Available CAN / Flespi fields */}
+            {(() => {
+              const r = selectedVehicle.last_record;
+              const canFields: { label: string; value: unknown }[] = [
+                { label: "Speed", value: r.spd },
+                { label: "RPM", value: r.rpm },
+                { label: "Voltage", value: r.vlt },
+                { label: "Coolant", value: r.tmp },
+                { label: "Fuel", value: r.fl },
+                { label: "Load", value: r.lod },
+                { label: "Throttle", value: r.thr },
+                { label: "Heading", value: r.hdg },
+                { label: "Altitude", value: r.alt },
+                { label: "Satellites", value: r.nsat },
+              ];
+              const available = canFields.filter((f) => f.value != null && f.value !== "");
+              if (available.length === 0) return null;
+              return (
+                <Card className="bg-slate-50 border-slate-200">
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sparkles className="h-3.5 w-3 text-slate-600" />
+                      <span className="text-[10px] uppercase text-slate-700 font-bold">Live CAN / Flespi</span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 mb-1.5">Available in this session:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {available.map((f) => (
+                        <Badge key={f.label} variant="secondary" className="text-[9px] font-normal bg-slate-200/80 text-slate-700">
+                          {f.label}
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
             {/* Speed */}
             <Card className="bg-teal-50 border-teal-200">
               <CardContent className="p-3">
@@ -525,8 +579,11 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
             ) : null}
 
             {/* Status */}
-            <div className={`text-center text-xs font-bold py-2 rounded-lg ${(selectedVehicle.last_record.spd ?? 0) > 0 ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-              {(selectedVehicle.last_record.spd ?? 0) > 0 ? "● Moving" : "● Idle"}
+            <div className={`text-center text-xs font-bold py-2 rounded-lg ${
+              getDrivingStatus(selectedVehicle.last_record) === "moving" ? "bg-green-100 text-green-700" :
+              getDrivingStatus(selectedVehicle.last_record) === "stationary" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"
+            }`}>
+              ● {getDrivingStatusLabel(selectedVehicle.last_record)}
             </div>
           </div>
         </div>

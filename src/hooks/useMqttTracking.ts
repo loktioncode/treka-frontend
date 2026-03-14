@@ -56,6 +56,10 @@ export interface LiveVehicle {
 
 const MAX_TRAIL_POINTS = 500;
 
+/** Consider device offline if no data received in this many minutes */
+export const LIVE_STALE_MINUTES = 5;
+const LIVE_STALE_MS = LIVE_STALE_MINUTES * 60 * 1000;
+
 /** Flespi MQTT config (Teltonika devices) */
 const FLESPI_BROKER_URL = process.env.NEXT_PUBLIC_MQTT_FLESPI_URL || 'wss://mqtt.flespi.io';
 const FLESPI_USERNAME = process.env.NEXT_PUBLIC_MQTT_FLESPI_USERNAME || 'FlespiToken ePTrtxhEDcdAZLHSAdp0yU0qs8MLEYNXo9gUU1q0EJmEN52l8axWMU2zoysxWef2';
@@ -142,6 +146,11 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
     const connectedCountRef = useRef({ hive: 0, flespi: 0 });
     /** Ref holds latest trail per device so rapid MQTT messages always append (prev fixes path not drawing) */
     const trailByDeviceRef = useRef<Record<string, TelemetryRecord[]>>({});
+    /**
+     * Flespi telemetry/+ publishes one parameter per message.
+     * We accumulate latest values per device so we can build a complete TelemetryRecord when needed.
+     */
+    const flespiTelemetryCacheRef = useRef<Record<string, Record<string, FlespiTelemetryEntry>>>({});
 
     // When showing all vehicles, get assets to know which device IDs are Teltonika (Flespi)
     const { data: assets = [], isLoading: assetsLoading } = useAssets({ asset_type: 'vehicle' });
@@ -429,16 +438,56 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                     if (!activeRef.current) return;
                     try {
                         const payload = message.toString();
-                        const data = JSON.parse(payload) as FlespiStatePayload;
-                        console.log('Flespi raw data:', data);
-                        const first = data.result?.[0];
-                        if (!first) return;
-                        const flespiDeviceId = String(first.id);
-                        const fromTopic = topic.split('/')[4]; // flespi/state/gw/devices/{id}/telemetry/position
-                        const deviceIdStr = flespiDeviceId || fromTopic;
+                        const parsed = JSON.parse(payload) as unknown;
+                        const parts = topic.split('/');
+                        const fromTopicDeviceId = parts[4]; // flespi/state/gw/devices/{id}/telemetry/{param}
+                        const paramKey = parts[parts.length - 1];
+                        const deviceIdStr = String(fromTopicDeviceId || '');
                         if (!deviceIdStr) return;
-                        if (!deviceId && !teltonikaDeviceIdsRef.current.has(deviceIdStr)) return;
-                        const record = flespiTelemetryToRecord(deviceIdStr, first.telemetry);
+                        // On fleet map (!deviceId) show all Flespi devices that send data so markers appear.
+                        // When viewing a single asset (deviceId set), we already subscribed to that device only.
+                        if (deviceId && deviceIdStr !== deviceId) return;
+
+                        const cache = (flespiTelemetryCacheRef.current[deviceIdStr] ??= {});
+
+                        // Support both telemetry/+ (single param per message) and legacy payloads with result[0].telemetry.
+                        if (
+                            parsed &&
+                            typeof parsed === 'object' &&
+                            'result' in (parsed as Record<string, unknown>) &&
+                            Array.isArray((parsed as FlespiStatePayload).result)
+                        ) {
+                            const data = parsed as FlespiStatePayload;
+                            const first = data.result?.[0];
+                            const tel = first?.telemetry;
+                            if (tel) {
+                                Object.entries(tel).forEach(([k, v]) => {
+                                    const vv = v as unknown;
+                                    if (vv && typeof vv === 'object' && 'value' in (vv as Record<string, unknown>) && 'ts' in (vv as Record<string, unknown>)) {
+                                        cache[k] = vv as FlespiTelemetryEntry;
+                                    }
+                                });
+                            }
+                        } else {
+                            let entry: FlespiTelemetryEntry;
+                            if (parsed && typeof parsed === 'object' && 'value' in (parsed as Record<string, unknown>)) {
+                                const obj = parsed as Record<string, unknown>;
+                                const tsRaw = obj.ts;
+                                const ts =
+                                    typeof tsRaw === 'number'
+                                        ? tsRaw
+                                        : typeof tsRaw === 'string' && Number.isFinite(Number(tsRaw))
+                                            ? Number(tsRaw)
+                                            : Math.floor(Date.now() / 1000);
+                                entry = { ts, value: obj.value };
+                            } else {
+                                entry = { ts: Math.floor(Date.now() / 1000), value: parsed };
+                            }
+                            cache[paramKey] = entry;
+                        }
+
+                        const record = flespiTelemetryToRecord(deviceIdStr, cache);
+                        // Always keep latest vehicle state fresh; marker/trail only updates when lat/lon available.
                         if (record) applyFlespiPosition(deviceIdStr, record);
                     } catch (err) {
                         console.error('Error parsing Flespi MQTT message:', err);
@@ -460,11 +509,28 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
     }, [user, deviceId, mqttProvider, applyFlespiPosition]);
 
     useEffect(() => {
-        if (assetsLoading) return; // Wait for assets to load so teltonikaDeviceIds is populated for connect
         activeRef.current = true;
         connectedCountRef.current = { hive: 0, flespi: 0 };
         connect();
+        // Connect immediately so Flespi-only devices (no DB history) appear as soon as they send
+        const staleInterval = setInterval(() => {
+            if (!activeRef.current) return;
+            setVehicles((prev) => {
+                const now = Date.now();
+                let changed = false;
+                const next = { ...prev };
+                for (const [id, v] of Object.entries(next)) {
+                    const lastMs = new Date(v.last_update).getTime();
+                    if (v.status === 'online' && now - lastMs > LIVE_STALE_MS) {
+                        next[id] = { ...v, status: 'offline' };
+                        changed = true;
+                    }
+                }
+                return changed ? next : prev;
+            });
+        }, 30000);
         return () => {
+            clearInterval(staleInterval);
             activeRef.current = false;
             if (clientRef.current) {
                 clientRef.current.end();
@@ -476,7 +542,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
             }
             setIsConnected(false);
         };
-    }, [connect, assetsLoading]);
+    }, [connect]);
 
     const sendMessage = (topic: string, message: string) => {
         if (clientRef.current?.connected) {

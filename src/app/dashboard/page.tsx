@@ -36,6 +36,7 @@ import { SmartLink } from "@/components/SmartLink";
 import { useClient } from "@/hooks/useClients";
 import { useFleetTelemetry } from "@/hooks/useLogisticsAnalytics";
 import { useMqttTracking } from "@/hooks/useMqttTracking";
+import { getDrivingStatus } from "@/lib/driving-status";
 import { useAssets } from "@/hooks/useAssets";
 
 import { DriverScoreCard } from "@/components/dashboard/DriverScoreCard";
@@ -570,7 +571,10 @@ export default function Dashboard() {
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-2 h-2 rounded-full ${vehicle.last_record.spd && vehicle.last_record.spd > 0 ? "bg-green-500 animate-pulse" : "bg-gray-400"}`}
+                          className={`w-2 h-2 rounded-full ${
+                            getDrivingStatus(vehicle.last_record) === "moving" ? "bg-green-500 animate-pulse" :
+                            getDrivingStatus(vehicle.last_record) === "stationary" ? "bg-blue-500" : "bg-gray-400"
+                          }`}
                         />
                         <div className="flex flex-col">
                           <span className="text-sm font-medium">

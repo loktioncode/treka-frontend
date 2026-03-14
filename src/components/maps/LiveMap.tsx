@@ -13,11 +13,12 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { useMqttTracking, LiveVehicle } from "@/hooks/useMqttTracking";
 import type { TelemetryRecord } from "@/types/api";
 import { decodeToGeoJSON } from "@/lib/polyline";
+import { getDrivingStatus, getDrivingStatusLabel } from "@/lib/driving-status";
 import { Car, AlertTriangle, Info, MapPin } from "lucide-react";
 import { format } from "date-fns";
 
-/** Vehicle status for map icon: red = serious, orange = warning, gray = idle, green = active */
-function getVehicleStatus(record: TelemetryRecord): "serious" | "warning" | "ok" | "idle" {
+/** Vehicle status for map icon: red = serious, orange = warning, gray = engine off, green = moving, blue = stationary (engine on) */
+function getVehicleStatus(record: TelemetryRecord): "serious" | "warning" | "ok" | "stationary" | "idle" {
   const vlt = record.vlt ?? 0;
   const tmp = record.tmp ?? 0;
   const hbk = record.hbk ?? 0;
@@ -31,8 +32,10 @@ function getVehicleStatus(record: TelemetryRecord): "serious" | "warning" | "ok"
   if (vlt >= 11.5 && vlt < 12) return "warning";
   if (tmp >= 95 && tmp <= 105) return "warning";
   if (spd > 120) return "warning";
-  if (spd === 0) return "idle";
-  return "ok";
+  const driving = getDrivingStatus(record);
+  if (driving === "moving") return "ok";
+  if (driving === "stationary") return "stationary";
+  return "idle";
 }
 
 interface LiveMapProps {
@@ -244,6 +247,8 @@ export default function LiveMap({
                 ? "bg-orange-500 border-white"
                 : status === "idle"
                 ? "bg-gray-400 border-white"
+                : status === "stationary"
+                ? "bg-blue-500 border-white"
                 : "bg-green-600 border-white";
 
           return (
@@ -307,8 +312,11 @@ export default function LiveMap({
                       </div>
                       <div className="flex flex-col">
                         <span className="text-gray-500">Status</span>
-                        <span className={`font-semibold ${(spd || 0) > 0 ? "text-green-600" : "text-gray-500"}`}>
-                          {(spd || 0) > 0 ? "Active" : "Idle"}
+                        <span className={`font-semibold ${
+                          getDrivingStatus(rec) === "moving" ? "text-green-600" :
+                          getDrivingStatus(rec) === "stationary" ? "text-blue-600" : "text-gray-500"
+                        }`}>
+                          {getDrivingStatusLabel(rec)}
                         </span>
                       </div>
                     </div>
