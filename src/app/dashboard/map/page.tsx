@@ -239,9 +239,7 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
                           <Clock className="h-3 w-3 shrink-0" />
                           <span>{lastDataFmt(vehicle.last_update)}</span>
                         </div>
-                        {vehicles[vehicle.device_id]?.status === "online" && (
-                          <span className="inline-block mt-0.5 text-[9px] font-medium text-green-600">Live (last {LIVE_STALE_MINUTES} min)</span>
-                        )}
+                        {vehicles[vehicle.device_id]?.status === "online" }
                       </div>
                     </div>
                     <ChevronRight
