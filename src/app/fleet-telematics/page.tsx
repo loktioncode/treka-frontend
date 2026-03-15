@@ -178,7 +178,7 @@ export default function FleetTelematicsPage() {
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-teal-100 rounded-full text-teal-700 text-sm font-medium mb-6">
             <Radio className="h-4 w-4" />
-            Live Vehicle Data from Teltonika, OBD-II & Custom IoT Devices
+            Live Vehicle Data from Teltonika & the TREKAMAN Tracker (OBD-II)
           </div>
 
           <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight">
@@ -380,7 +380,7 @@ export default function FleetTelematicsPage() {
               Works With Your Existing Hardware
             </h2>
             <p className="text-gray-600 text-lg">
-              Plug in a Teltonika device or our custom ESP32 OBD-II reader — data flows in minutes
+              Plug in a Teltonika device or the custom TREKAMAN tracker that gets data from OBD-II — data flows in minutes
             </p>
           </div>
 
@@ -393,8 +393,8 @@ export default function FleetTelematicsPage() {
                 badgeColor: "bg-teal-100 text-teal-700",
               },
               {
-                title: "Custom OBD-II (ESP32)",
-                desc: "Our open-source firmware reads 12+ OBD-II PIDs + 6-axis IMU at 10 Hz. Under R500 per device.",
+                title: "TREKAMAN Tracker",
+                desc: "Our custom TREKAMAN tracker plugs into the OBD-II port and reads 12+ engine PIDs plus 6-axis IMU. Under R500 per device.",
                 badge: "Best Value",
                 badgeColor: "bg-amber-100 text-amber-700",
               },

@@ -388,7 +388,7 @@ export default function GPSTrackingPage() {
             {
               step: "1",
               title: "Install the Device",
-              desc: "Plug our tracking device into your vehicle's OBD-II port or wire a Teltonika tracker. Takes less than 5 minutes.",
+              desc: "Plug the custom TREKAMAN tracker into your vehicle's OBD-II port to get data from OBD-II, or use a Teltonika device. Takes less than 5 minutes.",
               icon: Zap,
               color: "teal",
             },
