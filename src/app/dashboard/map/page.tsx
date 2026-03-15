@@ -359,7 +359,7 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
             )}
           </div>
           <div className="p-4 space-y-3 flex-1">
-            {/* Available CAN / Flespi fields */}
+            {/* Available CAN  Flespi fields */}
             {(() => {
               const r = selectedVehicle.last_record;
               const canFields: { label: string; value: unknown }[] = [
