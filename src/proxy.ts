@@ -18,6 +18,8 @@ export function proxy(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/verify-otp');
 
   const isPublicPage = request.nextUrl.pathname === '/' ||
+    request.nextUrl.pathname === '/gps-tracking' ||
+    request.nextUrl.pathname === '/fleet-telematics' ||
     request.nextUrl.pathname.startsWith('/api/') ||
     request.nextUrl.pathname.startsWith('/_next/');
 
