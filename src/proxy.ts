@@ -17,11 +17,14 @@ export function proxy(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/reset-password') ||
     request.nextUrl.pathname.startsWith('/verify-otp');
 
-  const isPublicPage = request.nextUrl.pathname === '/' ||
-    request.nextUrl.pathname === '/gps-tracking' ||
-    request.nextUrl.pathname === '/fleet-telematics' ||
-    request.nextUrl.pathname.startsWith('/api/') ||
-    request.nextUrl.pathname.startsWith('/_next/');
+  const path = request.nextUrl.pathname;
+  // Public: landing + marketing pages (no API calls, no auth required)
+  const isPublicPage =
+    path === '/' ||
+    path.startsWith('/gps-tracking') ||
+    path.startsWith('/fleet-telematics') ||
+    path.startsWith('/api/') ||
+    path.startsWith('/_next/');
 
   // Always allow access to auth pages - let client-side handle validation
   // This prevents issues with stale cookies blocking access to login
