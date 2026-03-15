@@ -3,15 +3,43 @@ import type { TelemetryRecord } from "@/types/api";
 /** Minimum RPM to consider engine running (below typical idle 600–900). */
 const ENGINE_ON_RPM_THRESHOLD = 350;
 
+/** Min speed (km/h) to consider moving — avoids noise at 0. */
+const MOVING_SPEED_KMH = 2;
+
+/** Vibration RMS (g) above which we consider the vehicle moving (custom devices with MPU). Stationary ≈ 0–0.01. */
+const VIB_MOVING_THRESHOLD_G = 0.02;
+
+/** |ia_tot - 1.0| above this (g) suggests motion/vibration. At rest ia_tot ≈ 1.0. */
+const IA_TOT_MOTION_DEVIATION_G = 0.04;
+
 export type DrivingStatus = "moving" | "stationary" | "off";
 
 /** Record shape needed for driving status (all fields used here are optional). */
 type TelemetryLike = Partial<TelemetryRecord> | null | undefined;
 
 /**
- * Derive driving status from CAN: speed + RPM.
- * When movement.status is provided (e.g. Flespi): vehicle is "moving" only when mov === true.
- * Otherwise: moving when speed > 0; stationary when engine on; off when engine off.
+ * True when MPU/IMU data suggests the vehicle is moving (vibration or acceleration deviation from rest).
+ * Used for custom HiveMQ devices so we don't show "moving" from speed noise alone.
+ */
+function mpuSuggestsMoving(record: TelemetryLike): boolean {
+  if (!record) return false;
+  const vib = record.vib;
+  const iaTot = record.ia_tot;
+  if (vib != null && vib > VIB_MOVING_THRESHOLD_G) return true;
+  if (iaTot != null && Math.abs(iaTot - 1) > IA_TOT_MOTION_DEVIATION_G) return true;
+  return false;
+}
+
+/** True when record has MPU/IMU fields from a custom device (HiveMQ). */
+function hasMpuData(record: TelemetryLike): boolean {
+  return record != null && (record.vib != null || record.ia_tot != null);
+}
+
+/**
+ * Derive driving status from CAN + optional movement/MPU.
+ * - Flespi: "moving" only when movement.status === true.
+ * - Custom (HiveMQ) with MPU: "moving" only when speed > threshold AND MPU suggests motion (vib/ia_tot).
+ * - No movement/MPU: moving when speed > 0; stationary/off from RPM.
  */
 export function getDrivingStatus(record: TelemetryLike): DrivingStatus {
   if (!record) return "off";
@@ -19,14 +47,21 @@ export function getDrivingStatus(record: TelemetryLike): DrivingStatus {
   const spd = record.spd ?? 0;
   const rpm = record.rpm ?? 0;
 
-  // Explicit movement.status (e.g. flespi/state/gw/devices/.../telemetry/movement.status): only show moving when true
+  // Explicit movement.status (Flespi): only show moving when true
   if (record.mov === true) return "moving";
   if (record.mov === false) {
     if (rpm > ENGINE_ON_RPM_THRESHOLD) return "stationary";
     return "off";
   }
 
-  // No movement.status: use speed and RPM
+  // Custom devices (HiveMQ) with MPU: only show moving when speed is above threshold AND MPU indicates motion
+  if (hasMpuData(record)) {
+    if (spd > MOVING_SPEED_KMH && mpuSuggestsMoving(record)) return "moving";
+    if (rpm > ENGINE_ON_RPM_THRESHOLD) return "stationary";
+    return "off";
+  }
+
+  // No movement.status and no MPU: use speed and RPM only
   if (spd > 0) return "moving";
   if (rpm > ENGINE_ON_RPM_THRESHOLD) return "stationary";
   return "off";
