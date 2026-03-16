@@ -229,7 +229,10 @@ export function OverallEarningsChart({ data, title = 'Overall Earnings', subtitl
                 borderRadius: '8px',
                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
               }}
-              formatter={(value: number | undefined) => [value != null ? `R${value.toLocaleString()}` : "", "Earnings"]}
+              formatter={(value: number | string | undefined) => [
+                value != null ? (typeof value === 'number' ? `R${value.toLocaleString()}` : String(value)) : "",
+                "Earnings",
+              ]}
             />
             <Area 
               type="monotone" 
@@ -284,7 +287,10 @@ export function OverallEarningsChart({ data, title = 'Overall Earnings', subtitl
                     borderRadius: '8px',
                     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                   }}
-                  formatter={(value: number | undefined) => [value != null ? `R${value.toLocaleString()}` : "", "Earnings"]}
+                  formatter={(value: number | string | undefined) => [
+                value != null ? (typeof value === 'number' ? `R${value.toLocaleString()}` : String(value)) : "",
+                "Earnings",
+              ]}
                 />
                 <Area 
                   type="monotone" 
@@ -412,7 +418,10 @@ export function DriverLeaderboardChart({ data, title = 'Driver Leaderboard', sub
                 borderRadius: '8px',
                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
               }}
-              formatter={(value: number | undefined) => [value != null ? `R${value.toLocaleString()}` : "", "Earnings"]}
+              formatter={(value: number | string | undefined) => [
+                value != null ? (typeof value === 'number' ? `R${value.toLocaleString()}` : String(value)) : "",
+                "Earnings",
+              ]}
             />
             <Bar 
               dataKey="total_earnings" 
@@ -457,7 +466,10 @@ export function DriverLeaderboardChart({ data, title = 'Driver Leaderboard', sub
                     borderRadius: '8px',
                     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                   }}
-                                     formatter={(value: number | undefined) => [value != null ? `R${value.toLocaleString()}` : "", "Earnings"]}
+                                     formatter={(value: number | string | undefined) => [
+                value != null ? (typeof value === 'number' ? `R${value.toLocaleString()}` : String(value)) : "",
+                "Earnings",
+              ]}
                 />
                 <Bar 
                   dataKey="total_earnings" 
@@ -571,7 +583,10 @@ export function PaymentDistributionChart({ data, title = 'Payment Distribution',
                 borderRadius: '8px',
                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
               }}
-              formatter={(value: number | undefined) => [value != null ? `R${value.toLocaleString()}` : "", "Amount"]}
+              formatter={(value: number | string | undefined) => [
+                value != null ? (typeof value === 'number' ? `R${value.toLocaleString()}` : String(value)) : "",
+                "Amount",
+              ]}
             />
           </PieChart>
         </ResponsiveContainer>
@@ -605,7 +620,10 @@ export function PaymentDistributionChart({ data, title = 'Payment Distribution',
                     borderRadius: '8px',
                     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                   }}
-                  formatter={(value: number | undefined) => [value != null ? `R${value.toLocaleString()}` : "", "Amount"]}
+                  formatter={(value: number | string | undefined) => [
+                value != null ? (typeof value === 'number' ? `R${value.toLocaleString()}` : String(value)) : "",
+                "Amount",
+              ]}
                 />
                 <Legend />
               </PieChart>
@@ -721,8 +739,14 @@ export function PerformanceTrendsChart({ data, title = 'Performance Trends', sub
                 borderRadius: '8px',
                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
               }}
-              formatter={(value: number | undefined, name: string | undefined) => [
-                value != null ? (name === "drivers" ? value.toString() : `R${value.toLocaleString()}`) : "",
+              formatter={(value: number | string | undefined, name: string | undefined) => [
+                value != null
+                  ? (name === "drivers"
+                      ? String(value)
+                      : typeof value === "number"
+                        ? `R${value.toLocaleString()}`
+                        : String(value))
+                  : "",
                 name === "drivers" ? "Active Drivers" : "Total Earnings",
               ]}
             />
@@ -789,8 +813,14 @@ export function PerformanceTrendsChart({ data, title = 'Performance Trends', sub
                     borderRadius: '8px',
                     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                   }}
-                  formatter={(value: number | undefined, name: string | undefined) => [
-                    value != null ? (name === "drivers" ? value.toString() : `R${value.toLocaleString()}`) : "",
+                  formatter={(value: number | string | undefined, name: string | undefined) => [
+                    value != null
+                      ? (name === "drivers"
+                          ? String(value)
+                          : typeof value === "number"
+                            ? `R${value.toLocaleString()}`
+                            : String(value))
+                      : "",
                     name === "drivers" ? "Active Drivers" : "Total Earnings",
                   ]}
                 />
