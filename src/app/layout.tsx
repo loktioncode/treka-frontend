@@ -1,4 +1,4 @@
-import { Metadata, Viewport } from "next";
+import { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next"
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
@@ -8,12 +8,7 @@ import "./globals.css";
 import ClientLayout from "@/components/ClientLayout";
 
 // Viewport configuration (separate from metadata in Next.js 14+)
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  viewportFit: "cover",
-};
+export const viewport = "width=device-width, initial-scale=1";
 
 // Metadata must be in a server component
 export const metadata: Metadata = {
