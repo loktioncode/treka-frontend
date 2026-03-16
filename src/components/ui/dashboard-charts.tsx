@@ -750,9 +750,9 @@ export function PerformanceTrendsChart({ data, title = 'Performance Trends', sub
                 borderRadius: '8px',
                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
               }}
-              formatter={(value: TooltipValueType, name: string | undefined) => [
-                name === "drivers" ? formatTooltipValue(value, false) : formatTooltipValue(value, true),
-                name === "drivers" ? "Active Drivers" : "Total Earnings",
+              formatter={(value: TooltipValueType, name) => [
+                String(name) === "drivers" ? formatTooltipValue(value, false) : formatTooltipValue(value, true),
+                String(name) === "drivers" ? "Active Drivers" : "Total Earnings",
               ]}
             />
             <Line 
@@ -818,9 +818,9 @@ export function PerformanceTrendsChart({ data, title = 'Performance Trends', sub
                     borderRadius: '8px',
                     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                   }}
-                  formatter={(value: TooltipValueType, name: string | undefined) => [
-                    name === "drivers" ? formatTooltipValue(value, false) : formatTooltipValue(value, true),
-                    name === "drivers" ? "Active Drivers" : "Total Earnings",
+                  formatter={(value: TooltipValueType, name) => [
+                    String(name) === "drivers" ? formatTooltipValue(value, false) : formatTooltipValue(value, true),
+                    String(name) === "drivers" ? "Active Drivers" : "Total Earnings",
                   ]}
                 />
                 <Legend />
