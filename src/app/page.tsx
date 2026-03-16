@@ -69,13 +69,13 @@ export default function Home() {
     {
       icon: Shield,
       title: 'Driver Safety Scoring',
-      description: 'Harsh braking, speeding, and cornering detected by IMU sensors. Coach drivers and reduce accidents by 40%.',
+      description: 'Harsh braking, speeding, and cornering detected by ECU DATA sensors. Coach drivers and reduce accidents by 40%.',
       color: 'purple',
     },
     {
       icon: Fuel,
       title: 'Fuel Monitoring',
-      description: 'Live fuel level from CAN bus. Detect theft, track consumption per trip, and identify wasteful driving habits.',
+      description: 'Live fuel level from ECU DATA. Detect theft, track consumption per trip, and identify wasteful driving habits.',
       color: 'emerald',
     },
     {
@@ -96,7 +96,7 @@ export default function Home() {
     'Save 15-25% on fuel by monitoring driver behavior and consumption',
     'Prevent 80% of breakdowns with live engine health monitoring',
     'Reduce accidents by 40% with harsh event detection and coaching',
-    'Eliminate fuel theft with real-time CAN bus fuel level tracking',
+    'Eliminate fuel theft with real-time ECU DATA fuel level tracking',
     'Automate trip reports — no more manual driver logbooks',
     'Prove delivery times with GPS-verified arrival data',
     'Track fleet utilization and reduce idle vehicle costs',

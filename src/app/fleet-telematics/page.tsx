@@ -85,7 +85,7 @@ export default function FleetTelematicsPage() {
       icon: Fuel,
       title: "Fuel Level & Consumption Tracking",
       description:
-        "Live fuel level from the CAN bus, not estimates. Detect fuel theft instantly. Track consumption per trip and identify your most and least efficient vehicles.",
+        "Live fuel level from the ECU DATA, not estimates. Detect fuel theft instantly. Track consumption per trip and identify your most and least efficient vehicles.",
       benefit: "Save 15-25% on fuel costs",
       gradient: "from-emerald-500 to-green-500",
     },
@@ -101,7 +101,7 @@ export default function FleetTelematicsPage() {
       icon: Activity,
       title: "Driver Behavior Scoring",
       description:
-        "Every harsh brake, aggressive acceleration, and hard corner is detected by our IMU sensors. Drivers get scored, and you get a leaderboard to coach them.",
+        "Every harsh brake, aggressive acceleration, and hard corner is detected by our ECU DATA sensors. Drivers get scored, and you get a leaderboard to coach them.",
       benefit: "Reduce accidents by 40%",
       gradient: "from-purple-500 to-violet-500",
     },
@@ -124,22 +124,22 @@ export default function FleetTelematicsPage() {
   ];
 
   const ecuDataPoints = [
-    { name: "Vehicle Speed", source: "CAN Bus / GPS", icon: Gauge },
-    { name: "Engine RPM", source: "OBD-II PID", icon: Activity },
-    { name: "Fuel Level", source: "CAN Bus", icon: Fuel },
-    { name: "Coolant Temperature", source: "OBD-II PID", icon: Thermometer },
-    { name: "Battery Voltage", source: "CAN Bus", icon: Zap },
-    { name: "Engine Load", source: "OBD-II PID", icon: Target },
-    { name: "Throttle Position", source: "OBD-II PID", icon: Gauge },
-    { name: "Mass Air Flow", source: "OBD-II PID", icon: Activity },
-    { name: "Oil Temperature", source: "CAN Bus", icon: Thermometer },
-    { name: "Intake Air Temp", source: "OBD-II PID", icon: Thermometer },
-    { name: "Fuel Pressure", source: "CAN Bus", icon: Fuel },
-    { name: "Barometric Pressure", source: "OBD-II PID", icon: Activity },
-    { name: "Harsh Braking", source: "IMU Sensor", icon: AlertTriangle },
-    { name: "Hard Cornering", source: "IMU Sensor", icon: AlertTriangle },
-    { name: "Vibration / Road Quality", source: "IMU Sensor", icon: Activity },
-    { name: "Roll & Pitch Angle", source: "IMU Sensor", icon: Activity },
+    { name: "Vehicle Speed", source: "ECU DATA / GPS", icon: Gauge },
+    { name: "Engine RPM", source: "ECU DATA", icon: Activity },
+    { name: "Fuel Level", source: "ECU DATA", icon: Fuel },
+    { name: "Coolant Temperature", source: "ECU DATA", icon: Thermometer },
+    { name: "Battery Voltage", source: "ECU DATA", icon: Zap },
+    { name: "Engine Load", source: "ECU DATA", icon: Target },
+    { name: "Throttle Position", source: "ECU DATA", icon: Gauge },
+    { name: "Mass Air Flow", source: "ECU DATA", icon: Activity },
+    { name: "Oil Temperature", source: "ECU DATA", icon: Thermometer },
+    { name: "Intake Air Temp", source: "ECU DATA", icon: Thermometer },
+    { name: "Fuel Pressure", source: "ECU DATA", icon: Fuel },
+    { name: "Barometric Pressure", source: "ECU DATA", icon: Activity },
+    { name: "Harsh Braking", source: "ECU DATA Sensor", icon: AlertTriangle },
+    { name: "Hard Cornering", source: "ECU DATA Sensor", icon: AlertTriangle },
+    { name: "Vibration / Road Quality", source: "ECU DATA Sensor", icon: Activity },
+    { name: "Roll & Pitch Angle", source: "ECU DATA Sensor", icon: Activity },
   ];
 
   return (
@@ -344,7 +344,7 @@ export default function FleetTelematicsPage() {
               16+ Data Points From Every Vehicle
             </h2>
             <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-              We read data directly from the vehicle&apos;s ECU via OBD-II, CAN bus, and onboard IMU sensors
+              We read data directly from the vehicle&apos;s ECU via OBD-II, ECU DATA, and onboard ECU DATA sensors
             </p>
           </motion.div>
 
@@ -388,13 +388,13 @@ export default function FleetTelematicsPage() {
             {[
               {
                 title: "Teltonika FMB/FMC",
-                desc: "Industry-standard GPS + CAN bus trackers. Already have them? We integrate via Flespi MQTT in one click.",
+                desc: "Industry-standard GPS + ECU DATA trackers. Already have them? We integrate via Flespi MQTT in one click.",
                 badge: "Most Popular",
                 badgeColor: "bg-teal-100 text-teal-700",
               },
               {
                 title: "TREKAMAN Tracker",
-                desc: "Our custom TREKAMAN tracker plugs into the OBD-II port and reads 12+ engine PIDs plus 6-axis IMU. Under R500 per device.",
+                desc: "Our custom TREKAMAN tracker plugs into the OBD-II port and reads 12+ engine PIDs plus 6-axis ECU DATA. Under R500 per device.",
                 badge: "Best Value",
                 badgeColor: "bg-amber-100 text-amber-700",
               },
