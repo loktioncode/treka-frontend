@@ -156,7 +156,7 @@ export default function GPSTrackingPage() {
         </motion.nav>
 
         {/* Hero Section */}
-        <motion.main 
+        <motion.main
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
@@ -165,7 +165,7 @@ export default function GPSTrackingPage() {
           <div>
             <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-900 border border-blue-500/30 rounded-full text-blue-400 text-sm font-medium mb-8 shadow-[0_0_10px_rgba(59,130,246,0.2)]">
               <Satellite className="h-4 w-4 animate-pulse" />
-              GPS + MQTT Real-Time Fleet Tracking Active
+              Active
             </div>
 
             <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold text-white mb-6 leading-[1.1] tracking-tight">
@@ -203,38 +203,38 @@ export default function GPSTrackingPage() {
           <div className="relative h-[500px] lg:h-[600px] w-full flex flex-col items-center justify-between py-10">
             {/* Ambient glow */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 bg-blue-500/20 blur-[100px] rounded-full pointer-events-none" />
-            
+
             {/* Satellite at top */}
             <div className="w-full max-w-[280px] z-20 relative transform translate-y-[-20px]">
-               <WireframeSatellite className="w-full h-auto drop-shadow-[0_0_15px_rgba(59,130,246,0.6)]" />
-               {/* Vertical target beam from satellite to truck */}
-               <div className="absolute top-[80%] left-1/2 -translate-x-1/2 w-[2px] h-[300px] bg-gradient-to-b from-blue-400 to-transparent opacity-30 shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
-               <motion.div 
-                 initial={{ opacity: 0, y: 0 }}
-                 animate={{ opacity: [0, 1, 0], y: [0, 200] }}
-                 transition={{ repeat: Infinity, duration: 2.5, ease: "linear" }}
-                 className="absolute top-[80%] left-1/2 -translate-x-1/2 w-[4px] h-[30px] bg-blue-300 rounded-full shadow-[0_0_15px_rgba(147,197,253,1)]"
-               />
-               
-               {/* Animated rings around satellite */}
-               <motion.div
-                 initial={{ opacity: 0, scale: 0.8 }}
-                 animate={{ opacity: [0, 0.5, 0], scale: [0.8, 1.5, 2] }}
-                 transition={{ repeat: Infinity, duration: 3, delay: 0.5 }}
-                 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 border border-blue-400/30 rounded-full -z-10"
-               />
+              <WireframeSatellite className="w-full h-auto drop-shadow-[0_0_15px_rgba(59,130,246,0.6)]" />
+              {/* Vertical target beam from satellite to truck */}
+              <div className="absolute top-[80%] left-1/2 -translate-x-1/2 w-[2px] h-[300px] bg-gradient-to-b from-blue-400 to-transparent opacity-30 shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
+              <motion.div
+                initial={{ opacity: 0, y: 0 }}
+                animate={{ opacity: [0, 1, 0], y: [0, 200] }}
+                transition={{ repeat: Infinity, duration: 2.5, ease: "linear" }}
+                className="absolute top-[80%] left-1/2 -translate-x-1/2 w-[4px] h-[30px] bg-blue-300 rounded-full shadow-[0_0_15px_rgba(147,197,253,1)]"
+              />
+
+              {/* Animated rings around satellite */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: [0, 0.5, 0], scale: [0.8, 1.5, 2] }}
+                transition={{ repeat: Infinity, duration: 3, delay: 0.5 }}
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 border border-blue-400/30 rounded-full -z-10"
+              />
             </div>
 
             {/* Truck at bottom receiving signal */}
             <div className="w-full max-w-[350px] z-10 mt-auto relative transform translate-y-[20px]">
-                {/* Simulated ground line */}
-                <div className="absolute inset-x-0 bottom-6 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent z-0"></div>
-                <WireframeTruck className="w-full h-auto opacity-70" />
-                
-                {/* Lock icon next to truck */}
-                <div className="absolute -right-4 top-1/2 -translate-y-1/2 glass-card px-3 py-1.5 rounded-lg border-emerald-500/30 flex items-center gap-2 text-xs font-mono text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
-                  <LocateFixed className="h-3 w-3 animate-pulse" /> LOCKED
-                </div>
+              {/* Simulated ground line */}
+              <div className="absolute inset-x-0 bottom-6 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent z-0"></div>
+              <WireframeTruck className="w-full h-auto opacity-70" />
+
+              {/* Lock icon next to truck */}
+              <div className="absolute -right-4 top-1/2 -translate-y-1/2 glass-card px-3 py-1.5 rounded-lg border-emerald-500/30 flex items-center gap-2 text-xs font-mono text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
+                <LocateFixed className="h-3 w-3 animate-pulse" /> LOCKED
+              </div>
             </div>
           </div>
         </motion.main>
@@ -242,7 +242,7 @@ export default function GPSTrackingPage() {
         {/* ─── Why You Need GPS Tracking ─── */}
         <section className="border-t border-slate-800 bg-slate-900/40 backdrop-blur-md py-24 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[120px] pointer-events-none" />
-          
+
           <div className="container mx-auto px-4 relative z-10">
             <motion.div
               initial={{ opacity: 0 }}
@@ -295,11 +295,11 @@ export default function GPSTrackingPage() {
                   <div className={`glass-card rounded-2xl p-6 h-full border-${item.color}-500/20 hover:border-${item.color}-500/40 transition-all group overflow-hidden relative`}>
                     <div className={`absolute -right-6 -top-6 w-24 h-24 bg-${item.color}-500/10 blur-[30px] rounded-full group-hover:bg-${item.color}-500/20 transition-all`} />
                     <div className="relative z-10">
-                        <div className={`p-3 rounded-xl bg-${item.color}-500/10 border border-${item.color}-500/20 w-fit mb-5 shadow-[0_0_15px_rgba(var(--${item.color}-500),0.1)]`}>
-                          <item.icon className={`h-5 w-5 text-${item.color}-400`} />
-                        </div>
-                        <h3 className="text-xl font-bold text-white mb-2 group-hover:text-slate-200 transition-colors">{item.title}</h3>
-                        <p className="text-slate-400 text-sm leading-relaxed font-light">{item.desc}</p>
+                      <div className={`p-3 rounded-xl bg-${item.color}-500/10 border border-${item.color}-500/20 w-fit mb-5 shadow-[0_0_15px_rgba(var(--${item.color}-500),0.1)]`}>
+                        <item.icon className={`h-5 w-5 text-${item.color}-400`} />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-2 group-hover:text-slate-200 transition-colors">{item.title}</h3>
+                      <p className="text-slate-400 text-sm leading-relaxed font-light">{item.desc}</p>
                     </div>
                   </div>
                 </motion.div>
@@ -310,7 +310,7 @@ export default function GPSTrackingPage() {
 
         {/* ─── Features ─── */}
         <section id="features" className="py-24 border-y border-slate-800 bg-slate-900/50 backdrop-blur-sm relative">
-            <div className="absolute right-0 bottom-0 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[150px] pointer-events-none" />
+          <div className="absolute right-0 bottom-0 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[150px] pointer-events-none" />
           <div className="container mx-auto px-4 relative z-10">
             <motion.div
               initial={{ opacity: 0 }}
@@ -457,15 +457,15 @@ export default function GPSTrackingPage() {
                   className="text-center group"
                 >
                   <div className="relative mb-8 mt-4">
-                     <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-${item.color}-500/10 blur-xl rounded-full group-hover:bg-${item.color}-500/20 transition-all`} />
-                     <div className={`relative w-20 h-20 rounded-2xl glass-card border-${item.color}-500/30 flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(var(--${item.color}-500),0.15)]`}>
-                        <item.icon className={`h-10 w-10 text-${item.color}-400`} />
-                     </div>
-                     <div className={`absolute -right-2 -bottom-2 w-10 h-10 rounded-full bg-slate-900 border border-${item.color}-500/50 flex items-center justify-center text-sm font-black text-${item.color}-400 shadow-lg`}>
-                        {item.step}
-                     </div>
+                    <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-${item.color}-500/10 blur-xl rounded-full group-hover:bg-${item.color}-500/20 transition-all`} />
+                    <div className={`relative w-20 h-20 rounded-2xl glass-card border-${item.color}-500/30 flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(var(--${item.color}-500),0.15)]`}>
+                      <item.icon className={`h-10 w-10 text-${item.color}-400`} />
+                    </div>
+                    <div className={`absolute -right-2 -bottom-2 w-10 h-10 rounded-full bg-slate-900 border border-${item.color}-500/50 flex items-center justify-center text-sm font-black text-${item.color}-400 shadow-lg`}>
+                      {item.step}
+                    </div>
                   </div>
-                  
+
                   <h3 className="text-xl font-bold text-white mb-3">{item.title}</h3>
                   <p className="text-slate-400 text-sm leading-relaxed font-light">{item.desc}</p>
                 </motion.div>
@@ -482,10 +482,10 @@ export default function GPSTrackingPage() {
             className="container mx-auto max-w-6xl"
           >
             <div className="glass-card rounded-3xl p-[1px] border border-blue-500/30 animated-pulse-border overflow-hidden">
-               <div className="absolute inset-0 bg-gradient-to-br from-blue-900/60 to-slate-900/80 -z-10" />
-               <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTAgMGg2MHY2MEgweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0zMCAzMG0tMjggMGEyOCAyOCAwIDEgMCA1NiAwYTI4IDI4IDAgMSAwLTU2IDB6IiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoNTksMTMwLDI0NiwwLjE1KSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCBmaWxsPSJ1cmwoI2cpIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIi8+PC9zdmc+')] opacity-50 -z-10" />
-               
-               <div className="relative p-12 md:p-20 text-center bg-slate-950/50 backdrop-blur-xl rounded-3xl z-10">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-900/60 to-slate-900/80 -z-10" />
+              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTAgMGg2MHY2MEgweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0zMCAzMG0tMjggMGEyOCAyOCAwIDEgMCA1NiAwYTI4IDI4IDAgMSAwLTU2IDB6IiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoNTksMTMwLDI0NiwwLjE1KSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCBmaWxsPSJ1cmwoI2cpIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIi8+PC9zdmc+')] opacity-50 -z-10" />
+
+              <div className="relative p-12 md:p-20 text-center bg-slate-950/50 backdrop-blur-xl rounded-3xl z-10">
                 <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-6">
                   Take Control of Your Fleet Today.
                 </h2>

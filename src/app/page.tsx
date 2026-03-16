@@ -4,14 +4,14 @@ import Link from 'next/link';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { 
-  Shield, 
+import {
+  Shield,
   Gauge,
   MapPin,
   Fuel,
-  Wrench, 
-  BarChart3, 
-  CheckCircle, 
+  Wrench,
+  BarChart3,
+  CheckCircle,
   ArrowRight,
   Star,
   Zap,
@@ -99,13 +99,13 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 selection:bg-teal-500/30 font-sans overflow-x-hidden">
-      
+
       {/* Tech Grid Background */}
       <div className="absolute inset-0 h-[110vh] pointer-events-none tech-grid-bg" />
 
       <div className="relative z-10 container mx-auto px-4 py-8">
         {/* Navigation */}
-        <motion.nav 
+        <motion.nav
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex justify-between items-center mb-16 glass-card px-6 py-4 rounded-2xl"
@@ -134,7 +134,7 @@ export default function Home() {
         </motion.nav>
 
         {/* Hero Section */}
-        <motion.main 
+        <motion.main
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
@@ -152,16 +152,16 @@ export default function Home() {
                 That Saves Money.
               </span>
             </h1>
-            
+
             <p className="text-xl text-slate-400 mb-10 leading-relaxed font-light">
-              Live engine data, GPS tracking, driver scoring, and fuel monitoring — all from one dashboard. 
+              Live engine data, GPS tracking, driver scoring, and fuel monitoring — all from one dashboard.
               Know what every vehicle is doing, prevent breakdowns, and <strong className="text-teal-300 font-semibold">cut fleet costs by 25%</strong>.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-5 mb-12">
               <Link href="/login" aria-label="Get started with TREKAMAN">
-                <Button 
-                  size="lg" 
+                <Button
+                  size="lg"
                   className="w-full sm:w-auto bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-slate-950 font-bold px-8 py-7 text-lg rounded-xl shadow-[0_0_20px_rgba(45,212,191,0.4)] transition-all flex items-center gap-2 border border-teal-300/50"
                 >
                   Start Free Trial
@@ -212,7 +212,7 @@ export default function Home() {
                   Fleet Telematics Data
                 </h3>
                 <p className="text-slate-400 mb-6 leading-relaxed">
-                  Live engine data from every vehicle — speed, fuel, temperature, driver behavior. 
+                  Live engine data from every vehicle — speed, fuel, temperature, driver behavior.
                   Prevent breakdowns and cut costs aggressively.
                 </p>
                 <div className="flex items-center gap-2 text-teal-400 font-semibold group-hover:translate-x-1 transition-transform">
@@ -243,7 +243,7 @@ export default function Home() {
         </motion.section>
 
         {/* Features Section */}
-        <motion.section 
+        <motion.section
           id="features"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
@@ -304,7 +304,7 @@ export default function Home() {
         </motion.section>
 
         {/* ROI / Benefits Section */}
-        <motion.section 
+        <motion.section
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           transition={{ duration: 0.6 }}
@@ -318,7 +318,7 @@ export default function Home() {
               <p className="text-lg text-slate-400 mb-10 font-light">
                 Real results from fleet operators across South Africa — not marketing promises, but measurable hard savings powered by ECU data.
               </p>
-              
+
               <div className="space-y-4">
                 {benefits.map((benefit, index) => (
                   <motion.div
@@ -340,7 +340,7 @@ export default function Home() {
             <div className="relative space-y-6">
               {/* Decorative background glow */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-blue-500/10 blur-[100px] rounded-full pointer-events-none -z-10" />
-              
+
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 whileInView={{ opacity: 1, scale: 1 }}
@@ -395,7 +395,7 @@ export default function Home() {
         </motion.section>
 
         {/* CTA Section */}
-        <motion.section 
+        <motion.section
           initial={{ opacity: 0, scale: 0.98 }}
           whileInView={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6 }}
@@ -404,7 +404,7 @@ export default function Home() {
           <div className="relative rounded-3xl overflow-hidden glass-card border border-teal-500/30 p-[1px]">
             <div className="absolute inset-0 bg-gradient-to-r from-teal-900/80 to-blue-900/80 -z-10" />
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTAgMGg2MHY2MEgweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0zMCAzMG0tMjggMGEyOCAyOCAwIDEgMCA1NiAwYTI4IDI4IDAgMSAwLTU2IDB6IiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoNDUsMjEyLDE5MSwwLjE1KSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCBmaWxsPSJ1cmwoI2cpIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIi8+PC9zdmc+')] opacity-40 -z-10" />
-            
+
             <div className="bg-slate-950/40 backdrop-blur-md p-12 md:p-20 rounded-3xl h-full w-full">
               <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-6">
                 System Online. <span className="text-teal-400">Ready for Deployment.</span>
@@ -414,8 +414,8 @@ export default function Home() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link href="/login">
-                  <Button 
-                    size="lg" 
+                  <Button
+                    size="lg"
                     className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold px-8 py-7 shadow-[0_0_20px_rgba(20,184,166,0.4)] flex items-center gap-2"
                   >
                     Initialize Connection
@@ -423,8 +423,8 @@ export default function Home() {
                   </Button>
                 </Link>
                 <Link href="/fleet-telematics">
-                  <Button 
-                    size="lg" 
+                  <Button
+                    size="lg"
                     variant="outline"
                     className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white px-8 py-7 flex items-center gap-2"
                   >
@@ -438,7 +438,7 @@ export default function Home() {
         </motion.section>
 
         {/* Footer */}
-        <motion.footer 
+        <motion.footer
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           className="border-t border-slate-800 py-10 text-center text-slate-500"
@@ -447,7 +447,7 @@ export default function Home() {
             <Shield className="h-5 w-5 text-teal-500" />
             <span className="font-bold text-slate-300 tracking-wider">TREKAMAN</span>
           </div>
-          <p className="text-sm font-light">© {new Date().getFullYear()} TREKAMAN Fleet Management Layer. All systems nominal.</p>
+          <p className="text-sm font-light">© {new Date().getFullYear()} Phumelela Telematrics. All systems nominal.</p>
           <div className="flex flex-wrap items-center justify-center gap-6 mt-6 text-sm font-medium">
             <Link href="/" className="text-teal-400 hover:text-teal-300 transition-colors">Uplink (Home)</Link>
             <Link href="/fleet-telematics" className="hover:text-slate-300 transition-colors">Telematics</Link>

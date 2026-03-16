@@ -182,7 +182,7 @@ export default function FleetTelematicsPage() {
         </motion.nav>
 
         {/* Hero Section */}
-        <motion.main 
+        <motion.main
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
@@ -191,7 +191,7 @@ export default function FleetTelematicsPage() {
           <div>
             <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-900 border border-teal-500/30 rounded-full text-teal-400 text-sm font-medium mb-8 shadow-[0_0_10px_rgba(45,212,191,0.2)]">
               <Radio className="h-4 w-4 animate-pulse" />
-              Live OBD-II & Flespi MQTT Uplink Active
+              Active
             </div>
 
             <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold text-white mb-6 leading-[1.1] tracking-tight">
@@ -237,7 +237,7 @@ export default function FleetTelematicsPage() {
         {/* ─── The Problem ─── */}
         <section className="border-t border-slate-800 bg-slate-900/40 backdrop-blur-md py-24 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-rose-500/5 rounded-full blur-[120px] pointer-events-none" />
-          
+
           <div className="container mx-auto px-4 relative z-10">
             <motion.div
               initial={{ opacity: 0 }}
@@ -313,8 +313,8 @@ export default function FleetTelematicsPage() {
                 >
                   <div className="absolute top-0 right-0 p-2">
                     <span className="flex h-2 w-2">
-                     <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${dp.status === 'Event' ? 'bg-amber-400' : 'bg-teal-400'}`}></span>
-                     <span className={`relative inline-flex rounded-full h-2 w-2 ${dp.status === 'Event' ? 'bg-amber-500' : 'bg-teal-500'}`}></span>
+                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${dp.status === 'Event' ? 'bg-amber-400' : 'bg-teal-400'}`}></span>
+                      <span className={`relative inline-flex rounded-full h-2 w-2 ${dp.status === 'Event' ? 'bg-amber-500' : 'bg-teal-500'}`}></span>
                     </span>
                   </div>
                   <dp.icon className="h-6 w-6 text-teal-500 mx-auto mb-3 group-hover:text-teal-300 group-hover:drop-shadow-[0_0_8px_rgba(45,212,191,0.8)] transition-all" />
@@ -440,10 +440,10 @@ export default function FleetTelematicsPage() {
             className="container mx-auto max-w-6xl"
           >
             <div className="glass-card rounded-3xl p-[1px] border border-teal-500/30 animated-pulse-border overflow-hidden">
-               <div className="absolute inset-0 bg-gradient-to-br from-teal-900/60 to-slate-900/80 -z-10" />
-               <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTAgMGg2MHY2MEgweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0zMCAzMG0tMjggMGEyOCAyOCAwIDEgMCA1NiAwYTI4IDI4IDAgMSAwLTU2IDB6IiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoNDUsMjEyLDE5MSwwLjEpIiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IGZpbGw9InVybCgjZykiIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiLz48L3N2Zz4=')] opacity-50 -z-10" />
-               
-               <div className="relative p-12 md:p-20 text-center bg-slate-950/50 backdrop-blur-xl rounded-3xl z-10">
+              <div className="absolute inset-0 bg-gradient-to-br from-teal-900/60 to-slate-900/80 -z-10" />
+              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTAgMGg2MHY2MEgweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0zMCAzMG0tMjggMGEyOCAyOCAwIDEgMCA1NiAwYTI4IDI4IDAgMSAwLTU2IDB6IiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoNDUsMjEyLDE5MSwwLjEpIiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IGZpbGw9InVybCgjZykiIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiLz48L3N2Zz4=')] opacity-50 -z-10" />
+
+              <div className="relative p-12 md:p-20 text-center bg-slate-950/50 backdrop-blur-xl rounded-3xl z-10">
                 <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-6">
                   Initialize Telematics Uplink.
                 </h2>
