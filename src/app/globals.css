@@ -1,123 +1,220 @@
 @import "tailwindcss";
 
+@theme inline {
+  --font-sans: 'Geist', 'Geist Fallback', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback', ui-monospace, monospace;
+}
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 176 84% 32%;
+    /* Deep blue-black background for tech aesthetic */
+    --background: 222 47% 8%;
+    --foreground: 210 40% 98%;
+    
+    /* Card with slight transparency for depth */
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    
+    /* Teal primary - the hero color */
+    --primary: 173 80% 40%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 84% 4.9%;
-    --destructive: 0 72.2% 50.6%;
+    
+    --secondary: 222 47% 15%;
+    --secondary-foreground: 210 40% 98%;
+    
+    --muted: 222 47% 18%;
+    --muted-foreground: 215 20% 65%;
+    
+    --accent: 173 80% 40%;
+    --accent-foreground: 210 40% 98%;
+    
+    --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 176 84% 32%;
+    
+    --border: 222 30% 20%;
+    --input: 222 30% 20%;
+    --ring: 173 80% 40%;
     --radius: 0.75rem;
 
+    /* Glow colors for tech effects */
+    --glow-teal: 173 80% 50%;
+    --glow-orange: 25 95% 53%;
+    --glow-blue: 217 91% 60%;
+
     /* Enterprise color palette */
-    --success: 142.1 76.2% 36.3%;
+    --success: 142 76% 36%;
     --success-foreground: 210 40% 98%;
-    --warning: 47.9 95.8% 53.1%;
-    --warning-foreground: 26 83.3% 14.1%;
-    --info: 199.89 89.12% 48.24%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 8%;
+    --info: 199 89% 48%;
     --info-foreground: 210 40% 98%;
 
     /* Status colors */
-    --status-active: 142.1 76.2% 36.3%;
-    --status-inactive: 215.4 16.3% 46.9%;
-    --status-pending: 47.9 95.8% 53.1%;
-    --status-critical: 0 72.2% 50.6%;
+    --status-active: 142 76% 36%;
+    --status-inactive: 215 16% 47%;
+    --status-pending: 38 92% 50%;
+    --status-critical: 0 72% 51%;
 
     /* Role colors */
-    --role-super-admin: 271.5 81.3% 55.9%;
-    --role-admin: 176 84% 32%;
-    --role-user: 142.1 76.2% 36.3%;
+    --role-super-admin: 272 81% 56%;
+    --role-admin: 173 80% 40%;
+    --role-user: 142 76% 36%;
 
-    /* Chart colors (Vibrant Light Mode) */
-    --chart-1: 340 82% 52%;
-    /* Pink */
-    --chart-2: 262 83% 58%;
-    /* Purple */
-    --chart-3: 199 89% 48%;
-    /* Blue */
-    --chart-4: 142 76% 36%;
-    /* Emerald */
-    --chart-5: 45 93% 47%;
-    /* Amber */
+    /* Chart colors - Vibrant for dark backgrounds */
+    --chart-1: 173 80% 50%;
+    --chart-2: 25 95% 53%;
+    --chart-3: 217 91% 60%;
+    --chart-4: 142 76% 46%;
+    --chart-5: 38 92% 50%;
   }
 
   .dark {
-    --background: 224 71.4% 4.1%;
-    --foreground: 210 20% 98%;
-    --card: 224 71.4% 4.1%;
-    --card-foreground: 210 20% 98%;
-    --popover: 224 71.4% 4.1%;
-    --popover-foreground: 210 20% 98%;
-    --primary: 210 20% 98%;
-    --primary-foreground: 220.9 39.3% 11%;
-    --secondary: 215 27.9% 16.9%;
-    --secondary-foreground: 210 20% 98%;
-    --muted: 215 27.9% 16.9%;
-    --muted-foreground: 217.9 10.6% 64.9%;
-    --accent: 215 27.9% 16.9%;
-    --accent-foreground: 210 20% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 215 27.9% 16.9%;
-    --input: 215 27.9% 16.9%;
-    --ring: 216 12.2% 83.9%;
-
-    /* Bright Status colors (Dark Mode overrides for maximum pop) */
-    --success: 142 80% 50%;
-    --warning: 45 100% 60%;
-    --info: 199 100% 60%;
-    --destructive: 0 100% 65%;
+    --background: 222 47% 5%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 8%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 8%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 173 80% 45%;
+    --primary-foreground: 222 47% 8%;
+    --secondary: 222 47% 12%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 222 47% 15%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 173 80% 45%;
+    --accent-foreground: 222 47% 8%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 222 30% 18%;
+    --input: 222 30% 18%;
+    --ring: 173 80% 45%;
 
     /* Chart colors (Vibrant Dark Mode Neon) */
-    --chart-1: 340 100% 65%;
-    /* Hot Pink */
-    --chart-2: 262 100% 70%;
-    /* Electric Purple */
-    --chart-3: 199 100% 60%;
-    /* Cyan/Blue */
+    --chart-1: 173 100% 55%;
+    --chart-2: 25 100% 60%;
+    --chart-3: 217 100% 65%;
     --chart-4: 142 80% 50%;
-    /* Neon Green */
-    --chart-5: 45 100% 60%;
-    /* Bright Yellow */
+    --chart-5: 38 100% 55%;
   }
 }
 
+/* Circuit Pattern Background */
+.circuit-bg {
+  background-image: 
+    linear-gradient(to right, hsl(173 80% 40% / 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(173 80% 40% / 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* Glowing Line Effects */
+.glow-line {
+  box-shadow: 
+    0 0 5px hsl(173 80% 50% / 0.5),
+    0 0 10px hsl(173 80% 50% / 0.3),
+    0 0 20px hsl(173 80% 50% / 0.2);
+}
+
+.glow-line-orange {
+  box-shadow: 
+    0 0 5px hsl(25 95% 53% / 0.5),
+    0 0 10px hsl(25 95% 53% / 0.3),
+    0 0 20px hsl(25 95% 53% / 0.2);
+}
+
+/* Glass Card - Enhanced for dark theme */
 .glass-card {
-  background-color: color-mix(in srgb, var(--background) 50%, transparent);
+  background-color: hsl(222 47% 11% / 0.7);
   backdrop-filter: blur(24px);
-  border: 1px solid color-mix(in srgb, white 10%, transparent);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  border: 1px solid hsl(173 80% 40% / 0.1);
+  box-shadow: 
+    0 4px 30px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 hsl(173 80% 40% / 0.05);
   position: relative;
   overflow: hidden;
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 300ms;
+  transition: all 0.3s ease;
 }
 
 .glass-card:hover {
-  border-color: color-mix(in srgb, white 20%, transparent);
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.15);
+  border-color: hsl(173 80% 40% / 0.2);
+  box-shadow: 
+    0 8px 40px rgba(0, 0, 0, 0.4),
+    0 0 20px hsl(173 80% 40% / 0.1);
 }
 
 .glass-panel {
-  background-color: color-mix(in srgb, var(--secondary) 30%, transparent);
+  background-color: hsl(222 47% 11% / 0.5);
   backdrop-filter: blur(12px);
-  border: 1px solid color-mix(in srgb, white 5%, transparent);
+  border: 1px solid hsl(173 80% 40% / 0.08);
   border-radius: 0.75rem;
+}
+
+/* Tech glow effects */
+.tech-glow {
+  position: relative;
+}
+
+.tech-glow::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(135deg, hsl(173 80% 40% / 0.3), transparent, hsl(25 95% 53% / 0.2));
+  border-radius: inherit;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.tech-glow:hover::before {
+  opacity: 1;
+}
+
+/* Animated gradient border */
+.gradient-border {
+  position: relative;
+  background: hsl(222 47% 11%);
+  border-radius: 1rem;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, hsl(173 80% 40%), hsl(25 95% 53%), hsl(173 80% 40%));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Pulsing dot animation */
+.pulse-dot {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Route line animation */
+.route-animate {
+  stroke-dasharray: 8 4;
+  animation: dash 20s linear infinite;
+}
+
+@keyframes dash {
+  to { stroke-dashoffset: -1000; }
 }
 
 @layer base {
@@ -128,7 +225,7 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--font-sans);
   }
 
   /* Cursor styles for interactive elements */
@@ -146,22 +243,22 @@
   }
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar for dark theme */
 ::-webkit-scrollbar {
   width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: hsl(var(--muted));
+  background: hsl(222 47% 8%);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground));
+  background: hsl(173 80% 40% / 0.3);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--foreground));
+  background: hsl(173 80% 40% / 0.5);
 }
 
 /* Custom focus styles */
@@ -185,13 +282,8 @@
 }
 
 @keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes slide-in-from-top {
@@ -199,9 +291,32 @@
     transform: translateY(-100%);
     opacity: 0;
   }
-
   to {
     transform: translateY(0%);
     opacity: 1;
   }
+}
+
+/* Float animation for hero elements */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Glow pulse for data points */
+@keyframes glow-pulse {
+  0%, 100% { 
+    box-shadow: 0 0 5px hsl(173 80% 50% / 0.5), 0 0 10px hsl(173 80% 50% / 0.3);
+  }
+  50% { 
+    box-shadow: 0 0 10px hsl(173 80% 50% / 0.8), 0 0 20px hsl(173 80% 50% / 0.5), 0 0 30px hsl(173 80% 50% / 0.3);
+  }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
 }
