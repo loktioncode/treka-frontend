@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { EcuChipVisualization } from '@/components/ui/ecu-chip-visualization';
 import { WireframeTruck } from '@/components/ui/wireframe-truck';
 
 const fadeUp = {
@@ -186,11 +187,29 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Hero Visual: Wireframe Truck */}
-          <div className="relative h-[400px] lg:h-[500px] w-full flex items-center justify-center">
-            {/* Ambient glow behind truck */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 bg-teal-500/20 blur-[100px] rounded-full pointer-events-none" />
-            <WireframeTruck className="w-full max-w-lg z-10 drop-shadow-[0_0_15px_rgba(45,212,191,0.3)]" />
+          {/* Hero Visual: ECU Chip & Truck Stack */}
+          <div className="relative h-[500px] lg:h-[600px] w-full flex flex-col items-center justify-between py-10">
+            {/* Ambient glow behind chip */}
+            <div className="absolute top-[30%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 bg-teal-500/10 blur-[100px] rounded-full pointer-events-none" />
+            
+            {/* ECU Chip at top */}
+            <div className="w-full max-w-[320px] z-20 relative transform translate-y-[-20px]">
+              <EcuChipVisualization className="w-full h-auto drop-shadow-[0_0_15px_rgba(45,212,191,0.6)]" />
+              {/* Vertical data connection from ECU to truck */}
+              <div className="absolute top-[90%] left-1/2 -translate-x-1/2 w-[2px] h-[150px] bg-gradient-to-b from-teal-400 to-transparent opacity-30 shadow-[0_0_10px_rgba(45,212,191,0.8)]" />
+               <motion.div 
+                 initial={{ opacity: 0, y: 0 }}
+                 animate={{ opacity: [0, 1, 0], y: [0, 100] }}
+                 transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                 className="absolute top-[90%] left-1/2 -translate-x-1/2 w-[4px] h-[20px] bg-teal-300 rounded-full shadow-[0_0_15px_rgba(94,234,212,1)]"
+               />
+            </div>
+
+            {/* Faded Wireframe Truck at bottom */}
+            <div className="w-full max-w-sm z-10 relative">
+              <div className="absolute inset-x-0 bottom-6 h-px bg-gradient-to-r from-transparent via-teal-500/30 to-transparent z-0"></div>
+              <WireframeTruck className="w-full h-auto opacity-60" />
+            </div>
           </div>
         </motion.main>
 

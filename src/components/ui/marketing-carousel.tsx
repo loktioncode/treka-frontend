@@ -21,7 +21,7 @@ interface CarouselSlide {
 const slides: CarouselSlide[] = [
   {
     id: 1,
-    title: "Streamline Asset Management",
+    title: "Streamline Fleet management",
     subtitle: "Centralized Control & Visibility",
     description: "Manage all your critical assets and components from a single, intuitive dashboard. Track maintenance schedules, monitor performance, and prevent costly downtime.",
     icon: TrendingUp,
@@ -118,7 +118,7 @@ export function MarketingCarousel() {
   };
 
   return (
-    <div 
+    <div
       className="relative w-full h-full"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -231,11 +231,10 @@ export function MarketingCarousel() {
           <button
             key={index}
             onClick={() => goToSlide(index)}
-            className={`w-2 h-2 rounded-full transition-all duration-200 ${
-              index === currentSlide
+            className={`w-2 h-2 rounded-full transition-all duration-200 ${index === currentSlide
                 ? 'bg-white shadow-lg scale-125'
                 : 'bg-white/50 hover:bg-white/75'
-            }`}
+              }`}
           />
         ))}
       </div>

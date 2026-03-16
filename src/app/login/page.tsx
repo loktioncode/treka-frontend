@@ -45,10 +45,10 @@ function LoginForm() {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-    
+
     try {
       const response = await login(email, password);
-      
+
       // Handle first login case - redirect to verification page
       if (response && response.require_password_change) {
         const message = response.message || 'Please check your email for verification code';
@@ -64,7 +64,7 @@ function LoginForm() {
       setTimeout(() => {
         router.push('/dashboard');
       }, 100);
-      
+
     } catch (err: unknown) {
       let errorMessage = 'Invalid email or password';
       if (err && typeof err === 'object') {
@@ -105,7 +105,7 @@ function LoginForm() {
                 TREKAMAN
               </CardTitle>
               <CardDescription className="text-base text-gray-600">
-                Asset Management System
+                Fleet management System
               </CardDescription>
               <p className="text-sm text-gray-500">
                 Admin and Super Admin access only
@@ -192,7 +192,7 @@ function LoginForm() {
             </form>
 
             <div className="text-center pt-4">
-              <Link 
+              <Link
                 href="/"
                 className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors cursor-pointer"
               >

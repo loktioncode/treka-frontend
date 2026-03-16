@@ -1,6 +1,12 @@
 import { motion, Variants } from "framer-motion";
 
-export function WireframeTruck({ className = "" }: { className?: string }) {
+export function WireframeTruck({ 
+  className = "",
+  style,
+}: { 
+  className?: string;
+  style?: React.CSSProperties;
+}) {
   const drawParams: Variants = {
     hidden: { pathLength: 0, opacity: 0 },
     visible: {
@@ -30,7 +36,7 @@ export function WireframeTruck({ className = "" }: { className?: string }) {
 
   return (
     <div className={`relative ${className}`}>
-      <svg viewBox="0 0 800 400" className="w-full h-full drop-shadow-2xl overflow-visible">
+      <svg viewBox="0 0 800 400" className="w-full h-full drop-shadow-2xl overflow-visible" style={style}>
         <defs>
           <filter id="truckGlow" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="3" result="blur" />

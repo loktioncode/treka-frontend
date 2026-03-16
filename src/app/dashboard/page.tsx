@@ -229,82 +229,82 @@ export default function Dashboard() {
   const logisticsStats =
     currentClient?.client_type === "logistics"
       ? (() => {
-          const vehicles = fleetTelemetry?.vehicles || [];
-          const goodCondition =
-            vehicles.length > 0
-              ? vehicles.filter((v: { health?: number }) => (v.health ?? 0) >= 80).length
-              : dashboardStats.assets.active;
-          const maintenanceDue =
-            dashboardStats.assets.maintenance +
-            dashboardStats.components.maintenance_due;
-          const criticalCount =
-            dashboardStats.components.critical +
-            (vehicles.length > 0
-              ? vehicles.filter((v: { health?: number }) => (v.health ?? 0) < 50).length
-              : 0);
-          const fleetHealth =
-            fleetTelemetry?.summary?.fleet_health ??
-            (vehicles.length > 0
-              ? Math.round(
-                  vehicles.reduce((a: number, v: { health?: number }) => a + (v.health ?? 0), 0) /
-                    vehicles.length
-                )
-              : 0);
-          return [
-            {
-              title: "Vehicles in Good Condition",
-              value: goodCondition.toString(),
-              description: "Health ≥80% or active",
-              icon: Package,
-              color: "green" as const,
-              trend: {
-                value: `${dashboardStats.assets.total} total`,
-                isPositive: goodCondition > 0,
-                label: "fleet vehicles",
-              },
-              onClick: () => router.push("/dashboard/assets"),
+        const vehicles = fleetTelemetry?.vehicles || [];
+        const goodCondition =
+          vehicles.length > 0
+            ? vehicles.filter((v: { health?: number }) => (v.health ?? 0) >= 80).length
+            : dashboardStats.assets.active;
+        const maintenanceDue =
+          dashboardStats.assets.maintenance +
+          dashboardStats.components.maintenance_due;
+        const criticalCount =
+          dashboardStats.components.critical +
+          (vehicles.length > 0
+            ? vehicles.filter((v: { health?: number }) => (v.health ?? 0) < 50).length
+            : 0);
+        const fleetHealth =
+          fleetTelemetry?.summary?.fleet_health ??
+          (vehicles.length > 0
+            ? Math.round(
+              vehicles.reduce((a: number, v: { health?: number }) => a + (v.health ?? 0), 0) /
+              vehicles.length
+            )
+            : 0);
+        return [
+          {
+            title: "Vehicles in Good Condition",
+            value: goodCondition.toString(),
+            description: "Health ≥80% or active",
+            icon: Package,
+            color: "green" as const,
+            trend: {
+              value: `${dashboardStats.assets.total} total`,
+              isPositive: goodCondition > 0,
+              label: "fleet vehicles",
             },
-            {
-              title: "Maintenance Due",
-              value: maintenanceDue.toString(),
-              description: "Assets + components within 7 days",
-              icon: Clock,
-              color: "yellow" as const,
-              trend: {
-                value: `${dashboardStats.assets.maintenance} assets`,
-                isPositive: maintenanceDue === 0,
-                label: "in maintenance",
-              },
-              onClick: () => router.push("/dashboard/components"),
+            onClick: () => router.push("/dashboard/assets"),
+          },
+          {
+            title: "Maintenance Due",
+            value: maintenanceDue.toString(),
+            description: "Assets + components within 7 days",
+            icon: Clock,
+            color: "yellow" as const,
+            trend: {
+              value: `${dashboardStats.assets.maintenance} assets`,
+              isPositive: maintenanceDue === 0,
+              label: "in maintenance",
             },
-            {
-              title: "Critical Issues",
-              value: criticalCount.toString(),
-              description: "Require immediate attention",
-              icon: AlertTriangle,
-              color: "red" as const,
-              trend: {
-                value: `${dashboardStats.components.critical} components`,
-                isPositive: false,
-                label: "critical components",
-              },
-              onClick: () => router.push("/dashboard/components"),
+            onClick: () => router.push("/dashboard/components"),
+          },
+          {
+            title: "Critical Issues",
+            value: criticalCount.toString(),
+            description: "Require immediate attention",
+            icon: AlertTriangle,
+            color: "red" as const,
+            trend: {
+              value: `${dashboardStats.components.critical} components`,
+              isPositive: false,
+              label: "critical components",
             },
-            {
-              title: "Overall Fleet Health",
-              value: `${fleetHealth}%`,
-              description: "Fleet health status",
-              icon: Shield,
-              color: "teal" as const,
-              trend: {
-                value: fleetHealth >= 90 ? "Excellent" : fleetHealth >= 70 ? "Good" : "Needs attention",
-                isPositive: fleetHealth >= 90,
-                label: "from telemetry",
-              },
-              onClick: () => router.push("/dashboard/analytics"),
+            onClick: () => router.push("/dashboard/components"),
+          },
+          {
+            title: "Overall Fleet Health",
+            value: `${fleetHealth}%`,
+            description: "Fleet health status",
+            icon: Shield,
+            color: "teal" as const,
+            trend: {
+              value: fleetHealth >= 90 ? "Excellent" : fleetHealth >= 70 ? "Good" : "Needs attention",
+              isPositive: fleetHealth >= 90,
+              label: "from telemetry",
             },
-          ];
-        })()
+            onClick: () => router.push("/dashboard/analytics"),
+          },
+        ];
+      })()
       : [];
 
   // Create stats array from real data (industrial / super_admin)
@@ -571,10 +571,9 @@ export default function Dashboard() {
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-2 h-2 rounded-full ${
-                            getDrivingStatus(vehicle.last_record) === "moving" ? "bg-green-500 animate-pulse" :
-                            getDrivingStatus(vehicle.last_record) === "stationary" ? "bg-blue-500" : "bg-gray-400"
-                          }`}
+                          className={`w-2 h-2 rounded-full ${getDrivingStatus(vehicle.last_record) === "moving" ? "bg-green-500 animate-pulse" :
+                              getDrivingStatus(vehicle.last_record) === "stationary" ? "bg-blue-500" : "bg-gray-400"
+                            }`}
                         />
                         <div className="flex flex-col">
                           <span className="text-sm font-medium">
@@ -655,105 +654,105 @@ export default function Dashboard() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.7 }}
         >
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
-                  Quick Actions
-                </CardTitle>
-                <CardDescription>Common tasks and shortcuts</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {/* Asset Management - Available for all users */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Quick Actions
+              </CardTitle>
+              <CardDescription>Common tasks and shortcuts</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Fleet management - Available for all users */}
+              <SmartLink
+                href="/dashboard/assets"
+                className="w-full p-4 text-left rounded-xl border border-teal-200 bg-gradient-to-r from-teal-50 to-teal-100 hover:from-teal-100 hover:to-teal-200 transition-all duration-200 group block"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-teal-500 rounded-lg group-hover:bg-teal-600 transition-colors">
+                    <Package className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-teal-900">
+                      Manage Assets
+                    </p>
+                    <p className="text-sm text-teal-700">
+                      View and manage system assets
+                    </p>
+                  </div>
+                  <Zap className="h-4 w-4 text-teal-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </SmartLink>
+
+              {/* Component Management - Available for all users */}
+              <SmartLink
+                href="/dashboard/components"
+                className="w-full p-4 text-left rounded-xl border border-green-200 bg-gradient-to-r from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 transition-all duration-200 group block"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-green-500 rounded-lg group-hover:bg-green-600 transition-colors">
+                    <Wrench className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-green-900">
+                      Manage Components
+                    </p>
+                    <p className="text-sm text-green-700">
+                      View and manage system components
+                    </p>
+                  </div>
+                  <Zap className="h-4 w-4 text-green-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </SmartLink>
+
+              {/* User Management - Available for admin and super_admin */}
+              {user?.role !== "user" && (
                 <SmartLink
-                  href="/dashboard/assets"
-                  className="w-full p-4 text-left rounded-xl border border-teal-200 bg-gradient-to-r from-teal-50 to-teal-100 hover:from-teal-100 hover:to-teal-200 transition-all duration-200 group block"
+                  href="/dashboard/users"
+                  className="w-full p-4 text-left rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 transition-all duration-200 group block"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="p-2 bg-teal-500 rounded-lg group-hover:bg-teal-600 transition-colors">
-                      <Package className="h-5 w-5 text-white" />
+                    <div className="p-2 bg-purple-500 rounded-lg group-hover:bg-purple-600 transition-colors">
+                      <Users className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="font-semibold text-teal-900">
-                        Manage Assets
+                      <p className="font-semibold text-purple-900">
+                        Manage Users
                       </p>
-                      <p className="text-sm text-teal-700">
-                        View and manage system assets
+                      <p className="text-sm text-purple-700">
+                        Add or edit user accounts
                       </p>
                     </div>
-                    <Zap className="h-4 w-4 text-teal-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Zap className="h-4 w-4 text-purple-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 </SmartLink>
+              )}
 
-                {/* Component Management - Available for all users */}
+              {/* Client Management - Only for super_admin */}
+              {user?.role === "super_admin" && (
                 <SmartLink
-                  href="/dashboard/components"
-                  className="w-full p-4 text-left rounded-xl border border-green-200 bg-gradient-to-r from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 transition-all duration-200 group block"
+                  href="/dashboard/clients"
+                  className="w-full p-4 text-left rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 transition-all duration-200 group block"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="p-2 bg-green-500 rounded-lg group-hover:bg-green-600 transition-colors">
-                      <Wrench className="h-5 w-5 text-white" />
+                    <div className="p-2 bg-blue-500 rounded-lg group-hover:bg-blue-600 transition-colors">
+                      <Building2 className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="font-semibold text-green-900">
-                        Manage Components
+                      <p className="font-semibold text-blue-900">
+                        Manage Clients
                       </p>
-                      <p className="text-sm text-green-700">
-                        View and manage system components
+                      <p className="text-sm text-blue-700">
+                        Manage client organizations
                       </p>
                     </div>
-                    <Zap className="h-4 w-4 text-green-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Zap className="h-4 w-4 text-blue-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 </SmartLink>
+              )}
 
-                {/* User Management - Available for admin and super_admin */}
-                {user?.role !== "user" && (
-                  <SmartLink
-                    href="/dashboard/users"
-                    className="w-full p-4 text-left rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 transition-all duration-200 group block"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 bg-purple-500 rounded-lg group-hover:bg-purple-600 transition-colors">
-                        <Users className="h-5 w-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-purple-900">
-                          Manage Users
-                        </p>
-                        <p className="text-sm text-purple-700">
-                          Add or edit user accounts
-                        </p>
-                      </div>
-                      <Zap className="h-4 w-4 text-purple-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </SmartLink>
-                )}
-
-                {/* Client Management - Only for super_admin */}
-                {user?.role === "super_admin" && (
-                  <SmartLink
-                    href="/dashboard/clients"
-                    className="w-full p-4 text-left rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 transition-all duration-200 group block"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 bg-blue-500 rounded-lg group-hover:bg-blue-600 transition-colors">
-                        <Building2 className="h-5 w-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-blue-900">
-                          Manage Clients
-                        </p>
-                        <p className="text-sm text-blue-700">
-                          Manage client organizations
-                        </p>
-                      </div>
-                      <Zap className="h-4 w-4 text-blue-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </SmartLink>
-                )}
-
-              </CardContent>
-            </Card>
+            </CardContent>
+          </Card>
         </motion.div>
       )}
 

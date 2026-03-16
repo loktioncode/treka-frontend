@@ -1,5 +1,5 @@
 /**
- * React Query hooks for asset management
+ * React Query hooks for Fleet management
  * Provides caching, optimistic updates, and proper error handling
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -13,7 +13,7 @@ export const assetKeys = {
   list: (filters: AssetFilters, params: PaginationParams = {}) => [...assetKeys.lists(), filters, params] as const,
   details: () => [...assetKeys.all, 'detail'] as const,
   detail: (id: string) => [...assetKeys.details(), id] as const,
-  clientAssets: (clientId: string, filters: AssetFilters, params: PaginationParams = {}) => 
+  clientAssets: (clientId: string, filters: AssetFilters, params: PaginationParams = {}) =>
     [...assetKeys.all, 'client', clientId, filters, params] as const,
 };
 
@@ -64,10 +64,10 @@ export function useCreateAsset() {
     onSuccess: (newAsset) => {
       // Invalidate and refetch assets list
       queryClient.invalidateQueries({ queryKey: assetKeys.lists() });
-      
+
       // Add the new asset to the cache
       queryClient.setQueryData(assetKeys.detail(newAsset.id), newAsset);
-      
+
       toast.success('Asset created successfully');
     },
     onError: (error: unknown) => {
@@ -107,9 +107,9 @@ export function useUpdateAsset() {
 
       // Optimistically update assets list
       if (previousAssets) {
-        queryClient.setQueryData(assetKeys.lists(), 
-          previousAssets.map(asset => 
-            asset.id === assetId 
+        queryClient.setQueryData(assetKeys.lists(),
+          previousAssets.map(asset =>
+            asset.id === assetId
               ? { ...asset, ...data, updated_at: new Date().toISOString() }
               : asset
           )
@@ -126,7 +126,7 @@ export function useUpdateAsset() {
       if (context?.previousAssets) {
         queryClient.setQueryData(assetKeys.lists(), context.previousAssets);
       }
-      
+
       const errorWithResponse = error as { response?: { data?: { detail?: string } } };
       const message = errorWithResponse?.response?.data?.detail || 'Failed to update asset';
       toast.error(message);
@@ -161,7 +161,7 @@ export function useDeleteAsset() {
 
       // Optimistically remove asset from list
       if (previousAssets) {
-        queryClient.setQueryData(assetKeys.lists(), 
+        queryClient.setQueryData(assetKeys.lists(),
           previousAssets.filter(asset => asset.id !== assetId)
         );
       }
@@ -179,7 +179,7 @@ export function useDeleteAsset() {
       if (context?.previousAsset) {
         queryClient.setQueryData(assetKeys.detail(assetId), context.previousAsset);
       }
-      
+
       toast.error('Failed to delete asset');
     },
     onSuccess: () => {
