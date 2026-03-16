@@ -67,7 +67,7 @@ export default function FleetTelematicsPage() {
       title: "No Visibility Over Your Fleet",
       description:
         "You have no idea which vehicles are moving, which are idle, and whether drivers are on-route or off-task.",
-      stat: "3+ hours",
+      stat: "3+ hrs",
       statLabel: "daily lost to fleet coordination",
       color: "slate",
     },
