@@ -2114,6 +2114,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                               <th className="px-4 py-3 border-l">Speed</th>
                               <th className="px-4 py-3">Fuel Level</th>
                               <th className="px-4 py-3 border-l">Voltage</th>
+                              <th className="px-4 py-3 text-right">Map</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -2125,18 +2126,50 @@ Provide a concise, actionable insight for a fleet manager.`;
                                 return tb - ta;
                               })
                               .slice(0, 100) // limit to recent 100 for performance
-                              .map((r, i) => (
-                                <tr key={i} className="bg-white border-b hover:bg-gray-50">
-                                  <td className="px-4 py-3 whitespace-nowrap">
-                                    {r.ts_server ? new Date(r.ts_server).toLocaleString() : r.ts ? new Date(r.ts * 1000).toLocaleString() : "Unknown"}
-                                  </td>
-                                  <td className="px-4 py-3 font-mono">{r.lat?.toFixed(5)}</td>
-                                  <td className="px-4 py-3 font-mono">{r.lon?.toFixed(5)}</td>
-                                  <td className="px-4 py-3 border-l">{r.spd != null ? `${r.spd.toFixed(1)} km/h` : "—"}</td>
-                                  <td className="px-4 py-3">{r.fl != null ? `${r.fl.toFixed(1)}%` : "—"}</td>
-                                  <td className="px-4 py-3 border-l text-blue-600">{r.vlt != null ? `${r.vlt.toFixed(1)}V` : "—"}</td>
-                                </tr>
-                            ))}
+                              .map((r, i) => {
+                                const lat = r.lat ?? null;
+                                const lon = r.lon ?? null;
+                                const hasCoords = lat != null && lon != null;
+                                const mapsUrl = hasCoords
+                                  ? `https://www.google.com/maps?q=${lat},${lon}`
+                                  : null;
+                                return (
+                                  <tr key={i} className="bg-white border-b hover:bg-gray-50">
+                                    <td className="px-4 py-3 whitespace-nowrap">
+                                      {r.ts_server
+                                        ? new Date(r.ts_server).toLocaleString()
+                                        : r.ts
+                                        ? new Date(r.ts * 1000).toLocaleString()
+                                        : "Unknown"}
+                                    </td>
+                                    <td className="px-4 py-3 font-mono">{lat != null ? lat.toFixed(5) : "—"}</td>
+                                    <td className="px-4 py-3 font-mono">{lon != null ? lon.toFixed(5) : "—"}</td>
+                                    <td className="px-4 py-3 border-l">
+                                      {r.spd != null ? `${r.spd.toFixed(1)} km/h` : "—"}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                      {r.fl != null ? `${r.fl.toFixed(1)}%` : "—"}
+                                    </td>
+                                    <td className="px-4 py-3 border-l text-blue-600">
+                                      {r.vlt != null ? `${r.vlt.toFixed(1)}V` : "—"}
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                      {hasCoords && mapsUrl ? (
+                                        <a
+                                          href={mapsUrl}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="inline-flex items-center gap-1 text-xs font-medium text-teal-700 hover:text-teal-900 underline"
+                                        >
+                                          Open in Google Maps
+                                        </a>
+                                      ) : (
+                                        <span className="text-xs text-gray-400">No coords</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
                           </tbody>
                         </table>
                       </div>
