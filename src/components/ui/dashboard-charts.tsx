@@ -24,7 +24,18 @@ import { useState } from 'react';
 import { Modal } from './modal';
 import { Pagination, usePagination } from './pagination';
 
-// Note: Using Recharts built-in types for tooltip formatters
+// Recharts ValueType can be number | string | readonly (number|string)[]; normalize for tooltip display
+type TooltipValueType = number | string | readonly (number | string)[] | undefined;
+
+function formatTooltipValue(value: TooltipValueType, asCurrency: boolean): string {
+  if (value == null) return "";
+  if (Array.isArray(value)) {
+    const first = value[0];
+    if (first == null) return "";
+    return asCurrency && typeof first === "number" ? `R${first.toLocaleString()}` : String(first);
+  }
+  return asCurrency && typeof value === "number" ? `R${value.toLocaleString()}` : String(value);
+}
 
 // Color palette for charts
 const CHART_COLORS = {
@@ -229,8 +240,8 @@ export function OverallEarningsChart({ data, title = 'Overall Earnings', subtitl
                 borderRadius: '8px',
                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
               }}
-              formatter={(value: number | string | undefined) => [
-                value != null ? (typeof value === 'number' ? `R${value.toLocaleString()}` : String(value)) : "",
+              formatter={(value: TooltipValueType) => [
+                formatTooltipValue(value, true),
                 "Earnings",
               ]}
             />
@@ -287,8 +298,8 @@ export function OverallEarningsChart({ data, title = 'Overall Earnings', subtitl
                     borderRadius: '8px',
                     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                   }}
-                  formatter={(value: number | string | undefined) => [
-                value != null ? (typeof value === 'number' ? `R${value.toLocaleString()}` : String(value)) : "",
+                  formatter={(value: TooltipValueType) => [
+                formatTooltipValue(value, true),
                 "Earnings",
               ]}
                 />
@@ -418,8 +429,8 @@ export function DriverLeaderboardChart({ data, title = 'Driver Leaderboard', sub
                 borderRadius: '8px',
                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
               }}
-              formatter={(value: number | string | undefined) => [
-                value != null ? (typeof value === 'number' ? `R${value.toLocaleString()}` : String(value)) : "",
+              formatter={(value: TooltipValueType) => [
+                formatTooltipValue(value, true),
                 "Earnings",
               ]}
             />
@@ -466,8 +477,8 @@ export function DriverLeaderboardChart({ data, title = 'Driver Leaderboard', sub
                     borderRadius: '8px',
                     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                   }}
-                                     formatter={(value: number | string | undefined) => [
-                value != null ? (typeof value === 'number' ? `R${value.toLocaleString()}` : String(value)) : "",
+                                     formatter={(value: TooltipValueType) => [
+                formatTooltipValue(value, true),
                 "Earnings",
               ]}
                 />
@@ -583,8 +594,8 @@ export function PaymentDistributionChart({ data, title = 'Payment Distribution',
                 borderRadius: '8px',
                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
               }}
-              formatter={(value: number | string | undefined) => [
-                value != null ? (typeof value === 'number' ? `R${value.toLocaleString()}` : String(value)) : "",
+              formatter={(value: TooltipValueType) => [
+                formatTooltipValue(value, true),
                 "Amount",
               ]}
             />
@@ -620,8 +631,8 @@ export function PaymentDistributionChart({ data, title = 'Payment Distribution',
                     borderRadius: '8px',
                     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                   }}
-                  formatter={(value: number | string | undefined) => [
-                value != null ? (typeof value === 'number' ? `R${value.toLocaleString()}` : String(value)) : "",
+                  formatter={(value: TooltipValueType) => [
+                formatTooltipValue(value, true),
                 "Amount",
               ]}
                 />
@@ -739,14 +750,8 @@ export function PerformanceTrendsChart({ data, title = 'Performance Trends', sub
                 borderRadius: '8px',
                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
               }}
-              formatter={(value: number | string | undefined, name: string | undefined) => [
-                value != null
-                  ? (name === "drivers"
-                      ? String(value)
-                      : typeof value === "number"
-                        ? `R${value.toLocaleString()}`
-                        : String(value))
-                  : "",
+              formatter={(value: TooltipValueType, name: string | undefined) => [
+                name === "drivers" ? formatTooltipValue(value, false) : formatTooltipValue(value, true),
                 name === "drivers" ? "Active Drivers" : "Total Earnings",
               ]}
             />
@@ -813,14 +818,8 @@ export function PerformanceTrendsChart({ data, title = 'Performance Trends', sub
                     borderRadius: '8px',
                     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                   }}
-                  formatter={(value: number | string | undefined, name: string | undefined) => [
-                    value != null
-                      ? (name === "drivers"
-                          ? String(value)
-                          : typeof value === "number"
-                            ? `R${value.toLocaleString()}`
-                            : String(value))
-                      : "",
+                  formatter={(value: TooltipValueType, name: string | undefined) => [
+                    name === "drivers" ? formatTooltipValue(value, false) : formatTooltipValue(value, true),
                     name === "drivers" ? "Active Drivers" : "Total Earnings",
                   ]}
                 />
