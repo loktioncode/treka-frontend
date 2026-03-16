@@ -187,8 +187,8 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Hero Visual: ECU Chip & Truck Stack */}
-          <div className="relative h-[500px] lg:h-[600px] w-full flex flex-col items-center justify-between py-10">
+          {/* Hero Visual: ECU Chip & Truck Stack (desktop / tablet only) */}
+          <div className="relative h-[500px] lg:h-[600px] w-full hidden md:flex flex-col items-center justify-between py-10">
             {/* Ambient glow behind chip */}
             <div className="absolute top-[30%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 bg-teal-500/10 blur-[100px] rounded-full pointer-events-none" />
             
