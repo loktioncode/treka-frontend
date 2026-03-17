@@ -350,6 +350,28 @@ export default function LiveMap({
 
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="flex flex-col">
+                        <span className="text-gray-500">Ignition</span>
+                        <span className="font-semibold">
+                          {(() => {
+                            const raw = (rec as any)?.extras?.["engine.ignition.status"];
+                            const ign = typeof raw === "boolean" ? raw : rec.ignition;
+                            if (ign === true) return "On";
+                            if (ign === false) return "Off";
+                            return "—";
+                          })()}
+                        </span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-gray-500">Signal</span>
+                        <span className="font-semibold">
+                          {(() => {
+                            const s = (rec as any)?.extras?.["gsm.signal.level"];
+                            const n = typeof s === "number" ? s : (typeof s === "string" ? Number(s) : NaN);
+                            return Number.isFinite(n) ? `${n}` : "—";
+                          })()}
+                        </span>
+                      </div>
+                      <div className="flex flex-col">
                         <span className="text-gray-500">Speed</span>
                         <span className="font-semibold">
                           {spd?.toFixed(1) || 0} km/h

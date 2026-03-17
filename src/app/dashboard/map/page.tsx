@@ -94,6 +94,8 @@ export default function FleetMapPage() {
   const fmt = (v: number | null | undefined) =>
     v != null ? Number(v).toFixed(3) : null;
 
+  const getExtra = (r: any, key: string) => (r?.extras && typeof r.extras === "object" ? r.extras[key] : undefined);
+
   /** Full date + time for last data (e.g. "14 Mar 2025, 15:32:10") */
   const lastDataFmt = (iso: string) =>
     format(new Date(iso), "d MMM yyyy, HH:mm:ss");
@@ -404,6 +406,8 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
                 { label: "Heading", value: r.hdg },
                 { label: "Altitude", value: r.alt },
                 { label: "Satellites", value: r.nsat },
+                { label: "Ignition", value: r.ignition ?? getExtra(r as any, "engine.ignition.status") },
+                { label: "GSM Signal", value: getExtra(r as any, "gsm.signal.level") },
               ];
               const available = canFields.filter((f) => f.value != null && f.value !== "");
               if (available.length === 0) return null;
@@ -426,6 +430,45 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
                 </Card>
               );
             })()}
+
+            {/* Ignition + GSM */}
+            <div className="grid grid-cols-2 gap-2">
+              <Card className="bg-slate-50 border-slate-200">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <Zap className="h-3 w-3 text-slate-600" />
+                    <span className="text-[9px] uppercase text-slate-700 font-bold">Ignition</span>
+                  </div>
+                  <p className="text-lg font-bold text-slate-900">
+                    {(() => {
+                      const raw = getExtra(selectedVehicle.last_record as any, "engine.ignition.status");
+                      const ign =
+                        typeof raw === "boolean"
+                          ? raw
+                          : selectedVehicle.last_record.ignition;
+                      if (ign === true) return "On";
+                      if (ign === false) return "Off";
+                      return "—";
+                    })()}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="bg-slate-50 border-slate-200">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <Battery className="h-3 w-3 text-slate-600" />
+                    <span className="text-[9px] uppercase text-slate-700 font-bold">GSM</span>
+                  </div>
+                  <p className="text-lg font-bold text-slate-900">
+                    {(() => {
+                      const s = getExtra(selectedVehicle.last_record as any, "gsm.signal.level");
+                      const n = typeof s === "number" ? s : (typeof s === "string" ? Number(s) : NaN);
+                      return Number.isFinite(n) ? `${n}` : "—";
+                    })()}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
             {/* Speed */}
             <Card className="bg-teal-50 border-teal-200">
               <CardContent className="p-3">
