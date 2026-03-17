@@ -6,6 +6,7 @@ import { type Asset, type Client, type CreateAssetRequest, type AssetFilters } f
 import { useAssets, useCreateAsset, useUpdateAsset, useDeleteAsset } from '@/hooks/useAssets';
 import { useClients, useClient } from '@/hooks/useClients';
 import { useClientLabels } from '@/hooks/useClientLabels';
+import { useConnectedDevices } from '@/hooks/useConnectedDevices';
 import { type VehicleDetails, type MachineryDetails, type EquipmentDetails } from '@/types/api';
 
 import { DataTable, type Column, type DataTableAction } from '@/components/ui/data-table';
@@ -71,6 +72,14 @@ export default function AssetsPage() {
 
   // Get assets using React Query
   const { data: assets = [], isLoading: loading } = useAssets(filters);
+  const { data: devicesData } = useConnectedDevices();
+  const deviceIdToOnline = (devicesData?.devices ?? []).reduce<Record<string, boolean>>(
+    (acc, d) => {
+      acc[d.device_id] = d.online;
+      return acc;
+    },
+    {}
+  );
 
   // Form state
   const [formData, setFormData] = useState<Partial<CreateAssetRequest>>({
@@ -266,7 +275,7 @@ export default function AssetsPage() {
     }
   ];
 
-  // Table columns
+  // Table columns: vehicle name, number plate, device type, connected, actions
   const columns: Column<Asset>[] = [
     {
       key: 'name',
@@ -287,49 +296,60 @@ export default function AssetsPage() {
       )
     },
     {
-      key: 'status',
-      title: 'Status',
+      key: 'license_plate',
+      title: 'Number Plate',
       sortable: true,
-      render: (asset) => <StatusBadge status={asset.status} />
+      render: (asset) => {
+        const plate = asset.asset_type === 'vehicle' && asset.vehicle_details?.license_plate
+          ? asset.vehicle_details.license_plate
+          : null;
+        return plate ? (
+          <span className="font-mono text-sm">{plate}</span>
+        ) : (
+          <span className="text-gray-400">-</span>
+        );
+      }
     },
     {
-      key: 'location',
-      title: 'Location',
-      render: (asset) => asset.location ? (
-        <div className="flex items-center gap-1 text-sm">
-          <MapPin className="w-3 h-3 text-gray-400" />
-          {asset.location}
-        </div>
-      ) : (
-        <span className="text-gray-400">-</span>
-      )
+      key: 'device_type',
+      title: 'Device Type',
+      render: (asset) => {
+        const provider = asset.asset_type === 'vehicle' && asset.vehicle_details?.mqtt_provider
+          ? asset.vehicle_details.mqtt_provider
+          : null;
+        if (!provider) return <span className="text-gray-400">-</span>;
+        return (
+          <span className="capitalize text-sm">
+            {provider === 'teltonika' ? 'Teltonika' : provider === 'custom' ? 'Custom' : provider}
+          </span>
+        );
+      }
     },
     {
-      key: 'current_value',
-      title: 'Current Value',
-      sortable: true,
-      render: (asset) => asset.current_value ? (
-        <span className="font-medium">${asset.current_value.toLocaleString()}</span>
-      ) : (
-        <span className="text-gray-400">-</span>
-      )
-    },
-    {
-      key: 'purchase_date',
-      title: 'Purchase Date',
-      sortable: true,
-      render: (asset) => asset.purchase_date ? (
-        <div className="flex items-center gap-1 text-sm">
-          <Calendar className="w-3 h-3 text-gray-400" />
-          {formatDate(asset.purchase_date)}
-        </div>
-      ) : (
-        <span className="text-gray-400">-</span>
-      )
+      key: 'connected',
+      title: 'Connected',
+      render: (asset) => {
+        const deviceId = asset.asset_type === 'vehicle' && asset.vehicle_details?.device_id
+          ? asset.vehicle_details.device_id
+          : null;
+        if (!deviceId) return <span className="text-gray-400">-</span>;
+        const online = deviceIdToOnline[deviceId];
+        return (
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              className={`w-2.5 h-2.5 rounded-full shrink-0 ${online ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`}
+              aria-hidden
+            />
+            <span className={online ? 'text-emerald-700 font-medium' : 'text-gray-500'}>
+              {online ? 'Online' : 'Offline'}
+            </span>
+          </span>
+        );
+      }
     }
   ];
 
-  // Add client column for super admin
+  // Add client column for super admin (after Number Plate)
   if (user?.role === 'super_admin' && !selectedClient) {
     columns.splice(2, 0, {
       key: 'client_id',
@@ -554,6 +574,7 @@ export default function AssetsPage() {
         data={assets}
         columns={columns}
         actions={actions}
+        onRowClick={(asset) => router.push(`/dashboard/assets/${asset.id}`)}
         loading={loading}
         searchPlaceholder={`Search ${assetLabel.toLowerCase()} by name or description...`}
         searchFields={['name', 'description', 'location']}

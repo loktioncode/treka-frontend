@@ -473,6 +473,7 @@ export default function ComponentsPage() {
         data={components}
         columns={columns}
         actions={actions}
+        onRowClick={(component) => router.push(`/dashboard/components/${component.id}`)}
         loading={loading}
         searchPlaceholder={`Search ${componentLabel.toLowerCase()} by name or type...`}
         searchFields={['name', 'description', 'component_type']}

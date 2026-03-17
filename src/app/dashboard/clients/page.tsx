@@ -397,6 +397,7 @@ export default function ClientsPage() {
           data={clients}
           columns={columns}
           actions={actions}
+          onRowClick={(client) => client.id && navigateTo(`/dashboard/clients/${client.id}`)}
           loading={loading}
           searchPlaceholder="Search clients by name or email..."
           searchFields={['name', 'contact_email', 'description']}

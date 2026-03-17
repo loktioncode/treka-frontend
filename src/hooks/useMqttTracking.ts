@@ -156,21 +156,31 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
      */
     const flespiTelemetryCacheRef = useRef<Record<string, Record<string, FlespiTelemetryEntry>>>({});
 
-    // When showing all vehicles, get assets to know which device IDs are Teltonika (Flespi)
+    // When showing all vehicles, get assets to know which device IDs are Teltonika (Flespi) and assigned to user's vehicles
     const { data: assets = [], isLoading: assetsLoading } = useAssets({ asset_type: 'vehicle' });
     const teltonikaDeviceIdsRef = useRef<Set<string>>(new Set());
+
+    // Only devices that are (1) assigned to user's vehicles and (2) Teltonika (Flespi) — live dashboard shows these only
+    const allowedTeltonikaDeviceIds = useMemo(() => {
+        if (deviceId) return new Set<string>();
+        return new Set(
+            assets
+                .filter(
+                    (a: Asset) =>
+                        a.vehicle_details?.device_id &&
+                        (a.vehicle_details.mqtt_provider === 'teltonika' || a.vehicle_details.mqtt_provider == null)
+                )
+                .map((a: Asset) => String(a.vehicle_details!.device_id!))
+        );
+    }, [assets, deviceId]);
 
     useEffect(() => {
         if (deviceId) {
             teltonikaDeviceIdsRef.current = new Set<string>();
         } else {
-            teltonikaDeviceIdsRef.current = new Set(
-                assets
-                    .filter((a: Asset) => a.vehicle_details?.device_id)
-                    .map((a: Asset) => String(a.vehicle_details!.device_id!))
-            );
+            teltonikaDeviceIdsRef.current = new Set(allowedTeltonikaDeviceIds);
         }
-    }, [assets, deviceId]);
+    }, [deviceId, allowedTeltonikaDeviceIds]);
 
     // Fetch initial last-known positions so idle vehicles appear immediately
     useEffect(() => {
@@ -180,7 +190,11 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
         const devicesToFetch: string[] = deviceId
             ? [deviceId]
             : assets
-                .filter((a: Asset) => a.vehicle_details?.device_id)
+                .filter(
+                    (a: Asset) =>
+                        a.vehicle_details?.device_id &&
+                        (a.vehicle_details.mqtt_provider === 'teltonika' || a.vehicle_details.mqtt_provider == null)
+                )
                 .map((a: Asset) => a.vehicle_details!.device_id!);
 
         if (devicesToFetch.length === 0) return;
@@ -491,8 +505,10 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                         }
 
                         const record = flespiTelemetryToRecord(deviceIdStr, cache);
-                        // Always keep latest vehicle state fresh; marker/trail only updates when lat/lon available.
-                        if (record) applyFlespiPosition(deviceIdStr, record);
+                        // Only update state for Teltonika devices assigned to user's vehicles (live dashboard shows these only).
+                        if (record && (deviceId || teltonikaDeviceIdsRef.current.has(deviceIdStr))) {
+                            applyFlespiPosition(deviceIdStr, record);
+                        }
                     } catch (err) {
                         console.error('Error parsing Flespi MQTT message:', err);
                     }
@@ -554,12 +570,21 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
         }
     };
 
+    // Live dashboard: only show Teltonika devices assigned to user's vehicles
+    const vehicleList = useMemo(
+        () =>
+            Object.values(vehicles).filter((v) =>
+                deviceId ? true : allowedTeltonikaDeviceIds.has(v.device_id)
+            ),
+        [vehicles, deviceId, allowedTeltonikaDeviceIds]
+    );
+
     return {
         vehicles,
         trails,
         completedTrails,
         isConnected,
         sendMessage,
-        vehicleList: Object.values(vehicles),
+        vehicleList,
     };
 }

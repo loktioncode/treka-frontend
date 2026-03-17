@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useConnectedDevices } from "@/hooks/useConnectedDevices";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,7 @@ interface DeviceRow {
 }
 
 export default function DevicesPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { data, isLoading } = useConnectedDevices(true);
 
@@ -130,6 +132,7 @@ export default function DevicesPage() {
             <DataTable<DeviceRow>
               data={devices}
               columns={columns}
+              onRowClick={(row) => row.linked_asset_id && router.push(`/dashboard/assets/${row.linked_asset_id}`)}
               loading={isLoading}
               searchable
               searchPlaceholder="Search by device ID or vehicle..."

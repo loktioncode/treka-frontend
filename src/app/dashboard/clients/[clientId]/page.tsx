@@ -683,6 +683,7 @@ export default function ClientDetailPage() {
           data={users}
           columns={userColumns}
           actions={userActions}
+          onRowClick={handleEditUser}
           loading={usersLoading}
           searchPlaceholder="Search users by name or email..."
           searchFields={['first_name', 'last_name', 'email']}

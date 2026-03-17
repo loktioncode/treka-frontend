@@ -1116,6 +1116,7 @@ export default function UsersPage() {
           data={users}
           columns={columns}
           actions={actions}
+          onRowClick={handleViewUser}
           loading={loading}
           searchPlaceholder="Search users by name or email..."
           searchFields={['first_name', 'last_name', 'email']}

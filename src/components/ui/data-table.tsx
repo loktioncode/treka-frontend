@@ -64,6 +64,8 @@ interface DataTableProps<T> {
       onClick: () => void;
     };
   };
+  /** When set, the whole row is clickable (e.g. to view details). Action buttons still work independently. */
+  onRowClick?: (item: T) => void;
   className?: string;
 }
 
@@ -81,6 +83,7 @@ export function DataTable<T extends { id: string }>({
   addButton,
   pagination,
   emptyState,
+  onRowClick,
   className
 }: DataTableProps<T>) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -164,7 +167,11 @@ export function DataTable<T extends { id: string }>({
         <Button
           variant={variant || 'ghost'}
           size="sm"
-          onClick={() => action.onClick(item)}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            action.onClick(item);
+          }}
           className="h-8 w-8 p-0 hover:bg-primary hover:text-primary-foreground transition-colors"
         >
           {Icon ? <Icon className="h-4 w-4" /> : label}
@@ -326,7 +333,14 @@ export function DataTable<T extends { id: string }>({
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
                       transition={{ delay: index * 0.05 }}
-                      className="border-b hover:bg-gray-50 transition-colors"
+                      onClick={() => onRowClick?.(item)}
+                      role={onRowClick ? 'button' : undefined}
+                      tabIndex={onRowClick ? 0 : undefined}
+                      onKeyDown={onRowClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRowClick(item); } } : undefined}
+                      className={cn(
+                        "border-b hover:bg-gray-50 transition-colors",
+                        onRowClick && "cursor-pointer"
+                      )}
                     >
                       {columns.map((column) => {
                         const value = getValue(item, column);
