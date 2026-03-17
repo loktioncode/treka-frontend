@@ -64,7 +64,17 @@ const LIVE_STALE_MS = LIVE_STALE_MINUTES * 60 * 1000;
 const FLESPI_BROKER_URL = process.env.NEXT_PUBLIC_MQTT_FLESPI_URL || 'wss://mqtt.flespi.io';
 const FLESPI_USERNAME = process.env.NEXT_PUBLIC_MQTT_FLESPI_USERNAME || 'FlespiToken ePTrtxhEDcdAZLHSAdp0yU0qs8MLEYNXo9gUU1q0EJmEN52l8axWMU2zoysxWef2';
 const FLESPI_PASSWORD = process.env.NEXT_PUBLIC_MQTT_FLESPI_PASSWORD || '';
-const FLESPI_CLIENT_ID = process.env.NEXT_PUBLIC_MQTT_FLESPI_CLIENT_ID || 'mqttx_trekaman';
+const FLESPI_CLIENT_ID_BASE = process.env.NEXT_PUBLIC_MQTT_FLESPI_CLIENT_ID || 'trekaman_flespi';
+
+/** Unique clientId per tab/session so multiple tabs don't kick each other off the broker */
+function uniqueClientId(base: string): string {
+    if (typeof window === 'undefined') return base;
+    return `${base}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+const MQTT_KEEPALIVE_S = 60;
+const MQTT_RECONNECT_MS = 5000;
+const MQTT_CONNECT_TIMEOUT_MS = 30000;
 
 /** Approximate distance in km between two lat/lon points (Haversine-style). */
 function distanceKm(
@@ -112,8 +122,10 @@ function flespiTelemetryToRecord(
     const lon = pos?.longitude ?? flespiNum(telemetry['position.longitude']);
     const movValue = telemetry['movement.status']?.value;
     const mov = movValue !== undefined ? Boolean(movValue) : undefined;
+    const ignitionValue = telemetry['engine.ignition.status']?.value ?? telemetry['can.engine.ignition']?.value ?? telemetry['can.engine.ignition.status']?.value;
+    const ignition = ignitionValue !== undefined ? Boolean(ignitionValue) : undefined;
 
-    if (lat == null && lon == null && spd == null && rpm == null && mov == null && tmp == null) return null;
+    if (lat == null && lon == null && spd == null && rpm == null && mov == null && tmp == null && ignition == null) return null;
     return {
         ts: Math.floor(ts),
         ts_server: new Date(ts * 1000).toISOString(),
@@ -130,6 +142,7 @@ function flespiTelemetryToRecord(
         fl,
         lod,
         mov,
+        ignition,
     };
 }
 
@@ -298,9 +311,11 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                 brokerUrl = defaultWss;
             }
             const options: mqtt.IClientOptions = {
-                clientId: process.env.NEXT_PUBLIC_MQTT_CLIENT_ID || 'trekamanmqttx_2025',
+                clientId: uniqueClientId(process.env.NEXT_PUBLIC_MQTT_CLIENT_ID || 'trekaman_hive'),
                 clean: true,
-                reconnectPeriod: 5000,
+                reconnectPeriod: MQTT_RECONNECT_MS,
+                keepalive: MQTT_KEEPALIVE_S,
+                connectTimeout: MQTT_CONNECT_TIMEOUT_MS,
             };
             if (process.env.NEXT_PUBLIC_MQTT_USERNAME) {
                 options.username = process.env.NEXT_PUBLIC_MQTT_USERNAME;
@@ -309,20 +324,34 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
             try {
                 const client = mqtt.connect(brokerUrl, options);
                 clientRef.current = client;
+                const subscribeHive = () => {
+                    if (!client.connected) return;
+                    try {
+                        if (deviceId) {
+                            client.subscribe(`trekaman/telematrics/${deviceId}`, { qos: 0 });
+                            client.subscribe(`trekaman/incident/${deviceId}`, { qos: 0 });
+                            client.subscribe(`trekaman/geofence/${deviceId}`, { qos: 0 });
+                        } else {
+                            client.subscribe('trekaman/telematrics/+', { qos: 0 });
+                            client.subscribe('trekaman/incident/+', { qos: 0 });
+                            client.subscribe('trekaman/geofence/+', { qos: 0 });
+                        }
+                    } catch (err) {
+                        if (activeRef.current) console.error('HiveMQ subscribe error:', err);
+                    }
+                };
                 client.on('connect', () => {
                     if (!activeRef.current) return;
                     connectedCountRef.current.hive = 1;
                     updateConnected();
-                    if (!client.connected) return;
-                    if (deviceId) {
-                        client.subscribe(`trekaman/telematrics/${deviceId}`, { qos: 0 });
-                        client.subscribe(`trekaman/incident/${deviceId}`, { qos: 0 });
-                        client.subscribe(`trekaman/geofence/${deviceId}`, { qos: 0 });
-                    } else {
-                        client.subscribe('trekaman/telematrics/+', { qos: 0 });
-                        client.subscribe('trekaman/incident/+', { qos: 0 });
-                        client.subscribe('trekaman/geofence/+', { qos: 0 });
-                    }
+                    setImmediate(subscribeHive);
+                });
+                client.on('reconnect', () => {
+                    if (activeRef.current) updateConnected();
+                });
+                client.on('offline', () => {
+                    if (activeRef.current) connectedCountRef.current.hive = 0;
+                    updateConnected();
                 });
                 client.on('message', (topic: string, message: Buffer) => {
                     if (!activeRef.current) return;
@@ -430,31 +459,40 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
         {
             try {
                 const options: mqtt.IClientOptions = {
-                    clientId: FLESPI_CLIENT_ID,
+                    clientId: uniqueClientId(FLESPI_CLIENT_ID_BASE),
                     clean: true,
-                    reconnectPeriod: 5000,
+                    reconnectPeriod: MQTT_RECONNECT_MS,
+                    keepalive: MQTT_KEEPALIVE_S,
+                    connectTimeout: MQTT_CONNECT_TIMEOUT_MS,
                     username: FLESPI_USERNAME,
                     password: FLESPI_PASSWORD,
                 };
                 const client = mqtt.connect(FLESPI_BROKER_URL, options);
                 flespiClientRef.current = client;
+                const subscribeFlespi = () => {
+                    if (!client.connected) return;
+                    try {
+                        if (deviceId) {
+                            client.subscribe(`flespi/state/gw/devices/${deviceId}/telemetry/+`, { qos: 1 });
+                        } else {
+                            client.subscribe('flespi/state/gw/devices/+/telemetry/+', { qos: 0 });
+                        }
+                    } catch (err) {
+                        if (activeRef.current) console.error('Flespi subscribe error:', err);
+                    }
+                };
                 client.on('connect', () => {
                     if (!activeRef.current) return;
                     connectedCountRef.current.flespi = 1;
                     updateConnected();
-                    const doSubscribe = () => {
-                        if (!client.connected) return;
-                        try {
-                            if (deviceId) {
-                                client.subscribe(`flespi/state/gw/devices/${deviceId}/telemetry/+`, { qos: 1 });
-                            } else {
-                                client.subscribe('flespi/state/gw/devices/+/telemetry/+', { qos: 0 });
-                            }
-                        } catch (err) {
-                            if (activeRef.current) console.error('Flespi subscribe error:', err);
-                        }
-                    };
-                    setImmediate(doSubscribe);
+                    setImmediate(subscribeFlespi);
+                });
+                client.on('reconnect', () => {
+                    if (activeRef.current) updateConnected();
+                });
+                client.on('offline', () => {
+                    if (activeRef.current) connectedCountRef.current.flespi = 0;
+                    updateConnected();
                 });
                 client.on('message', (topic: string, message: Buffer) => {
                     if (!activeRef.current) return;

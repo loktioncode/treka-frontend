@@ -43,6 +43,8 @@ function hasMpuData(record: TelemetryLike): boolean {
 
 /**
  * Derive driving status from CAN + optional movement/MPU.
+ * - Flespi: use engine.ignition.status when available so we show "Engine off" when ignition is off
+ *   (Flespi keeps sending last-known values; ignition is the current engine state).
  * - Flespi: "moving" only when movement.status === true.
  * - Custom (HiveMQ) with MPU: "moving" only when speed > threshold AND MPU suggests motion (vib/ia_tot).
  * - No movement/MPU: moving when speed > 0; stationary/off from RPM.
@@ -52,6 +54,9 @@ export function getDrivingStatus(record: TelemetryLike): DrivingStatus {
 
   const spd = record.spd ?? 0;
   const rpm = record.rpm ?? 0;
+
+  // Explicit ignition off (Flespi engine.ignition.status): engine is off regardless of cached RPM/movement
+  if (record.ignition === false) return "off";
 
   // Explicit movement.status (Flespi): only show moving when true
   if (record.mov === true) return "moving";

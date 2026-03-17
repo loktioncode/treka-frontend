@@ -624,6 +624,8 @@ export interface TelemetryRecord {
   hdg?: number;
   nsat?: number;
   mov?: boolean;
+  /** Engine/ignition on (true) or off (false). Flespi: engine.ignition.status. When false, engine is off regardless of cached RPM. */
+  ignition?: boolean;
 }
 
 export interface TelemetryHistoryResponse {
