@@ -37,6 +37,7 @@ interface FlespiPositionValue {
     longitude?: number;
     lat?: number;
     lng?: number;
+    lon?: number;
     satellites?: number;
     speed?: number;
     ts?: number;
@@ -176,7 +177,30 @@ function flespiTelemetryToRecord(
     telemetry: Record<string, FlespiTelemetryEntry> | undefined
 ): TelemetryRecord | null {
     if (!telemetry) return null;
-    const pos = telemetry['position']?.value as FlespiPositionValue | undefined;
+    const rawPos = telemetry['position']?.value as unknown;
+    // Flespi "position" value is usually an object, but some gateways may send it as a stringified JSON.
+    const pos = (() => {
+        if (!rawPos) return undefined;
+        if (typeof rawPos === 'string') {
+            const s = rawPos.trim();
+            // Try JSON first
+            try {
+                const parsed = JSON.parse(s) as unknown;
+                if (parsed && typeof parsed === 'object') return parsed as FlespiPositionValue;
+            } catch {
+                // Try "lat,lon" fallback
+                const parts = s.split(',').map((p) => p.trim());
+                if (parts.length >= 2) {
+                    const lat = asFiniteNumber(parts[0]);
+                    const lon = asFiniteNumber(parts[1]);
+                    if (lat != null || lon != null) return { lat, lon } as FlespiPositionValue;
+                }
+            }
+            return undefined;
+        }
+        if (rawPos && typeof rawPos === 'object') return rawPos as FlespiPositionValue;
+        return undefined;
+    })();
     const tsEntry = telemetry['timestamp'] ?? telemetry['position'];
     const posTs = pos?.ts ?? pos?.timestamp;
     const ts = typeof tsEntry?.value === 'number' ? tsEntry.value : (typeof posTs === 'number' ? posTs : Math.floor(Date.now() / 1000));
@@ -186,9 +210,32 @@ function flespiTelemetryToRecord(
     const tmp = flespiNum(telemetry['can.engine.coolant.temperature']);
     const fl = flespiNum(telemetry['can.fuel.level']) ?? flespiNum(telemetry['can.fuel.volume']);
     const lod = flespiNum(telemetry['can.engine.load.level']);
-    // Flespi sends last position on telemetry/position with latitude/longitude (and sometimes lat/lng)
-    const lat = pos?.latitude ?? pos?.lat ?? flespiNum(telemetry['position.latitude']);
-    const lon = pos?.longitude ?? pos?.lng ?? flespiNum(telemetry['position.longitude']);
+    // Flespi sends last position on telemetry/position with latitude/longitude (and sometimes lat/lng/lon).
+    // Some integrations use alternate keys, so we fall back to generic extraction too.
+    const extractedFromPos = extractLatLon(pos);
+    const extractedFromTelemetry = extractLatLon(
+        Object.fromEntries(
+            Object.entries(telemetry).map(([k, v]) => [k, (v as FlespiTelemetryEntry | undefined)?.value])
+        )
+    );
+    const lat =
+        pos?.latitude ??
+        pos?.lat ??
+        extractedFromPos.lat ??
+        flespiNum(telemetry['position.latitude']) ??
+        flespiNum(telemetry['position.lat']) ??
+        flespiNum(telemetry['positionLatitude']) ??
+        extractedFromTelemetry.lat;
+    const lon =
+        pos?.longitude ??
+        pos?.lng ??
+        pos?.lon ??
+        extractedFromPos.lon ??
+        flespiNum(telemetry['position.longitude']) ??
+        flespiNum(telemetry['position.lon']) ??
+        flespiNum(telemetry['position.lng']) ??
+        flespiNum(telemetry['positionLongitude']) ??
+        extractedFromTelemetry.lon;
     const movValue = telemetry['movement.status']?.value;
     const mov = movValue !== undefined ? Boolean(movValue) : undefined;
     const ignitionValue = telemetry['engine.ignition.status']?.value ?? telemetry['can.engine.ignition']?.value ?? telemetry['can.engine.ignition.status']?.value;
