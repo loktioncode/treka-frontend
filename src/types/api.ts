@@ -561,6 +561,14 @@ export interface UploadEarningsResponse {
 
 // Telemetry types
 export interface TelemetryRecord {
+  /** Device identifier that produced this record (stored unified key `dev`). */
+  dev?: string;
+  /** VIN decoded from OBD / provider (stored unified key `vin`). */
+  vin?: string;
+  /** Asset/vehicle id this record was connected to at ingest time (for swap-proof reporting). */
+  connected_asset_id?: string;
+  /** Vehicle VIN on the asset at ingest time (connection context). */
+  connected_vehicle_vin?: string;
   ts: number;
   ts_server?: string;
   // OBD-II Data
