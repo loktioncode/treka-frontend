@@ -40,7 +40,6 @@ import { getDrivingStatus } from "@/lib/driving-status";
 import { useAssets } from "@/hooks/useAssets";
 
 import { DriverScoreCard } from "@/components/dashboard/DriverScoreCard";
-import { FleetLiveAnalytics } from "@/components/dashboard/FleetLiveAnalytics";
 
 interface DashboardStats {
   assets: {
@@ -94,7 +93,11 @@ export default function Dashboard() {
     undefined,
     !!currentClient && currentClient.client_type === "logistics",
   );
-  const { vehicleList } = useMqttTracking();
+  const { vehicleList, vehicles } = useMqttTracking();
+  const connectedVehicles = useMemo(
+    () => vehicleList.filter((v) => vehicles[v.device_id]?.status === "online"),
+    [vehicleList, vehicles]
+  );
   const { data: assetsData } = useAssets(
     { asset_type: "vehicle" as any },
     { limit: 500 },
@@ -550,7 +553,7 @@ export default function Dashboard() {
                   Live Vehicles
                 </CardTitle>
                 <CardDescription>
-                  {vehicleList.length} vehicles live right now
+                  {connectedVehicles.length} vehicles connected right now
                 </CardDescription>
               </div>
               <SmartLink
@@ -562,8 +565,9 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="p-0 max-h-[160px] overflow-y-auto">
               <div className="divide-y">
-                {vehicleList.slice(0, 5).map((vehicle) => {
+                {connectedVehicles.slice(0, 5).map((vehicle) => {
                   const linked = deviceToVehicle[vehicle.device_id];
+                  const displayLabel = linked?.plate || linked?.name || vehicle.device_id;
                   return (
                     <div
                       key={vehicle.device_id}
@@ -577,11 +581,11 @@ export default function Dashboard() {
                         />
                         <div className="flex flex-col">
                           <span className="text-sm font-medium">
-                            {linked?.name || vehicle.device_id}
+                            {displayLabel}
                           </span>
-                          {linked?.plate && (
+                          {linked?.plate && linked?.name && (
                             <span className="text-xs text-gray-400">
-                              {linked.plate}
+                              {linked.name}
                             </span>
                           )}
                         </div>
@@ -592,17 +596,17 @@ export default function Dashboard() {
                     </div>
                   );
                 })}
-                {vehicleList.length > 5 && (
+                {connectedVehicles.length > 5 && (
                   <SmartLink
                     href="/dashboard/map"
                     className="p-3 block text-center text-xs text-blue-600 font-bold hover:bg-blue-50"
                   >
-                    View all {vehicleList.length} vehicles
+                    View all {connectedVehicles.length} vehicles
                   </SmartLink>
                 )}
-                {vehicleList.length === 0 && (
+                {connectedVehicles.length === 0 && (
                   <div className="p-8 text-center text-gray-400 text-sm">
-                    No live data streaming...
+                    No connected vehicles right now
                   </div>
                 )}
               </div>
@@ -611,41 +615,6 @@ export default function Dashboard() {
         </motion.div>
       )}
 
-      {/* Analytics Overview - Logistics: Real-time MQTT + DB fallback BI visualizations */}
-      {currentClient?.client_type === "logistics" && user?.role !== "driver" && (
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.6 }}
-          className="w-full"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">
-                Fleet Analytics Overview
-              </h2>
-              <p className="text-gray-600">
-                Live fleet metrics from connected devices, or latest data from database
-              </p>
-            </div>
-            <button
-              onClick={() => refetchFleetTelemetry()}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <RefreshCw
-                className={`h-4 w-4 ${fleetTelemetryFetching ? "animate-spin" : ""}`}
-              />
-              Refresh
-            </button>
-          </div>
-          <FleetLiveAnalytics
-            vehicleList={vehicleList}
-            fleetTelemetry={fleetTelemetry ?? undefined}
-            deviceToVehicle={deviceToVehicle}
-            hasLiveData={vehicleList.length > 0}
-          />
-        </motion.div>
-      )}
 
       {/* Quick Actions - Hide for logistics clients */}
       {currentClient?.client_type === "industrial" && (

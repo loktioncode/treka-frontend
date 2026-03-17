@@ -33,12 +33,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FloatingChatButton } from "@/components/ui/floating-chat-button";
 import { type ChatMessage } from "@/components/ui/chat";
 import { analyticsAPI } from "@/services/api";
+import type { Asset } from "@/types/api";
 
 export default function FleetMapPage() {
   const mapCenter = useMapCenter();
   const { vehicleList, isConnected, vehicles } = useMqttTracking();
   const { assets = [], tripPlans = [] } = useDataCache();
   const [searchQuery, setSearchQuery] = useState("");
+
+  const deviceToVehicle = useMemo(() => {
+    const map: Record<string, { name: string; plate: string }> = {};
+    for (const asset of assets as Asset[]) {
+      const did = asset.vehicle_details?.device_id;
+      if (did) {
+        map[did] = {
+          name: asset.name,
+          plate: asset.vehicle_details?.license_plate || "",
+        };
+      }
+    }
+    return map;
+  }, [assets]);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(
     null,
   );
@@ -59,9 +74,13 @@ export default function FleetMapPage() {
     return { encodedRoutes: routes, routePrecision: precision };
   }, [tripPlans]);
 
-  const filteredVehicles = vehicleList.filter((v) =>
-    v.device_id.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const filteredVehicles = vehicleList.filter((v) => {
+    const q = searchQuery.toLowerCase();
+    const info = deviceToVehicle[v.device_id];
+    const plate = info?.plate?.toLowerCase() ?? "";
+    const name = info?.name?.toLowerCase() ?? "";
+    return v.device_id.toLowerCase().includes(q) || plate.includes(q) || name.includes(q);
+  });
 
   const selectedVehicle = selectedVehicleId
     ? vehicleList.find((v) => v.device_id === selectedVehicleId)
@@ -233,7 +252,7 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
                       </div>
                       <div>
                         <h3 className="text-sm font-bold text-gray-900 group-hover:text-blue-700">
-                          {vehicle.device_id}
+                          {deviceToVehicle[vehicle.device_id]?.plate || deviceToVehicle[vehicle.device_id]?.name || vehicle.device_id}
                         </h3>
                         <div className="flex items-center gap-1.5 text-[10px] text-gray-500" title={lastDataFmt(vehicle.last_update)}>
                           <Clock className="h-3 w-3 shrink-0" />
@@ -324,6 +343,7 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
           encodedRoutes={encodedRoutes}
           encodedRoutePrecision={routePrecision}
           initialCenter={mapCenter}
+          deviceToVehicle={deviceToVehicle}
         />
 
         {/* Floating Reset Button */}
@@ -347,7 +367,7 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
               Live vehicle data
             </h2>
             <p className="text-xs text-gray-500 mt-1 truncate" title={selectedVehicle.device_id}>
-              {selectedVehicle.device_id}
+              {deviceToVehicle[selectedVehicle.device_id]?.plate || deviceToVehicle[selectedVehicle.device_id]?.name || selectedVehicle.device_id}
             </p>
             <p className="text-[10px] text-gray-600 mt-1 font-medium" title={selectedVehicle.last_update}>
               Last data: {lastDataFmt(selectedVehicle.last_update)}
