@@ -347,7 +347,7 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
         />
 
         {/* Floating Reset Button */}
-        {selectedVehicleId && (
+        {(
           <button
             onClick={() => setSelectedVehicleId(null)}
             className="absolute top-4 right-4 z-10 bg-white shadow-lg border px-4 py-2 rounded-full text-sm font-bold text-blue-600 hover:bg-blue-50 transition-all flex items-center gap-2"
