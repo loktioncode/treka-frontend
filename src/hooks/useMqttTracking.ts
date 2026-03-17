@@ -88,18 +88,24 @@ function asFiniteNumber(v: unknown): number | undefined {
 
 function extractLatLon(input: unknown): { lat?: number; lon?: number } {
     const obj = (input && typeof input === 'object') ? (input as Record<string, unknown>) : {};
+    const position = (obj.position && typeof obj.position === 'object') ? (obj.position as Record<string, unknown>) : undefined;
+    const gps = (obj.gps && typeof obj.gps === 'object') ? (obj.gps as Record<string, unknown>) : undefined;
     const lat =
         asFiniteNumber(obj.lat) ??
         asFiniteNumber(obj.latitude) ??
         asFiniteNumber(obj.gps_lat) ??
-        asFiniteNumber(obj.gpsLat);
+        asFiniteNumber(obj.gpsLat) ??
+        (position ? (asFiniteNumber(position.lat) ?? asFiniteNumber(position.latitude)) : undefined) ??
+        (gps ? (asFiniteNumber(gps.lat) ?? asFiniteNumber(gps.latitude)) : undefined);
     const lon =
         asFiniteNumber(obj.lon) ??
         asFiniteNumber(obj.lng) ??
         asFiniteNumber(obj.longitude) ??
         asFiniteNumber(obj.long) ??
         asFiniteNumber(obj.gps_lon) ??
-        asFiniteNumber(obj.gpsLon);
+        asFiniteNumber(obj.gpsLon) ??
+        (position ? (asFiniteNumber(position.lon) ?? asFiniteNumber(position.lng) ?? asFiniteNumber(position.longitude) ?? asFiniteNumber(position.long)) : undefined) ??
+        (gps ? (asFiniteNumber(gps.lon) ?? asFiniteNumber(gps.lng) ?? asFiniteNumber(gps.longitude) ?? asFiniteNumber(gps.long)) : undefined);
     return { lat, lon };
 }
 
@@ -285,6 +291,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
     }, [assets, assetsLoading, deviceId, user]);
 
     const applyFlespiPosition = useCallback((flespiDeviceId: string, record: TelemetryRecord) => {
+        record = normalizeTelemetryRecord(record);
         const dataTime = record.ts_server || (record.ts != null ? new Date(record.ts * 1000).toISOString() : new Date().toISOString());
         setVehicles((prev) => {
             const existing = prev[flespiDeviceId]?.last_record;
@@ -339,6 +346,19 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
             });
         }
     }, []);
+
+    // If MQTT messages arrive before assets load, we may drop updates due to allowedDeviceIds filtering.
+    // Re-apply any cached Flespi telemetry once allowed IDs become known so markers still appear.
+    useEffect(() => {
+        if (deviceId) return;
+        if (allowedDeviceIds.size === 0) return;
+        for (const did of allowedDeviceIds) {
+            const cache = flespiTelemetryCacheRef.current[did];
+            if (!cache) continue;
+            const record = flespiTelemetryToRecord(did, cache);
+            if (record) applyFlespiPosition(did, record);
+        }
+    }, [allowedDeviceIds, deviceId, applyFlespiPosition]);
 
     const connect = useCallback(() => {
         if (!user) return;

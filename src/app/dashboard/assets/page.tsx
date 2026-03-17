@@ -771,7 +771,7 @@ export default function AssetsPage() {
                       ...formData,
                       vehicle_details: createCompleteVehicleDetails({ device_id: e.target.value })
                     })}
-                    placeholder={formData.vehicle_details?.mqtt_provider === 'teltonika' ? 'e.g., 7763037 (Flespi device ID)' : 'e.g., OBDBLE_12345'}
+                    placeholder={formData.vehicle_details?.mqtt_provider === 'teltonika' ? 'e.g., 1234567 (Flespi device ID)' : 'e.g., ESP32_OBD_001'}
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     {formData.vehicle_details?.mqtt_provider === 'teltonika'
