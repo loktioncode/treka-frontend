@@ -92,15 +92,19 @@ export default function LiveMap({
   const vehicleListRef = useRef(vehicleList);
   vehicleListRef.current = vehicleList;
 
+  // Always sync marker positions from MQTT / last_record so fleet map shows latest location
   useEffect(() => {
     setMarkerPositions((prev) => {
       let next = prev;
       for (const v of vehicleList) {
         const lat = v.last_record.lat;
         const lon = v.last_record.lon ?? (v.last_record as unknown as { lng?: number }).lng;
-        if (lat != null && lon != null && !prev[v.device_id]) {
-          next = next === prev ? { ...prev } : next;
-          next[v.device_id] = { lat, lon };
+        if (lat != null && lon != null) {
+          const cur = prev[v.device_id];
+          if (!cur || Math.abs(cur.lat - lat) > 1e-6 || Math.abs(cur.lon - lon) > 1e-6) {
+            next = next === prev ? { ...prev } : next;
+            next[v.device_id] = { lat, lon };
+          }
         }
       }
       return next;
@@ -280,7 +284,7 @@ export default function LiveMap({
           const lon = pos?.lon ?? getLon(rec);
           const { hdg, spd, rpm, vlt } = rec;
           if (lat == null || lon == null) return null;
-          // Always show last known position on map (even when engine is off / status is idle)
+          // Always show last known position from MQTT (even when engine is off)
           const status = getVehicleStatus(rec);
           const iconBg =
             status === "serious"

@@ -395,15 +395,26 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                                     pit: data.pit ?? latestRecord.pit,
                                 };
                                 const dataTime = record.ts_server || (record.ts != null ? new Date(record.ts * 1000).toISOString() : new Date().toISOString());
-                                setVehicles((prev) => ({
-                                    ...prev,
-                                    [actualDeviceId]: {
-                                        device_id: actualDeviceId,
-                                        last_record: record,
-                                        last_update: dataTime,
-                                        status: 'online',
-                                    },
-                                }));
+                                setVehicles((prev) => {
+                                    const existing = prev[actualDeviceId]?.last_record;
+                                    const lastRecord: TelemetryRecord = {
+                                        ...record,
+                                        lat: record.lat ?? existing?.lat,
+                                        lon: record.lon ?? existing?.lon ?? (existing as unknown as Record<string, unknown>)?.lng as number | undefined,
+                                        alt: record.alt ?? existing?.alt,
+                                        hdg: record.hdg ?? existing?.hdg,
+                                        cog: record.cog ?? existing?.cog,
+                                    };
+                                    return {
+                                        ...prev,
+                                        [actualDeviceId]: {
+                                            device_id: actualDeviceId,
+                                            last_record: lastRecord,
+                                            last_update: dataTime,
+                                            status: 'online',
+                                        },
+                                    };
+                                });
                                 const norm = (r: TelemetryRecord) => ({ ...r, lon: r.lon ?? (r as unknown as Record<string, unknown>).lng as number });
                                 const withLatLon = (record.lat != null && (record.lon != null || raw.lng != null)) ? [norm(record)] : [];
                                 const fromBatch = (data.records ?? [])
