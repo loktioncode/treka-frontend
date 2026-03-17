@@ -102,7 +102,7 @@ export function FleetKPICards({ summary }: FleetKPICardsProps) {
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             {kpis.map((kpi, i) => (
-                <Card key={i} className="glass-card">
+                <Card key={i} className="bg-white border border-gray-200">
                     <CardContent className="p-4 sm:p-6 flex flex-col gap-4">
                         <div className="flex justify-between items-start">
                             <div className="space-y-2">

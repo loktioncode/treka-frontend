@@ -47,7 +47,7 @@ export function VehiclePerformanceCharts({ vehicles }: VehiclePerformanceChartsP
 
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <Card className="glass-card md:col-span-2">
+            <Card className="bg-white border border-gray-200 md:col-span-2">
                 <CardHeader>
                     <CardTitle>Cross-Vehicle Comparison</CardTitle>
                     <CardDescription>
@@ -94,7 +94,7 @@ export function VehiclePerformanceCharts({ vehicles }: VehiclePerformanceChartsP
                 </CardContent>
             </Card>
 
-            <Card className="glass-card">
+            <Card className="bg-white border border-gray-200">
                 <CardHeader>
                     <CardTitle>Multidimensional Analysis</CardTitle>
                     <CardDescription>

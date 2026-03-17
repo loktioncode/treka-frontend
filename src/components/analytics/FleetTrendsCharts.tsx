@@ -19,7 +19,7 @@ const chartConfig = {
 export function FleetTrendsCharts({ timeSeriesData }: FleetTrendsChartsProps) {
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <Card className="glass-card md:col-span-2 lg:col-span-3">
+            <Card className="bg-white border border-gray-200 md:col-span-2 lg:col-span-3">
                 <CardHeader>
                     <CardTitle>Fleet Performance Trends</CardTitle>
                     <CardDescription>
@@ -95,7 +95,7 @@ export function FleetTrendsCharts({ timeSeriesData }: FleetTrendsChartsProps) {
                 </CardContent>
             </Card>
 
-            <Card className="glass-card md:col-span-1 lg:col-span-2">
+            <Card className="bg-white border border-gray-200 md:col-span-1 lg:col-span-2">
                 <CardHeader>
                     <CardTitle>Driver Score & Trips</CardTitle>
                     <CardDescription>
@@ -152,7 +152,7 @@ export function FleetTrendsCharts({ timeSeriesData }: FleetTrendsChartsProps) {
                 </CardContent>
             </Card>
 
-            <Card className="glass-panel border-l-4 border-l-[var(--chart-4)] bg-secondary/10 flex items-center justify-center p-6">
+            <Card className="bg-white border border-gray-200 border-l-4 border-l-[var(--chart-4)] flex items-center justify-center p-6">
                 <div className="text-center space-y-2">
                     <h3 className="text-lg font-medium">Insights Engine</h3>
                     <p className="text-sm text-muted-foreground">
