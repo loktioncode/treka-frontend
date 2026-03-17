@@ -65,6 +65,7 @@ import TripReplayMap from "@/components/maps/TripReplayMap";
 import { TripReportModal } from "@/components/trips/TripReportModal";
 import { useMqttTracking } from "@/hooks/useMqttTracking";
 import { useMapCenter } from "@/hooks/useMapCenter";
+import { useConnectedDevices } from "@/hooks/useConnectedDevices";
 import { isEngineOn, getDrivingStatusLabel } from "@/lib/driving-status";
 import { type Trip } from "@/types/api";
 import { FloatingChatButton } from "@/components/ui/floating-chat-button";
@@ -113,6 +114,13 @@ export default function AssetViewPage() {
     asset?.vehicle_details?.device_id,
     asset?.vehicle_details?.mqtt_provider
   );
+  const connectedDevicesQuery = useConnectedDevices(Boolean(asset?.vehicle_details?.device_id));
+  const connectedDeviceInfo = useMemo(() => {
+    const did = asset?.vehicle_details?.device_id;
+    if (!did) return null;
+    const devices = connectedDevicesQuery.data?.devices ?? [];
+    return devices.find((d) => String(d.device_id) === String(did)) ?? null;
+  }, [asset?.vehicle_details?.device_id, connectedDevicesQuery.data]);
   const liveVehicleRecord = asset?.vehicle_details?.device_id
     ? vehicleList.find((v) => v.device_id === asset.vehicle_details?.device_id)?.last_record
     : null;
@@ -2083,11 +2091,46 @@ Provide a concise, actionable insight for a fleet manager.`;
               <TabsContent value="gps_logs" className="space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                       <MapPin className="w-5 h-5 text-teal-600" />
-                       GPS Telemetry Logs
-                    </CardTitle>
-                    <p className="text-sm text-gray-500">Historical location data for this vehicle</p>
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <MapPin className="w-5 h-5 text-teal-600" />
+                          GPS Telemetry Logs
+                        </CardTitle>
+                        <p className="text-sm text-gray-500">
+                          Historical location data for this vehicle (connected device telemetry)
+                        </p>
+                      </div>
+                      {asset?.vehicle_details?.device_id && (
+                        <div className="flex flex-col items-end gap-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="font-mono">
+                              {String(asset.vehicle_details.device_id)}
+                            </Badge>
+                            {connectedDeviceInfo ? (
+                              <Badge
+                                className={
+                                  connectedDeviceInfo.online
+                                    ? "bg-emerald-600 hover:bg-emerald-600 text-white"
+                                    : "bg-gray-200 hover:bg-gray-200 text-gray-800"
+                                }
+                              >
+                                {connectedDeviceInfo.online ? "Online" : "Offline"}
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary">
+                                {connectedDevicesQuery.isFetching ? "Checking status…" : "Status unknown"}
+                              </Badge>
+                            )}
+                          </div>
+                          {connectedDeviceInfo?.last_seen && (
+                            <span className="text-xs text-gray-500">
+                              Last seen: {new Date(connectedDeviceInfo.last_seen).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent>
                     {!asset?.vehicle_details?.device_id ? (
