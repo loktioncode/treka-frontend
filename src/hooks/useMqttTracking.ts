@@ -208,7 +208,11 @@ function flespiTelemetryToRecord(
     const rpm = flespiNum(telemetry['can.engine.rpm']);
     const vlt = flespiNum(telemetry['external.powersource.voltage']) ?? flespiNum(telemetry['battery.voltage']);
     const tmp = flespiNum(telemetry['can.engine.coolant.temperature']);
-    const fl = flespiNum(telemetry['can.fuel.level']) ?? flespiNum(telemetry['can.fuel.volume']);
+    const fuelLevel = flespiNum(telemetry['can.fuel.level']);
+    const fuelVol = fuelLevel == null ? flespiNum(telemetry['can.fuel.volume']) : undefined;
+    const fl = fuelLevel ?? fuelVol;
+    const fuel_unit: TelemetryRecord['fuel_unit'] =
+        fuelLevel != null ? 'percent' : fuelVol != null ? 'l' : undefined;
     const lod = flespiNum(telemetry['can.engine.load.level']);
     // Flespi sends last position on telemetry/position with latitude/longitude (and sometimes lat/lng/lon).
     // Some integrations use alternate keys, so we fall back to generic extraction too.
@@ -256,6 +260,7 @@ function flespiTelemetryToRecord(
         vlt,
         tmp,
         fl,
+        fuel_unit,
         lod,
         mov,
         ignition,
@@ -289,8 +294,6 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
     const { data: assets = [], isLoading: assetsLoading } = useAssets({ asset_type: 'vehicle' });
     const allowedDeviceIdsRef = useRef<Set<string>>(new Set());
     const persistedPositionsRef = useRef<Record<string, { lat: number; lon: number; ts?: number }>>({});
-    /** Devices that have ever produced live MQTT data in this session (used to show "connected" devices even if not in assets yet). */
-    const liveSeenDeviceIdsRef = useRef<Set<string>>(new Set());
 
     useEffect(() => {
         persistedPositionsRef.current = readLastPositions();
@@ -376,8 +379,6 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
 
     const applyFlespiPosition = useCallback((flespiDeviceId: string, record: TelemetryRecord) => {
         record = normalizeTelemetryRecord(record);
-        // Mark as seen live so fleet map can show it even if assets load later / missing mapping.
-        liveSeenDeviceIdsRef.current.add(flespiDeviceId);
         if (record.lat != null && record.lon != null) {
             const prev = persistedPositionsRef.current;
             const ts = record.ts ?? Math.floor(Date.now() / 1000);
@@ -680,8 +681,6 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                         const paramKey = parts[parts.length - 1];
                         const deviceIdStr = String(fromTopicDeviceId || '');
                         if (!deviceIdStr) return;
-                        // On fleet map (!deviceId) show all Flespi devices that send data so markers appear.
-                        // When viewing a single asset (deviceId set), we already subscribed to that device only.
                         if (deviceId && deviceIdStr !== deviceId) return;
 
                         const cache = (flespiTelemetryCacheRef.current[deviceIdStr] ??= {});
@@ -732,8 +731,9 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                         }
 
                         const record = flespiTelemetryToRecord(deviceIdStr, cache);
-                        // Always retain last received Flespi position/telemetry for any device publishing to us.
-                        // Fleet UI will decide what to display; this ensures engine-off / mov=false devices still show their last known position.
+                        // Fleet mode: ONLY apply to devices linked to assets. We still keep cache so when assets load
+                        // we can re-apply the latest cached telemetry for allowed devices.
+                        if (!deviceId && !allowedDeviceIdsRef.current.has(deviceIdStr)) return;
                         if (record) applyFlespiPosition(deviceIdStr, record);
                     } catch (err) {
                         console.error('Error parsing Flespi MQTT message:', err);
@@ -801,12 +801,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
         () =>
             Object.values(vehicles).filter((v) => {
                 if (deviceId) return true;
-                // Default: user's assigned assets
-                if (allowedDeviceIds.has(v.device_id)) return true;
-                // Also show anything that is actively producing live data (e.g. newly provisioned Flespi device, engine-off, mov=false)
-                if (v.status === 'online') return true;
-                if (liveSeenDeviceIdsRef.current.has(v.device_id)) return true;
-                return false;
+                return allowedDeviceIds.has(v.device_id);
             }),
         [vehicles, deviceId, allowedDeviceIds]
     );

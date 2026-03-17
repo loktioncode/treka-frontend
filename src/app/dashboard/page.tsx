@@ -95,7 +95,12 @@ export default function Dashboard() {
   );
   const { vehicleList, vehicles } = useMqttTracking();
   const connectedVehicles = useMemo(
-    () => vehicleList.filter((v) => vehicles[v.device_id]?.status === "online"),
+    () =>
+      vehicleList.filter(
+        (v) =>
+          vehicles[v.device_id]?.status === "online" &&
+          getDrivingStatus(v.last_record) === "moving",
+      ),
     [vehicleList, vehicles]
   );
 
@@ -577,7 +582,7 @@ export default function Dashboard() {
               <div className="divide-y">
                 {connectedVehicles.slice(0, 5).map((vehicle) => {
                   const linked = deviceToVehicle[vehicle.device_id];
-                  const displayLabel = linked?.plate || linked?.name || vehicle.device_id;
+                  const displayLabel = linked?.plate || linked?.name || "Unknown vehicle";
                   return (
                     <div
                       key={vehicle.device_id}

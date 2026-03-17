@@ -341,7 +341,7 @@ export default function LiveMap({
                   <div className="p-2 min-w-[200px]">
                     <div className="flex items-center justify-between border-b pb-2 mb-2">
                       <h4 className="font-bold text-gray-900">
-                        {deviceToVehicle?.[vehicle.device_id]?.plate || deviceToVehicle?.[vehicle.device_id]?.name || vehicle.device_id}
+                        {deviceToVehicle?.[vehicle.device_id]?.plate || deviceToVehicle?.[vehicle.device_id]?.name || "Unknown vehicle"}
                       </h4>
                       <span className="text-[10px] text-gray-500">
                         {format(new Date(vehicle.last_update), "HH:mm:ss")}
@@ -405,7 +405,7 @@ export default function LiveMap({
           <div className="space-y-2">
             <div className="flex justify-between items-center text-xs">
               <span className="text-gray-600">Active Vehicles</span>
-              <span className="font-bold">{vehicleList.length}</span>
+              <span className="font-bold">{vehicleList.filter((v) => getDrivingStatus(v.last_record) === "moving").length}</span>
             </div>
             <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
               <div className="bg-green-500 h-full" style={{ width: "100%" }} />

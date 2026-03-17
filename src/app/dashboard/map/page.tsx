@@ -375,7 +375,7 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
               Live vehicle data
             </h2>
             <p className="text-xs text-gray-500 mt-1 truncate" title={selectedVehicle.device_id}>
-              {deviceToVehicle[selectedVehicle.device_id]?.plate || deviceToVehicle[selectedVehicle.device_id]?.name || selectedVehicle.device_id}
+              {deviceToVehicle[selectedVehicle.device_id]?.plate || deviceToVehicle[selectedVehicle.device_id]?.name || "Unknown vehicle"}
             </p>
             <p className="text-[10px] text-gray-600 mt-1 font-medium" title={`Received at: ${selectedVehicle.last_update}`}>
               Received at: {lastDataFmt(selectedVehicle.last_update)}
@@ -486,7 +486,9 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
                     <span className="text-[9px] uppercase text-green-700 font-bold">Fuel</span>
                   </div>
                   <p className="text-lg font-bold text-green-800">
-                    {selectedVehicle.last_record.fl != null ? `${fmt(selectedVehicle.last_record.fl)}%` : "—"}
+                    {selectedVehicle.last_record.fl != null
+                      ? `${fmt(selectedVehicle.last_record.fl)}${selectedVehicle.last_record.fuel_unit === "l" ? " L" : "%"}`
+                      : "—"}
                   </p>
                 </CardContent>
               </Card>

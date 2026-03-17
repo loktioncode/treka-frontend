@@ -573,12 +573,16 @@ export interface TelemetryRecord {
   amb?: number;
   oil?: number;
   fl?: number;
+  /** Unit for `fl` when sourced from CAN/Flespi (percent for level, L for volume). */
+  fuel_unit?: "percent" | "l";
   fp?: number;
   maf?: number;
   bar?: number;
   vlt?: number;
   run?: number;
   mil?: number;
+  /** Odometer / mileage (km) when available from CAN/Flespi. */
+  odo?: number;
 
   // OBD-Derived Acceleration
   oa_ms2?: number;
