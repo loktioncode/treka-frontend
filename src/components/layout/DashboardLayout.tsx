@@ -61,12 +61,6 @@ const navigation: NavigationItem[] = [
     roles: ['super_admin']
   },
   {
-    name: 'Users',
-    href: '/dashboard/users',
-    icon: Users,
-    roles: ['super_admin', 'admin']
-  },
-  {
     name: 'Assets',
     href: '/dashboard/assets',
     icon: Package,
@@ -327,6 +321,18 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                         <User className="mr-3 h-4 w-4" />
                         Your Profile
                       </button>
+                      {(user?.role === 'super_admin' || user?.role === 'admin') && (
+                        <button
+                          onClick={() => {
+                            setProfileDropdownOpen(false);
+                            navigateTo('/dashboard/users');
+                          }}
+                          className="flex w-full items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
+                        >
+                          <Users className="mr-3 h-4 w-4" />
+                          User management
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           setProfileDropdownOpen(false);
