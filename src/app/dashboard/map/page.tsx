@@ -98,6 +98,14 @@ export default function FleetMapPage() {
   const lastDataFmt = (iso: string) =>
     format(new Date(iso), "d MMM yyyy, HH:mm:ss");
 
+  /** Format device/ECU timestamp (ts): Unix sec/ms → date string; else show raw as device time */
+  const ecuTsFmt = (ts: number | null | undefined): string => {
+    if (ts == null) return "—";
+    const sec = ts < 1e12 ? ts : Math.floor(ts / 1000);
+    if (sec >= 1e9 && sec <= 2e9) return format(new Date(sec * 1000), "d MMM yyyy, HH:mm:ss");
+    return `${ts} (device time)`;
+  };
+
   const liveCount = vehicleList.filter((v) => vehicles[v.device_id]?.status === "online").length;
   const offlineCount = vehicleList.length - liveCount;
 
@@ -369,8 +377,11 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
             <p className="text-xs text-gray-500 mt-1 truncate" title={selectedVehicle.device_id}>
               {deviceToVehicle[selectedVehicle.device_id]?.plate || deviceToVehicle[selectedVehicle.device_id]?.name || selectedVehicle.device_id}
             </p>
-            <p className="text-[10px] text-gray-600 mt-1 font-medium" title={`Device data timestamp: ${selectedVehicle.last_update}`}>
-              Device data at: {lastDataFmt(selectedVehicle.last_update)}
+            <p className="text-[10px] text-gray-600 mt-1 font-medium" title={`Received at: ${selectedVehicle.last_update}`}>
+              Received at: {lastDataFmt(selectedVehicle.last_update)}
+            </p>
+            <p className="text-[10px] text-gray-600 mt-0.5 font-medium" title={`ECU/OBD2 data timestamp (when device produced this sample): ${selectedVehicle.last_record.ts ?? "—"}`}>
+              ECU/OBD2 data at: {ecuTsFmt(selectedVehicle.last_record.ts)}
             </p>
             {vehicles[selectedVehicle.device_id]?.status === "online" ? (
               <Badge className="mt-1 bg-green-100 text-green-700 border-green-200 text-[10px]">Live (last {LIVE_STALE_MINUTES} min)</Badge>
