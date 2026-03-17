@@ -156,31 +156,27 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
      */
     const flespiTelemetryCacheRef = useRef<Record<string, Record<string, FlespiTelemetryEntry>>>({});
 
-    // When showing all vehicles, get assets to know which device IDs are Teltonika (Flespi) and assigned to user's vehicles
+    // When showing all vehicles, get assets to know which device IDs are assigned to user's vehicles (custom + Teltonika)
     const { data: assets = [], isLoading: assetsLoading } = useAssets({ asset_type: 'vehicle' });
-    const teltonikaDeviceIdsRef = useRef<Set<string>>(new Set());
+    const allowedDeviceIdsRef = useRef<Set<string>>(new Set());
 
-    // Only devices that are (1) assigned to user's vehicles and (2) Teltonika (Flespi) — live dashboard shows these only
-    const allowedTeltonikaDeviceIds = useMemo(() => {
+    // All devices assigned to user's vehicles (both custom/HiveMQ and Teltonika/Flespi) — fleet map shows these only
+    const allowedDeviceIds = useMemo(() => {
         if (deviceId) return new Set<string>();
         return new Set(
             assets
-                .filter(
-                    (a: Asset) =>
-                        a.vehicle_details?.device_id &&
-                        (a.vehicle_details.mqtt_provider === 'teltonika' || a.vehicle_details.mqtt_provider == null)
-                )
+                .filter((a: Asset) => a.vehicle_details?.device_id)
                 .map((a: Asset) => String(a.vehicle_details!.device_id!))
         );
     }, [assets, deviceId]);
 
     useEffect(() => {
         if (deviceId) {
-            teltonikaDeviceIdsRef.current = new Set<string>();
+            allowedDeviceIdsRef.current = new Set<string>();
         } else {
-            teltonikaDeviceIdsRef.current = new Set(allowedTeltonikaDeviceIds);
+            allowedDeviceIdsRef.current = new Set(allowedDeviceIds);
         }
-    }, [deviceId, allowedTeltonikaDeviceIds]);
+    }, [deviceId, allowedDeviceIds]);
 
     // Fetch initial last-known positions so idle vehicles appear immediately
     useEffect(() => {
@@ -190,11 +186,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
         const devicesToFetch: string[] = deviceId
             ? [deviceId]
             : assets
-                .filter(
-                    (a: Asset) =>
-                        a.vehicle_details?.device_id &&
-                        (a.vehicle_details.mqtt_provider === 'teltonika' || a.vehicle_details.mqtt_provider == null)
-                )
+                .filter((a: Asset) => a.vehicle_details?.device_id)
                 .map((a: Asset) => a.vehicle_details!.device_id!);
 
         if (devicesToFetch.length === 0) return;
@@ -341,6 +333,8 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                         const actualDeviceId = data.device_id || topicDeviceId;
 
                         if (topic.startsWith('trekaman/telematrics/')) {
+                            // Only process devices assigned to user's vehicles (fleet map) or current device (single view)
+                            if (!deviceId && !allowedDeviceIdsRef.current.has(actualDeviceId)) return;
                             let latestRecord: TelemetryRecord | undefined;
                             if (data.records && data.records.length > 0) {
                                 latestRecord = data.records[data.records.length - 1];
@@ -505,8 +499,8 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                         }
 
                         const record = flespiTelemetryToRecord(deviceIdStr, cache);
-                        // Only update state for Teltonika devices assigned to user's vehicles (live dashboard shows these only).
-                        if (record && (deviceId || teltonikaDeviceIdsRef.current.has(deviceIdStr))) {
+                        // Only update state for devices assigned to user's vehicles (single-device view or fleet map).
+                        if (record && (deviceId || allowedDeviceIdsRef.current.has(deviceIdStr))) {
                             applyFlespiPosition(deviceIdStr, record);
                         }
                     } catch (err) {
@@ -570,13 +564,13 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
         }
     };
 
-    // Live dashboard: only show Teltonika devices assigned to user's vehicles
+    // Fleet map: only show devices assigned to user's vehicles (custom + Teltonika)
     const vehicleList = useMemo(
         () =>
             Object.values(vehicles).filter((v) =>
-                deviceId ? true : allowedTeltonikaDeviceIds.has(v.device_id)
+                deviceId ? true : allowedDeviceIds.has(v.device_id)
             ),
-        [vehicles, deviceId, allowedTeltonikaDeviceIds]
+        [vehicles, deviceId, allowedDeviceIds]
     );
 
     return {
