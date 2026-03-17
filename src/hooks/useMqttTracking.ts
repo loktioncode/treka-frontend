@@ -80,6 +80,39 @@ const MQTT_KEEPALIVE_S = 60;
 const MQTT_RECONNECT_MS = 5000;
 const MQTT_CONNECT_TIMEOUT_MS = 30000;
 
+function asFiniteNumber(v: unknown): number | undefined {
+    if (v === null || v === undefined) return undefined;
+    const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
+    return Number.isFinite(n) ? n : undefined;
+}
+
+function extractLatLon(input: unknown): { lat?: number; lon?: number } {
+    const obj = (input && typeof input === 'object') ? (input as Record<string, unknown>) : {};
+    const lat =
+        asFiniteNumber(obj.lat) ??
+        asFiniteNumber(obj.latitude) ??
+        asFiniteNumber(obj.gps_lat) ??
+        asFiniteNumber(obj.gpsLat);
+    const lon =
+        asFiniteNumber(obj.lon) ??
+        asFiniteNumber(obj.lng) ??
+        asFiniteNumber(obj.longitude) ??
+        asFiniteNumber(obj.long) ??
+        asFiniteNumber(obj.gps_lon) ??
+        asFiniteNumber(obj.gpsLon);
+    return { lat, lon };
+}
+
+function normalizeTelemetryRecord(input: TelemetryRecord): TelemetryRecord {
+    const raw = input as unknown as Record<string, unknown>;
+    const { lat, lon } = extractLatLon(raw);
+    return {
+        ...input,
+        lat: input.lat ?? lat,
+        lon: input.lon ?? lon,
+    };
+}
+
 /** Approximate distance in km between two lat/lon points (Haversine-style). */
 function distanceKm(
     lat1: number,
@@ -221,12 +254,12 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                     const did = devicesToFetch[i];
                     if (!updated[did]) { // Only add if MQTT hasn't already provided a live update
                         if (res.status === 'fulfilled' && res.value?.record) {
-                            const record = res.value.record;
+                            const record = normalizeTelemetryRecord(res.value.record);
                             updated[did] = {
                                 device_id: did,
                                 last_record: {
                                     ...record,
-                                    lon: record.lon ?? (record as Record<string, unknown>).lng as number | undefined
+                                    lon: record.lon
                                 },
                                 last_update: record.ts_server || new Date((record.ts || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
                                 status: 'offline'
@@ -258,7 +291,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
             const lastRecord: TelemetryRecord = {
                 ...record,
                 lat: record.lat ?? existing?.lat,
-                lon: record.lon ?? existing?.lon ?? (existing as unknown as Record<string, unknown>)?.lng as number | undefined,
+                lon: record.lon ?? existing?.lon,
                 alt: record.alt ?? existing?.alt,
                 hdg: record.hdg ?? existing?.hdg,
                 cog: record.cog ?? existing?.cog,
@@ -279,8 +312,8 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                 const toAdd = [record];
                 const last = list[list.length - 1];
                 const firstNew = toAdd[0];
-                const lastLon = last?.lon ?? (last as unknown as Record<string, unknown>)?.lng;
-                const firstLon = firstNew.lon ?? (firstNew as unknown as Record<string, unknown>).lng;
+                const lastLon = last?.lon;
+                const firstLon = firstNew.lon;
                 const isJump =
                     last &&
                     firstNew.lat != null &&
@@ -387,14 +420,16 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                                 latestRecord = data.records[data.records.length - 1];
                             } else if (data.record) {
                                 latestRecord = data.record;
-                            } else if ((data as unknown as TelemetryRecord) && (data as unknown as { lat?: number }).lat) {
-                                latestRecord = data as unknown as TelemetryRecord;
+                            } else {
+                                // Allow payloads that are already a TelemetryRecord-ish shape (including latitude/longitude keys).
+                                const { lat, lon } = extractLatLon(data as unknown);
+                                if (lat !== undefined || lon !== undefined) {
+                                    latestRecord = data as unknown as TelemetryRecord;
+                                }
                             }
                             if (latestRecord) {
-                                const raw = latestRecord as unknown as Record<string, unknown>;
                                 const record: TelemetryRecord = {
-                                    ...latestRecord,
-                                    lon: (latestRecord.lon ?? raw.lng) as number | undefined,
+                                    ...normalizeTelemetryRecord(latestRecord),
                                     ia_tot: data.ia_tot ?? latestRecord.ia_tot,
                                     vib: data.vib ?? latestRecord.vib,
                                     rol: data.rol ?? latestRecord.rol,
@@ -406,7 +441,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                                     const lastRecord: TelemetryRecord = {
                                         ...record,
                                         lat: record.lat ?? existing?.lat,
-                                        lon: record.lon ?? existing?.lon ?? (existing as unknown as Record<string, unknown>)?.lng as number | undefined,
+                                        lon: record.lon ?? existing?.lon,
                                         alt: record.alt ?? existing?.alt,
                                         hdg: record.hdg ?? existing?.hdg,
                                         cog: record.cog ?? existing?.cog,
@@ -421,8 +456,8 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                                         },
                                     };
                                 });
-                                const norm = (r: TelemetryRecord) => ({ ...r, lon: r.lon ?? (r as unknown as Record<string, unknown>).lng as number });
-                                const withLatLon = (record.lat != null && (record.lon != null || raw.lng != null)) ? [norm(record)] : [];
+                                const norm = (r: TelemetryRecord) => normalizeTelemetryRecord(r);
+                                const withLatLon = (record.lat != null && record.lon != null) ? [norm(record)] : [];
                                 const fromBatch = (data.records ?? [])
                                     .map((r: TelemetryRecord) => norm(r))
                                     .filter((r: TelemetryRecord) => r.lat != null && r.lon != null) as TelemetryRecord[];
@@ -433,8 +468,8 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                                         const JUMP_KM = 15;
                                         const last = list[list.length - 1];
                                         const firstNew = toAdd[0];
-                                        const lastLon = last?.lon ?? (last as unknown as Record<string, unknown>)?.lng;
-                                        const firstLon = firstNew.lon ?? (firstNew as unknown as Record<string, unknown>).lng;
+                                        const lastLon = last?.lon;
+                                        const firstLon = firstNew.lon;
                                         const isJump =
                                             last &&
                                             firstNew.lat != null &&

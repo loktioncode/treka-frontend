@@ -197,7 +197,11 @@ export default function LiveMap({
     });
   }, [deviceId, vehicles]);
 
-  const getLon = (p: TelemetryRecord) => p.lon ?? (p as unknown as { lng?: number }).lng;
+  const getLon = (p: TelemetryRecord) =>
+    p.lon ??
+    (p as unknown as { lng?: number; longitude?: number; long?: number }).lng ??
+    (p as unknown as { lng?: number; longitude?: number; long?: number }).longitude ??
+    (p as unknown as { lng?: number; longitude?: number; long?: number }).long;
 
   // Path: only encoded polyline routes (hardcoded test path)
   const pathGeoJson = useMemo(() => {
