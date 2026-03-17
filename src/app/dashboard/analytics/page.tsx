@@ -13,9 +13,6 @@ import {
 import { FleetKPICards } from "@/components/analytics/FleetKPICards";
 import { FleetTrendsCharts } from "@/components/analytics/FleetTrendsCharts";
 import { VehiclePerformanceCharts } from "@/components/analytics/VehiclePerformanceCharts";
-import { DriverAnalyticsCharts } from "@/components/analytics/DriverAnalyticsCharts";
-import { SafetyIncidentCharts } from "@/components/analytics/SafetyIncidentCharts";
-import { MaintenancePredictionCards } from "@/components/analytics/MaintenancePredictionCards";
 import {
   SimpleBarChart,
   SimplePieChart,
@@ -35,12 +32,16 @@ import {
   Clock,
   CheckCircle2,
 } from "lucide-react";
-import { analyticsAPI, clientAPI } from "@/services/api";
+import { analyticsAPI, clientAPI, telemetryAPI } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
 import toast from "react-hot-toast";
 import { useFleetTelemetry } from "@/hooks/useLogisticsAnalytics";
+import { useAssets } from "@/hooks/useAssets";
 import type { Client } from "@/types/api";
+import type { TelemetryRecord } from "@/types/api";
 import { Star, ShieldCheck, Zap } from "lucide-react";
+import { Checkbox } from "@/components/ui/form";
+import { Modal } from "@/components/ui/modal";
 
 interface DashboardStats {
   assets: {
@@ -100,6 +101,39 @@ interface AIInsights {
   data_summary?: string;
 }
 
+interface ExportVehicle {
+  id: string;
+  assetId: string;
+  name: string;
+}
+
+// CSV export: field key -> label. Default GPS fields: lat, lon, spd, fl, lod, ts
+const CSV_EXPORT_FIELDS: { key: keyof TelemetryRecord; label: string; gps: boolean; telematics: boolean }[] = [
+  { key: "ts", label: "Timestamp", gps: true, telematics: true },
+  { key: "lat", label: "Latitude", gps: true, telematics: true },
+  { key: "lon", label: "Longitude", gps: true, telematics: true },
+  { key: "spd", label: "Speed", gps: true, telematics: true },
+  { key: "fl", label: "Fuel", gps: true, telematics: true },
+  { key: "lod", label: "Load", gps: true, telematics: true },
+  { key: "rpm", label: "RPM", gps: false, telematics: true },
+  { key: "thr", label: "Throttle", gps: false, telematics: true },
+  { key: "tmp", label: "Engine temp", gps: false, telematics: true },
+  { key: "vlt", label: "Voltage", gps: false, telematics: true },
+  { key: "alt", label: "Altitude", gps: true, telematics: true },
+  { key: "cog", label: "Course", gps: false, telematics: true },
+];
+
+function formatTimestamp(ts: number): string {
+  const d = ts < 1e12 ? new Date(ts * 1000) : new Date(ts);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  const h = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  const sec = String(d.getSeconds()).padStart(2, "0");
+  return `${day}:${month}:${year} ${h}:${min}:${sec}`;
+}
+
 export default function AnalyticsPage() {
   const { user } = useAuth();
   const [stats] = useState<DashboardStats | null>(null);
@@ -114,6 +148,14 @@ export default function AnalyticsPage() {
   const [aiInsights, setAiInsights] = useState<AIInsights | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
+
+  const [exportSelectedVehicleIds, setExportSelectedVehicleIds] = useState<string[]>([]);
+  const [reportType, setReportType] = useState<"gps" | "telematics">("gps");
+  const [selectedExportFields, setSelectedExportFields] = useState<string[]>(() =>
+    CSV_EXPORT_FIELDS.filter((f) => f.gps).map((f) => f.key as string)
+  );
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   const [filters, setFilters] = useState<AnalyticsFiltersType>(() => {
     // Calculate default dates for 1y range
@@ -162,6 +204,19 @@ export default function AnalyticsPage() {
   // React Query hooks for logistics analytics - only enabled for logistics clients
   const { data: telemetryData, refetch: refetchTelemetry } =
     useFleetTelemetry(filters, isLogisticsClient);
+
+  // Vehicles with device_id for CSV export (logistics)
+  const { data: assetsData } = useAssets(
+    { asset_type: "vehicle" as const },
+    { limit: 500 },
+  );
+  const exportVehicles: ExportVehicle[] = (assetsData?.items || []).filter(
+    (a: { vehicle_details?: { device_id?: string } }) => a.vehicle_details?.device_id
+  ).map((a: { id: string; name: string; vehicle_details?: { device_id: string } }) => ({
+    id: a.vehicle_details!.device_id,
+    assetId: a.id,
+    name: a.name,
+  }));
 
   // Implement loadData for telemetry data
   const loadData = useCallback(async () => {
@@ -221,6 +276,76 @@ export default function AnalyticsPage() {
       }));
     }
   }, [currentClient, filters.dateRange]); // Include filters.dateRange to satisfy the linter
+
+  // Default export fields when report type changes
+  useEffect(() => {
+    setSelectedExportFields(
+      reportType === "gps"
+        ? CSV_EXPORT_FIELDS.filter((f) => f.gps).map((f) => f.key as string)
+        : CSV_EXPORT_FIELDS.filter((f) => f.telematics).map((f) => f.key as string)
+    );
+  }, [reportType]);
+
+  const handleDownloadCsv = async () => {
+    if (exportSelectedVehicleIds.length === 0) {
+      toast.error("Select at least one vehicle");
+      return;
+    }
+    if (selectedExportFields.length === 0) {
+      toast.error("Select at least one field");
+      return;
+    }
+    setExportLoading(true);
+    try {
+      const fields = CSV_EXPORT_FIELDS.filter((f) =>
+        selectedExportFields.includes(f.key as string)
+      );
+      const header = ["Vehicle", ...fields.map((f) => f.label)];
+      const rows: string[][] = [];
+      const params =
+        filters.startDate && filters.endDate
+          ? { start_date: filters.startDate, end_date: filters.endDate }
+          : undefined;
+
+      for (const deviceId of exportSelectedVehicleIds) {
+        const vehicleName =
+          exportVehicles.find((v) => v.id === deviceId)?.name ?? deviceId;
+        const res = await telemetryAPI.getTelemetry(deviceId, 2000, params);
+        const records: TelemetryRecord[] = Array.isArray(res)
+          ? res
+          : (res as { records?: TelemetryRecord[] }).records ?? [];
+        for (const rec of records) {
+          const cells: string[] = [vehicleName];
+          for (const f of fields) {
+            if (f.key === "ts") {
+              cells.push(rec.ts != null ? formatTimestamp(rec.ts) : "");
+            } else {
+              const val = (rec as unknown as Record<string, unknown>)[f.key];
+              cells.push(val != null ? String(val) : "");
+            }
+          }
+          rows.push(cells);
+        }
+      }
+
+      const escapeCsv = (s: string) =>
+        /[,"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      const csvContent = [header.map(escapeCsv).join(","), ...rows.map((r) => r.map(escapeCsv).join(","))].join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `logs-report-${filters.startDate ?? "export"}-${filters.endDate ?? ""}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("CSV report downloaded");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to generate report. Try fewer vehicles or date range.");
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   // Handle chat message - Industrial client focused
   const handleChatMessage = async (message: string) => {
@@ -643,11 +768,13 @@ export default function AnalyticsPage() {
           </p>
         </div>
         <div className="mt-4 sm:mt-0 flex items-center gap-3">
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export Report
-          </Button>
-          <Button variant="outline" size="sm">
+          {currentClient?.client_type === "logistics" && (
+            <Button variant="outline" size="sm" onClick={() => setExportModalOpen(true)}>
+              <Download className="h-4 w-4 mr-2" />
+              Export report
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => loadData()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
@@ -713,41 +840,10 @@ export default function AnalyticsPage() {
             }}
           />
 
-          <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-4">
-              <TabsTrigger value="overview">Fleet Engine</TabsTrigger>
-              <TabsTrigger value="drivers">Driver Intelligence</TabsTrigger>
-              <TabsTrigger value="safety">Safety Operations</TabsTrigger>
-              <TabsTrigger value="predictive">Predictive Maintenance</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="overview" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <FleetTrendsCharts timeSeriesData={telemetryData?.time_series || []} />
-              <VehiclePerformanceCharts vehicles={telemetryData?.vehicles || []} />
-            </TabsContent>
-
-            <TabsContent value="drivers" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <DriverAnalyticsCharts
-                vehicles={telemetryData?.vehicles || []}
-                driverAnalytics={telemetryData?.driver_analytics || []}
-                topDrivers={telemetryData?.top_drivers || []}
-              />
-            </TabsContent>
-
-            <TabsContent value="safety" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <SafetyIncidentCharts
-                summary={{ avg_score: telemetryData?.summary?.avg_driver_score || 0 }}
-                incidents={telemetryData?.safety_incidents || []}
-              />
-            </TabsContent>
-
-            <TabsContent value="predictive" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <MaintenancePredictionCards
-                alerts={telemetryData?.maintenance_alerts || []}
-                vehicles={telemetryData?.vehicles || []}
-              />
-            </TabsContent>
-          </Tabs>
+          <div className="space-y-8">
+            <FleetTrendsCharts timeSeriesData={telemetryData?.time_series || []} />
+            <VehiclePerformanceCharts vehicles={telemetryData?.vehicles || []} />
+          </div>
         </div>
       ) : (
         // Industrial Analytics Dashboard (existing content)
@@ -895,7 +991,7 @@ export default function AnalyticsPage() {
                   </div>
 
                   {!aiInsights && !isGeneratingInsights ? (
-                    <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                    <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-200">
                       <Brain className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                       <h3 className="text-lg font-medium text-gray-900 mb-2">
                         No Insights Generated
@@ -965,7 +1061,7 @@ export default function AnalyticsPage() {
 
                       {/* Data Summary */}
                       {aiInsights?.data_summary && (
-                        <Card className="p-5 bg-gray-50">
+                        <Card className="p-5 bg-white border border-gray-200">
                           <h4 className="font-semibold text-gray-900 mb-2">
                             Analysis Summary
                           </h4>
@@ -1068,6 +1164,153 @@ export default function AnalyticsPage() {
           </div>
         </div>
       )}
+
+      {/* Export report modal - logistics: per car/asset, choose CSV headers */}
+      <Modal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        title="Export report"
+        size="xl"
+      >
+        <div className="space-y-6">
+          <p className="text-sm text-gray-600">
+            Export CSV per vehicle/asset. Choose which cars to include and which columns (headers) to export. Timestamps are in dd:mm:yyyy hh:mm:ss.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-2">Report type</p>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="reportTypeModal"
+                    checked={reportType === "gps"}
+                    onChange={() => setReportType("gps")}
+                    className="rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                  />
+                  <span className="text-sm text-gray-900">GPS logs</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="reportTypeModal"
+                    checked={reportType === "telematics"}
+                    onChange={() => setReportType("telematics")}
+                    className="rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                  />
+                  <span className="text-sm text-gray-900">Telematics</span>
+                </label>
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-2">Vehicles / assets</p>
+              <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-md p-2 bg-white space-y-1">
+                {exportVehicles.length === 0 ? (
+                  <p className="text-sm text-gray-500">No vehicles with telemetry. Add devices to assets.</p>
+                ) : (
+                  exportVehicles.map((v) => (
+                    <label key={v.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={exportSelectedVehicleIds.includes(v.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setExportSelectedVehicleIds((prev) => [...prev, v.id]);
+                          } else {
+                            setExportSelectedVehicleIds((prev) => prev.filter((id) => id !== v.id));
+                          }
+                        }}
+                        className="rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                      />
+                      <span className="text-sm text-gray-900">{v.name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-gray-700">CSV columns (headers)</p>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setSelectedExportFields(
+                      reportType === "gps"
+                        ? CSV_EXPORT_FIELDS.filter((f) => f.gps).map((f) => f.key as string)
+                        : CSV_EXPORT_FIELDS.filter((f) => f.telematics).map((f) => f.key as string)
+                    )
+                  }
+                >
+                  Use defaults
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedExportFields(CSV_EXPORT_FIELDS.map((f) => f.key as string))}
+                >
+                  Select all
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedExportFields([])}
+                >
+                  Deselect all
+                </Button>
+              </div>
+            </div>
+            <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3 bg-gray-50/50 flex flex-wrap gap-x-4 gap-y-2">
+              {CSV_EXPORT_FIELDS.filter(
+                (f) => (reportType === "gps" && f.gps) || (reportType === "telematics" && f.telematics)
+              ).map((f) => (
+                <Checkbox
+                  key={f.key}
+                  label={f.label}
+                  checked={selectedExportFields.includes(f.key as string)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedExportFields((prev) => [...prev, f.key as string]);
+                    } else {
+                      setSelectedExportFields((prev) => prev.filter((k) => k !== f.key));
+                    }
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-3 pt-2">
+            <Button
+              onClick={() => {
+                handleDownloadCsv();
+                setExportModalOpen(false);
+              }}
+              disabled={exportLoading || exportSelectedVehicleIds.length === 0 || selectedExportFields.length === 0}
+            >
+              {exportLoading ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Generating…
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download CSV
+                </>
+              )}
+            </Button>
+            <span className="text-xs text-gray-500">
+              Uses current date filter. One row per log point; Vehicle column identifies the car/asset.
+            </span>
+          </div>
+        </div>
+      </Modal>
+
       {/* Floating Chat Button - Available for all clients */}
       <FloatingChatButton
         messages={chatMessages}

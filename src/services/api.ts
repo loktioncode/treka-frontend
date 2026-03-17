@@ -580,9 +580,16 @@ export const analyticsAPI = {
 
 // Telemetry API endpoints
 export const telemetryAPI = {
-  getTelemetry: async (deviceId: string, limit: number = 100) => {
+  getTelemetry: async (
+    deviceId: string,
+    limit: number = 1000,
+    params?: { start_date?: string; end_date?: string }
+  ) => {
+    const requestParams: Record<string, string | number> = { limit };
+    if (params?.start_date) requestParams.start_date = params.start_date;
+    if (params?.end_date) requestParams.end_date = params.end_date;
     const response = await api.get(`/telemetry/${deviceId}`, {
-      params: { limit },
+      params: requestParams,
     });
     return response.data;
   },

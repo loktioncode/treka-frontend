@@ -161,7 +161,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // Show loading skeleton while checking auth
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="max-w-md w-full space-y-4">
           <SkeletonProfile />
           <div className="space-y-3">
@@ -180,7 +180,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       {/* Mobile sidebar overlay */}
       <AnimatePresence>
         {sidebarOpen && (

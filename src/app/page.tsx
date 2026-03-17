@@ -471,7 +471,7 @@ export default function Home() {
             <Link href="/" className="text-teal-400 hover:text-teal-300 transition-colors">Uplink (Home)</Link>
             <Link href="/fleet-telematics" className="hover:text-slate-300 transition-colors">Telematics</Link>
             <Link href="/gps-tracking" className="hover:text-slate-300 transition-colors">GPS Tracking</Link>
-            <Link href="/login" className="hover:text-slate-300 transition-colors">Auth Terminal</Link>
+            <Link href="/login" className="hover:text-slate-300 transition-colors">Login</Link>
           </div>
         </motion.footer>
       </div>
