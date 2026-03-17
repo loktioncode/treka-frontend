@@ -989,17 +989,6 @@ Provide a concise, actionable insight for a fleet manager.`;
               </div>
             </div>
 
-            <div className="bg-white rounded-lg border p-6">
-              <div className="flex items-center gap-3">
-                <DollarSign className="w-5 h-5 text-green-600" />
-                <div>
-                  <p className="text-sm text-gray-600">Current Value</p>
-                  <p className="font-semibold">
-                    ${asset.current_value?.toLocaleString() || "Not specified"}
-                  </p>
-                </div>
-              </div>
-            </div>
 
             {asset.asset_type === "vehicle" && (
               <div className="bg-white rounded-lg border p-6">
