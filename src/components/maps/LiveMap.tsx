@@ -75,6 +75,8 @@ export default function LiveMap({
   );
   const [markerPositions, setMarkerPositions] = useState<Record<string, { lat: number; lon: number }>>({});
   const markerUpdateRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Persist last known position per device so markers always show on fleet map (MQTT may send position even when engine off) */
+  const lastKnownPositionRef = useRef<Record<string, { lat: number; lon: number }>>({});
 
   const handleSelectVehicle = (vehicle: LiveVehicle | null) => {
     setSelectedVehicle(vehicle);
@@ -92,7 +94,7 @@ export default function LiveMap({
   const vehicleListRef = useRef(vehicleList);
   vehicleListRef.current = vehicleList;
 
-  // Always sync marker positions from MQTT / last_record so fleet map shows latest location
+  // Always sync marker positions from MQTT / last_record; persist last known so markers always show
   useEffect(() => {
     setMarkerPositions((prev) => {
       let next = prev;
@@ -100,6 +102,7 @@ export default function LiveMap({
         const lat = v.last_record.lat;
         const lon = v.last_record.lon ?? (v.last_record as unknown as { lng?: number }).lng;
         if (lat != null && lon != null) {
+          lastKnownPositionRef.current[v.device_id] = { lat, lon };
           const cur = prev[v.device_id];
           if (!cur || Math.abs(cur.lat - lat) > 1e-6 || Math.abs(cur.lon - lon) > 1e-6) {
             next = next === prev ? { ...prev } : next;
@@ -121,6 +124,7 @@ export default function LiveMap({
           const lat = v.last_record.lat;
           const lon = v.last_record.lon ?? (v.last_record as unknown as { lng?: number }).lng;
           if (lat != null && lon != null) {
+            lastKnownPositionRef.current[v.device_id] = { lat, lon };
             const key = v.device_id;
             const cur = prev[key];
             if (!cur || Math.abs(cur.lat - lat) > 1e-5 || Math.abs(cur.lon - lon) > 1e-5) {
@@ -280,11 +284,12 @@ export default function LiveMap({
         {vehicleList.map((vehicle) => {
           const rec = vehicle.last_record;
           const pos = markerPositions[vehicle.device_id];
-          const lat = pos?.lat ?? rec.lat;
-          const lon = pos?.lon ?? getLon(rec);
+          const lastKnown = lastKnownPositionRef.current[vehicle.device_id];
+          const lat = pos?.lat ?? rec.lat ?? lastKnown?.lat;
+          const lon = pos?.lon ?? getLon(rec) ?? lastKnown?.lon;
           const { hdg, spd, rpm, vlt } = rec;
           if (lat == null || lon == null) return null;
-          // Always show last known position from MQTT (even when engine is off)
+          // Always show marker at last known position from MQTT (engine off or moving false still sends position)
           const status = getVehicleStatus(rec);
           const iconBg =
             status === "serious"

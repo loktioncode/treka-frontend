@@ -29,14 +29,18 @@ interface FlespiTelemetryEntry {
     value: unknown;
 }
 
-/** Position value inside telemetry.position */
+/** Position value from flespi/state/gw/devices/{id}/telemetry/position (or inside telemetry.position) */
 interface FlespiPositionValue {
     altitude?: number;
     direction?: number;
     latitude?: number;
     longitude?: number;
+    lat?: number;
+    lng?: number;
     satellites?: number;
     speed?: number;
+    ts?: number;
+    timestamp?: number;
 }
 
 /** Payload from topic flespi/state/gw/devices/{id}/telemetry/position */
@@ -111,15 +115,17 @@ function flespiTelemetryToRecord(
     if (!telemetry) return null;
     const pos = telemetry['position']?.value as FlespiPositionValue | undefined;
     const tsEntry = telemetry['timestamp'] ?? telemetry['position'];
-    const ts = typeof tsEntry?.value === 'number' ? tsEntry.value : Math.floor(Date.now() / 1000);
+    const posTs = pos?.ts ?? pos?.timestamp;
+    const ts = typeof tsEntry?.value === 'number' ? tsEntry.value : (typeof posTs === 'number' ? posTs : Math.floor(Date.now() / 1000));
     const spd = flespiNum(telemetry['can.vehicle.speed']) ?? pos?.speed;
     const rpm = flespiNum(telemetry['can.engine.rpm']);
     const vlt = flespiNum(telemetry['external.powersource.voltage']) ?? flespiNum(telemetry['battery.voltage']);
     const tmp = flespiNum(telemetry['can.engine.coolant.temperature']);
     const fl = flespiNum(telemetry['can.fuel.level']) ?? flespiNum(telemetry['can.fuel.volume']);
     const lod = flespiNum(telemetry['can.engine.load.level']);
-    const lat = pos?.latitude ?? flespiNum(telemetry['position.latitude']);
-    const lon = pos?.longitude ?? flespiNum(telemetry['position.longitude']);
+    // Flespi sends last position on telemetry/position with latitude/longitude (and sometimes lat/lng)
+    const lat = pos?.latitude ?? pos?.lat ?? flespiNum(telemetry['position.latitude']);
+    const lon = pos?.longitude ?? pos?.lng ?? flespiNum(telemetry['position.longitude']);
     const movValue = telemetry['movement.status']?.value;
     const mov = movValue !== undefined ? Boolean(movValue) : undefined;
     const ignitionValue = telemetry['engine.ignition.status']?.value ?? telemetry['can.engine.ignition']?.value ?? telemetry['can.engine.ignition.status']?.value;
@@ -563,7 +569,16 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                                             : Math.floor(Date.now() / 1000);
                                 entry = { ts, value: obj.value };
                             } else {
-                                entry = { ts: Math.floor(Date.now() / 1000), value: parsed };
+                                // Direct payload e.g. flespi/.../telemetry/position: { latitude, longitude, altitude, direction, speed, satellites }
+                                const obj = parsed as Record<string, unknown>;
+                                const tsRaw = obj.ts ?? obj.timestamp;
+                                const ts =
+                                    typeof tsRaw === 'number'
+                                        ? tsRaw
+                                        : typeof tsRaw === 'string' && Number.isFinite(Number(tsRaw))
+                                            ? Number(tsRaw)
+                                            : Math.floor(Date.now() / 1000);
+                                entry = { ts, value: parsed };
                             }
                             cache[paramKey] = entry;
                         }
