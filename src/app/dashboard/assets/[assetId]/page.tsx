@@ -49,6 +49,7 @@ import {
   Zap,
   Thermometer,
   BarChart3,
+  Cpu,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
@@ -979,11 +980,17 @@ Provide a concise, actionable insight for a fleet manager.`;
 
             <div className="bg-white rounded-lg border p-6">
               <div className="flex items-center gap-3">
-                <MapPin className="w-5 h-5 text-purple-600" />
+                <Cpu className="w-5 h-5 text-purple-600" />
                 <div>
-                  <p className="text-sm text-gray-600">Location</p>
+                  <p className="text-sm text-gray-600">Connected device type</p>
                   <p className="font-semibold">
-                    {asset.location || "Not specified"}
+                    {asset.asset_type === "vehicle" && asset.vehicle_details?.device_id
+                      ? asset.vehicle_details.mqtt_provider === "teltonika"
+                        ? "Teltonika"
+                        : asset.vehicle_details.mqtt_provider === "custom"
+                          ? "Custom"
+                          : "Teltonika"
+                      : "—"}
                   </p>
                 </div>
               </div>
@@ -1680,12 +1687,12 @@ Provide a concise, actionable insight for a fleet manager.`;
               <TabsContent value="sensors" className="space-y-6">
                 {asset.asset_type === "vehicle" ? (
                   <div className="space-y-6">
-                    {/* Last data saved - prominent */}
+                    {/* Last data from device - timestamp is from device (Flespi/custom), not fetch time */}
                     <Card className="bg-gray-50 border-gray-200">
                       <CardContent className="py-3 px-4 flex items-center gap-2">
                         <Clock className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm text-gray-600">
-                          Last data saved:
+                        <span className="text-sm text-gray-600" title="Timestamp from device, not when we fetched it">
+                          Last data from device:
                         </span>
                         <span className="font-semibold text-gray-900">
                           {lastDataSaved ?? "Never"}
@@ -1858,12 +1865,12 @@ Provide a concise, actionable insight for a fleet manager.`;
                   </div>
                 ) : asset.asset_type === "machinery" ? (
                   <div className="space-y-6">
-                    {/* Last data saved - prominent */}
+                    {/* Last data from device */}
                     <Card className="bg-gray-50 border-gray-200">
                       <CardContent className="py-3 px-4 flex items-center gap-2">
                         <Clock className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm text-gray-600">
-                          Last data saved:
+                        <span className="text-sm text-gray-600" title="Timestamp from device">
+                          Last data from device:
                         </span>
                         <span className="font-semibold text-gray-900">
                           {lastDataSaved ?? "Never"}

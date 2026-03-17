@@ -233,12 +233,13 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
     }, [assets, assetsLoading, deviceId, user]);
 
     const applyFlespiPosition = useCallback((flespiDeviceId: string, record: TelemetryRecord) => {
+        const dataTime = record.ts_server || (record.ts != null ? new Date(record.ts * 1000).toISOString() : new Date().toISOString());
         setVehicles((prev) => ({
             ...prev,
             [flespiDeviceId]: {
                 device_id: flespiDeviceId,
                 last_record: record,
-                last_update: new Date().toISOString(),
+                last_update: dataTime,
                 status: 'online',
             },
         }));
@@ -353,12 +354,13 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                                     rol: data.rol ?? latestRecord.rol,
                                     pit: data.pit ?? latestRecord.pit,
                                 };
+                                const dataTime = record.ts_server || (record.ts != null ? new Date(record.ts * 1000).toISOString() : new Date().toISOString());
                                 setVehicles((prev) => ({
                                     ...prev,
                                     [actualDeviceId]: {
                                         device_id: actualDeviceId,
                                         last_record: record,
-                                        last_update: new Date().toISOString(),
+                                        last_update: dataTime,
                                         status: 'online',
                                     },
                                 }));
@@ -440,11 +442,19 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                     if (!activeRef.current) return;
                     connectedCountRef.current.flespi = 1;
                     updateConnected();
-                    if (deviceId) {
-                        client.subscribe(`flespi/state/gw/devices/${deviceId}/telemetry/+`, { qos: 1 });
-                    } else {
-                        client.subscribe('flespi/state/gw/devices/+/telemetry/+', { qos: 0 });
-                    }
+                    const doSubscribe = () => {
+                        if (!client.connected) return;
+                        try {
+                            if (deviceId) {
+                                client.subscribe(`flespi/state/gw/devices/${deviceId}/telemetry/+`, { qos: 1 });
+                            } else {
+                                client.subscribe('flespi/state/gw/devices/+/telemetry/+', { qos: 0 });
+                            }
+                        } catch (err) {
+                            if (activeRef.current) console.error('Flespi subscribe error:', err);
+                        }
+                    };
+                    setImmediate(doSubscribe);
                 });
                 client.on('message', (topic: string, message: Buffer) => {
                     if (!activeRef.current) return;

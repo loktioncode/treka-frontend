@@ -42,6 +42,7 @@ import type { TelemetryRecord } from "@/types/api";
 import { Star, ShieldCheck, Zap } from "lucide-react";
 import { Checkbox } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
+import { MultiSearchableSelect } from "@/components/ui/multi-searchable-select";
 
 interface DashboardStats {
   assets: {
@@ -206,38 +207,40 @@ export default function AnalyticsPage() {
   const { data: telemetryData, refetch: refetchTelemetry } =
     useFleetTelemetry(filters, isLogisticsClient);
 
-  // Vehicles for CSV export (logistics): from assets, fallback to fleet telemetry
+  // Client's vehicles only (useAssets is client-scoped). Only vehicles with devices for export and filters.
   const { data: assetsData } = useAssets(
     { asset_type: "vehicle" as const },
     { limit: 500 },
   );
-  const exportVehicles: ExportVehicle[] = (() => {
-    const rawItems = Array.isArray(assetsData)
-      ? assetsData
-      : (assetsData as { items?: unknown[] } | undefined)?.items ?? [];
-    if (rawItems.length > 0) {
-      return rawItems.map((a: { id: string; name: string; vehicle_details?: { device_id?: string } }) => {
-        const deviceId = a.vehicle_details?.device_id ?? null;
-        return {
-          id: deviceId ?? a.id,
-          deviceId,
-          assetId: a.id,
-          name: a.name,
-        };
-      });
-    }
-    const fromTelemetry = telemetryData?.vehicles ?? [];
-    return fromTelemetry.map((v: { device_id?: string; vehicle_id?: string; id?: string; license_plate?: string; name?: string }) => {
-      const deviceId = v.device_id ?? null;
-      const id = deviceId ?? (v.vehicle_id ?? v.id ?? "");
-      return {
-        id,
-        deviceId,
-        assetId: v.vehicle_id ?? v.id ?? id,
-        name: v.license_plate ?? v.name ?? "Unknown vehicle",
-      };
-    });
-  })();
+  const rawAssetItems = Array.isArray(assetsData)
+    ? assetsData
+    : (assetsData as { items?: unknown[] } | undefined)?.items ?? [];
+
+  // Only vehicles that have a device attached (for report modal and analytics filters)
+  const exportVehicles: ExportVehicle[] = rawAssetItems
+    .filter(
+      (a: { vehicle_details?: { device_id?: string } }) =>
+        a.vehicle_details?.device_id,
+    )
+    .map(
+      (a: {
+        id: string;
+        name: string;
+        vehicle_details?: { device_id?: string; license_plate?: string };
+      }) => ({
+        id: a.id,
+        deviceId: a.vehicle_details!.device_id!,
+        assetId: a.id,
+        name:
+          a.vehicle_details?.license_plate || a.name || "Unknown vehicle",
+      }),
+    );
+
+  // Client vehicles with devices for AnalyticsFilters (logistics)
+  const clientVehicleOptions = exportVehicles.map((v) => ({
+    id: v.id,
+    name: v.name,
+  }));
 
   // Implement loadData for telemetry data
   const loadData = useCallback(async () => {
@@ -330,11 +333,7 @@ export default function AnalyticsPage() {
 
       const toExport = exportSelectedVehicleIds
         .map((id) => exportVehicles.find((v) => v.id === id))
-        .filter((v): v is ExportVehicle => !!v && v.deviceId != null);
-      const skipped = exportSelectedVehicleIds.length - toExport.length;
-      if (skipped > 0) {
-        toast.error(`${skipped} selected vehicle(s) have no telemetry device linked. Link a device in Assets to export.`);
-      }
+        .filter((v): v is ExportVehicle => !!v);
       if (toExport.length === 0) {
         setExportLoading(false);
         return;
@@ -850,10 +849,7 @@ export default function AnalyticsPage() {
             searchQuery: undefined,
           })
         }
-        assets={currentClient?.client_type === "logistics" ? (telemetryData?.vehicles?.map((v: any) => ({
-          id: v.vehicle_id || v.id,
-          name: v.license_plate || v.name || 'Unknown Vehicle'
-        })) || []) : assets}
+        assets={currentClient?.client_type === "logistics" ? clientVehicleOptions : assets}
         clients={clients}
         clientType={currentClient?.client_type}
       />
@@ -1237,53 +1233,27 @@ export default function AnalyticsPage() {
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">Vehicles / assets</p>
               {exportVehicles.length === 0 ? (
-                <p className="text-sm text-gray-500">No vehicles found. Add vehicles in Assets or ensure fleet telemetry is loaded.</p>
+                <p className="text-sm text-gray-500">
+                  No vehicles with devices found. Add vehicles in Assets and link a device to each to export reports.
+                </p>
               ) : (
-                <>
-                  <select
-                    multiple
-                    size={6}
+                <div className="space-y-2">
+                  <MultiSearchableSelect
+                    options={exportVehicles.map((v) => ({ value: v.id, label: v.name }))}
                     value={exportSelectedVehicleIds}
-                    onChange={(e) => {
-                      const selected = Array.from(e.target.selectedOptions, (o) => o.value);
-                      setExportSelectedVehicleIds(selected);
-                    }}
-                    className="w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-8 text-sm text-gray-900 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                    onChange={setExportSelectedVehicleIds}
+                    placeholder="Select vehicles to include in report..."
+                    searchPlaceholder="Search by name or plate..."
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setExportSelectedVehicleIds(exportVehicles.map((v) => v.id))}
                   >
-                    {exportVehicles.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.name}
-                        {v.deviceId ? "" : " (no device)"}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="mt-2 flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setExportSelectedVehicleIds(exportVehicles.map((v) => v.id))}
-                    >
-                      Select all
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setExportSelectedVehicleIds(exportVehicles.filter((v) => v.deviceId).map((v) => v.id))}
-                    >
-                      With device only
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setExportSelectedVehicleIds([])}
-                    >
-                      Clear
-                    </Button>
-                  </div>
-                </>
+                    Select all
+                  </Button>
+                </div>
               )}
             </div>
           </div>

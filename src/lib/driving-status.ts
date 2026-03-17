@@ -1,5 +1,11 @@
 import type { TelemetryRecord } from "@/types/api";
 
+/**
+ * Single rule for all devices (Flespi + custom):
+ * - Moving: speed/movement indicates motion (Flespi: movement.status; custom: speed + vibration).
+ * - Stationary: not moving + engine ON (RPM > threshold).
+ * - Engine off: not moving + engine OFF (RPM ≤ threshold or no RPM).
+ */
 /** Minimum RPM to consider engine running (below typical idle 600–900). */
 const ENGINE_ON_RPM_THRESHOLD = 350;
 

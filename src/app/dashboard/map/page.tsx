@@ -369,8 +369,8 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
             <p className="text-xs text-gray-500 mt-1 truncate" title={selectedVehicle.device_id}>
               {deviceToVehicle[selectedVehicle.device_id]?.plate || deviceToVehicle[selectedVehicle.device_id]?.name || selectedVehicle.device_id}
             </p>
-            <p className="text-[10px] text-gray-600 mt-1 font-medium" title={selectedVehicle.last_update}>
-              Last data: {lastDataFmt(selectedVehicle.last_update)}
+            <p className="text-[10px] text-gray-600 mt-1 font-medium" title={`Device data timestamp: ${selectedVehicle.last_update}`}>
+              Device data at: {lastDataFmt(selectedVehicle.last_update)}
             </p>
             {vehicles[selectedVehicle.device_id]?.status === "online" ? (
               <Badge className="mt-1 bg-green-100 text-green-700 border-green-200 text-[10px]">Live (last {LIVE_STALE_MINUTES} min)</Badge>
