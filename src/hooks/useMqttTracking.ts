@@ -161,7 +161,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
     const allowedDeviceIdsRef = useRef<Set<string>>(new Set());
 
     // All devices assigned to user's vehicles (both custom/HiveMQ and Teltonika/Flespi) — fleet map shows these only
-    const allowedDeviceIds = useMemo(() => {
+    const allowedDeviceIds = useMemo((): Set<string> => {
         if (deviceId) return new Set<string>();
         return new Set(
             assets
@@ -174,7 +174,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
         if (deviceId) {
             allowedDeviceIdsRef.current = new Set<string>();
         } else {
-            allowedDeviceIdsRef.current = new Set(allowedDeviceIds);
+            allowedDeviceIdsRef.current = new Set<string>(allowedDeviceIds);
         }
     }, [deviceId, allowedDeviceIds]);
 
