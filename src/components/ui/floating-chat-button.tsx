@@ -19,7 +19,7 @@ export function FloatingChatButton({ onSendMessage, messages, isLoading = false 
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="fixed right-6 z-50 w-14 h-14 bg-teal-700 hover:bg-teal-800 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group"
-        style={{ bottom: 'calc(1.5rem + 5vh)' }}
+        style={{ bottom: 'calc(1.5rem + 10vh)' }}
         aria-label="Open AI Chat"
       >
         {isOpen ? (
@@ -36,7 +36,7 @@ export function FloatingChatButton({ onSendMessage, messages, isLoading = false 
 
       {/* Chat Panel */}
       {isOpen && (
-        <div className="fixed right-6 z-40 w-96 h-[500px] animate-in slide-in-from-bottom-2 duration-200" style={{ bottom: 'calc(1.5rem + 5vh + 4rem)' }}>
+        <div className="fixed right-6 z-40 w-96 h-[500px] animate-in slide-in-from-bottom-2 duration-200" style={{ bottom: 'calc(1.5rem + 10vh + 4rem)' }}>
           <div className="h-full bg-white rounded-lg shadow-2xl border-2 border-teal-700 overflow-hidden">
             <Chat
               messages={messages}

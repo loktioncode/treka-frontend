@@ -361,7 +361,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                     if (!activeRef.current) return;
                     connectedCountRef.current.hive = 1;
                     updateConnected();
-                    setImmediate(subscribeHive);
+                    setTimeout(subscribeHive, 0);
                 });
                 client.on('reconnect', () => {
                     if (activeRef.current) updateConnected();
@@ -513,7 +513,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                     if (!activeRef.current) return;
                     connectedCountRef.current.flespi = 1;
                     updateConnected();
-                    setImmediate(subscribeFlespi);
+                    setTimeout(subscribeFlespi, 0);
                 });
                 client.on('reconnect', () => {
                     if (activeRef.current) updateConnected();

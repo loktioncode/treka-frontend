@@ -247,9 +247,17 @@ class Logger {
   }
 }
 
+// Only enable remote logging when a real endpoint is configured (no placeholder)
+const logEndpoint = process.env.NEXT_PUBLIC_LOG_ENDPOINT;
+const validLogEndpoint =
+  typeof logEndpoint === 'string' &&
+  logEndpoint.length > 0 &&
+  !logEndpoint.includes('your_log_endpoint');
+
 // Create singleton instance
 const logger = new Logger({
-  remoteEndpoint: process.env.NEXT_PUBLIC_LOG_ENDPOINT,
+  remoteEndpoint: validLogEndpoint ? logEndpoint : undefined,
+  enableRemote: validLogEndpoint && process.env.NODE_ENV === 'production',
 });
 
 export default logger;
