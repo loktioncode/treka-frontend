@@ -208,6 +208,10 @@ function flespiTelemetryToRecord(
     const rpm = flespiNum(telemetry['can.engine.rpm']);
     const vlt = flespiNum(telemetry['external.powersource.voltage']) ?? flespiNum(telemetry['battery.voltage']);
     const tmp = flespiNum(telemetry['can.engine.coolant.temperature']);
+    const odo =
+        flespiNum(telemetry['can.vehicle.mileage']) ??
+        flespiNum(telemetry['vehicle.mileage']);
+    const mil = flespiNum(telemetry['can.mil.mileage']);
     const fuelLevel = flespiNum(telemetry['can.fuel.level']);
     const fuelVol = fuelLevel == null ? flespiNum(telemetry['can.fuel.volume']) : undefined;
     const fl = fuelLevel ?? fuelVol;
@@ -245,7 +249,11 @@ function flespiTelemetryToRecord(
     const ignitionValue = telemetry['engine.ignition.status']?.value ?? telemetry['can.engine.ignition']?.value ?? telemetry['can.engine.ignition.status']?.value;
     const ignition = ignitionValue !== undefined ? Boolean(ignitionValue) : undefined;
 
-    if (lat == null && lon == null && spd == null && rpm == null && mov == null && tmp == null && ignition == null) return null;
+    const extras: TelemetryRecord['extras'] = Object.fromEntries(
+        Object.entries(telemetry).map(([k, v]) => [k, (v as FlespiTelemetryEntry | undefined)?.value])
+    );
+
+    if (lat == null && lon == null && spd == null && rpm == null && mov == null && tmp == null && ignition == null && odo == null && mil == null && fl == null) return null;
     return {
         ts: Math.floor(ts),
         ts_server: new Date(ts * 1000).toISOString(),
@@ -262,6 +270,9 @@ function flespiTelemetryToRecord(
         fl,
         fuel_unit,
         lod,
+        odo,
+        mil,
+        extras,
         mov,
         ignition,
     };
