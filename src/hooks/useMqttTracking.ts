@@ -208,9 +208,9 @@ function flespiTelemetryToRecord(
     const rpm = flespiNum(telemetry['can.engine.rpm']);
     const vlt = flespiNum(telemetry['external.powersource.voltage']) ?? flespiNum(telemetry['battery.voltage']);
     const tmp = flespiNum(telemetry['can.engine.coolant.temperature']);
-    const odo =
-        flespiNum(telemetry['can.vehicle.mileage']) ??
-        flespiNum(telemetry['vehicle.mileage']);
+    // IMPORTANT: vehicle.mileage from Flespi is distance since device connected/session (not true odometer).
+    // Only treat can.vehicle.mileage as odometer.
+    const odo = flespiNum(telemetry['can.vehicle.mileage']);
     const mil = flespiNum(telemetry['can.mil.mileage']);
     const fuelLevel = flespiNum(telemetry['can.fuel.level']);
     const fuelVol = fuelLevel == null ? flespiNum(telemetry['can.fuel.volume']) : undefined;
