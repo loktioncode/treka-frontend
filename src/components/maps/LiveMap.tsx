@@ -280,6 +280,7 @@ export default function LiveMap({
           const lon = pos?.lon ?? getLon(rec);
           const { hdg, spd, rpm, vlt } = rec;
           if (lat == null || lon == null) return null;
+          // Always show last known position on map (even when engine is off / status is idle)
           const status = getVehicleStatus(rec);
           const iconBg =
             status === "serious"

@@ -247,15 +247,26 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
 
     const applyFlespiPosition = useCallback((flespiDeviceId: string, record: TelemetryRecord) => {
         const dataTime = record.ts_server || (record.ts != null ? new Date(record.ts * 1000).toISOString() : new Date().toISOString());
-        setVehicles((prev) => ({
-            ...prev,
-            [flespiDeviceId]: {
-                device_id: flespiDeviceId,
-                last_record: record,
-                last_update: dataTime,
-                status: 'online',
-            },
-        }));
+        setVehicles((prev) => {
+            const existing = prev[flespiDeviceId]?.last_record;
+            const lastRecord: TelemetryRecord = {
+                ...record,
+                lat: record.lat ?? existing?.lat,
+                lon: record.lon ?? existing?.lon ?? (existing as unknown as Record<string, unknown>)?.lng as number | undefined,
+                alt: record.alt ?? existing?.alt,
+                hdg: record.hdg ?? existing?.hdg,
+                cog: record.cog ?? existing?.cog,
+            };
+            return {
+                ...prev,
+                [flespiDeviceId]: {
+                    device_id: flespiDeviceId,
+                    last_record: lastRecord,
+                    last_update: dataTime,
+                    status: 'online',
+                },
+            };
+        });
         if (record.lat != null && record.lon != null) {
             setTrailState((prev) => {
                 const list = trailByDeviceRef.current[flespiDeviceId] ?? prev.trails[flespiDeviceId] ?? [];
