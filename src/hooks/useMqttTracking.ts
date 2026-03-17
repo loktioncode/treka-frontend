@@ -80,6 +80,30 @@ const MQTT_KEEPALIVE_S = 60;
 const MQTT_RECONNECT_MS = 5000;
 const MQTT_CONNECT_TIMEOUT_MS = 30000;
 
+const LAST_POS_STORAGE_KEY = 'trekaman:last_known_positions:v1';
+
+function readLastPositions(): Record<string, { lat: number; lon: number; ts?: number }> {
+    if (typeof window === 'undefined') return {};
+    try {
+        const raw = window.localStorage.getItem(LAST_POS_STORAGE_KEY);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw) as unknown;
+        if (!parsed || typeof parsed !== 'object') return {};
+        return parsed as Record<string, { lat: number; lon: number; ts?: number }>;
+    } catch {
+        return {};
+    }
+}
+
+function writeLastPositions(next: Record<string, { lat: number; lon: number; ts?: number }>) {
+    if (typeof window === 'undefined') return;
+    try {
+        window.localStorage.setItem(LAST_POS_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+        // ignore storage errors
+    }
+}
+
 function asFiniteNumber(v: unknown): number | undefined {
     if (v === null || v === undefined) return undefined;
     const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
@@ -217,6 +241,13 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
     // When showing all vehicles, get assets to know which device IDs are assigned to user's vehicles (custom + Teltonika)
     const { data: assets = [], isLoading: assetsLoading } = useAssets({ asset_type: 'vehicle' });
     const allowedDeviceIdsRef = useRef<Set<string>>(new Set());
+    const persistedPositionsRef = useRef<Record<string, { lat: number; lon: number; ts?: number }>>({});
+    /** Devices that have ever produced live MQTT data in this session (used to show "connected" devices even if not in assets yet). */
+    const liveSeenDeviceIdsRef = useRef<Set<string>>(new Set());
+
+    useEffect(() => {
+        persistedPositionsRef.current = readLastPositions();
+    }, []);
 
     // All devices assigned to user's vehicles (both custom/HiveMQ and Teltonika/Flespi) — fleet map shows these only
     const allowedDeviceIds = useMemo((): Set<string> => {
@@ -272,10 +303,16 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                             };
                             changed = true;
                         } else {
+                                const persisted = persistedPositionsRef.current[did];
                             // Dummy record so it shows up in the sidebar list even if it has no telemetry yet
                             updated[did] = {
                                 device_id: did,
-                                last_record: { ts: Math.floor(Date.now() / 1000), spd: 0 },
+                                    last_record: {
+                                        ts: Math.floor(Date.now() / 1000),
+                                        spd: 0,
+                                        lat: persisted?.lat,
+                                        lon: persisted?.lon,
+                                    },
                                 last_update: new Date().toISOString(),
                                 status: 'offline'
                             };
@@ -292,6 +329,15 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
 
     const applyFlespiPosition = useCallback((flespiDeviceId: string, record: TelemetryRecord) => {
         record = normalizeTelemetryRecord(record);
+        // Mark as seen live so fleet map can show it even if assets load later / missing mapping.
+        liveSeenDeviceIdsRef.current.add(flespiDeviceId);
+        if (record.lat != null && record.lon != null) {
+            const prev = persistedPositionsRef.current;
+            const ts = record.ts ?? Math.floor(Date.now() / 1000);
+            const next = { ...prev, [flespiDeviceId]: { lat: record.lat, lon: record.lon, ts } };
+            persistedPositionsRef.current = next;
+            writeLastPositions(next);
+        }
         const dataTime = record.ts_server || (record.ts != null ? new Date(record.ts * 1000).toISOString() : new Date().toISOString());
         setVehicles((prev) => {
             const existing = prev[flespiDeviceId]?.last_record;
@@ -639,10 +685,9 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                         }
 
                         const record = flespiTelemetryToRecord(deviceIdStr, cache);
-                        // Only update state for devices assigned to user's vehicles (single-device view or fleet map).
-                        if (record && (deviceId || allowedDeviceIdsRef.current.has(deviceIdStr))) {
-                            applyFlespiPosition(deviceIdStr, record);
-                        }
+                        // Always retain last received Flespi position/telemetry for any device publishing to us.
+                        // Fleet UI will decide what to display; this ensures engine-off / mov=false devices still show their last known position.
+                        if (record) applyFlespiPosition(deviceIdStr, record);
                     } catch (err) {
                         console.error('Error parsing Flespi MQTT message:', err);
                     }
@@ -707,9 +752,15 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
     // Fleet map: only show devices assigned to user's vehicles (custom + Teltonika)
     const vehicleList = useMemo(
         () =>
-            Object.values(vehicles).filter((v) =>
-                deviceId ? true : allowedDeviceIds.has(v.device_id)
-            ),
+            Object.values(vehicles).filter((v) => {
+                if (deviceId) return true;
+                // Default: user's assigned assets
+                if (allowedDeviceIds.has(v.device_id)) return true;
+                // Also show anything that is actively producing live data (e.g. newly provisioned Flespi device, engine-off, mov=false)
+                if (v.status === 'online') return true;
+                if (liveSeenDeviceIdsRef.current.has(v.device_id)) return true;
+                return false;
+            }),
         [vehicles, deviceId, allowedDeviceIds]
     );
 

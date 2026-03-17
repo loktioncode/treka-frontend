@@ -98,6 +98,16 @@ export default function Dashboard() {
     () => vehicleList.filter((v) => vehicles[v.device_id]?.status === "online"),
     [vehicleList, vehicles]
   );
+
+  const lastActiveVehicles = useMemo(() => {
+    const withTime = vehicleList
+      .map((v) => {
+        const t = Date.parse(v.last_update);
+        return { v, t: Number.isFinite(t) ? t : 0 };
+      })
+      .sort((a, b) => b.t - a.t);
+    return withTime.slice(0, 5).map((x) => x.v);
+  }, [vehicleList]);
   const { data: assetsData } = useAssets(
     { asset_type: "vehicle" as any },
     { limit: 500 },
@@ -607,6 +617,65 @@ export default function Dashboard() {
                 {connectedVehicles.length === 0 && (
                   <div className="p-8 text-center text-gray-400 text-sm">
                     No connected vehicles right now
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-100 shadow-sm overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-slate-50 to-white border-b border-slate-50 flex flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle className="text-lg font-bold text-slate-900">
+                  Last Active Vehicles
+                </CardTitle>
+                <CardDescription>
+                  Last 5 vehicles that sent data (engine off still included)
+                </CardDescription>
+              </div>
+              <SmartLink
+                href="/dashboard/map"
+                className="text-xs font-medium text-slate-600 hover:text-slate-800"
+              >
+                View map
+              </SmartLink>
+            </CardHeader>
+            <CardContent className="p-0 max-h-[160px] overflow-y-auto">
+              <div className="divide-y">
+                {lastActiveVehicles.map((vehicle) => {
+                  const linked = deviceToVehicle[vehicle.device_id];
+                  const displayLabel = linked?.plate || linked?.name || vehicle.device_id;
+                  const isOnline = vehicles[vehicle.device_id]?.status === "online";
+                  return (
+                    <div
+                      key={vehicle.device_id}
+                      className="p-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`w-2 h-2 rounded-full shrink-0 ${
+                            isOnline ? "bg-emerald-500 animate-pulse" : "bg-gray-300"
+                          }`}
+                          title={isOnline ? "Online" : "Offline / stale"}
+                        />
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-sm font-medium truncate">
+                            {displayLabel}
+                          </span>
+                          <span className="text-xs text-gray-400 truncate">
+                            {vehicle.last_update}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-xs text-gray-600 font-bold shrink-0">
+                        {vehicle.last_record.spd?.toFixed(0) || 0} km/h
+                      </span>
+                    </div>
+                  );
+                })}
+                {lastActiveVehicles.length === 0 && (
+                  <div className="p-8 text-center text-gray-400 text-sm">
+                    No vehicle activity yet
                   </div>
                 )}
               </div>
