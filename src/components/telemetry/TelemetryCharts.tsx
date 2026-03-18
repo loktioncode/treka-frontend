@@ -20,7 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface TelemetryChartsProps {
   data: any[];
-  type: "engine" | "thermal" | "electrical" | "dynamics" | "road" | "fuel" | "throttle" | "orientation" | "acceleration";
+  type: "engine" | "thermal" | "electrical" | "dynamics" | "road" | "fuel" | "load" | "orientation" | "acceleration";
   title?: string;
 }
 
@@ -388,11 +388,11 @@ export const TelemetryCharts: React.FC<TelemetryChartsProps> = ({
         </Card>
       );
 
-    case "throttle":
+    case "load":
       return (
         <Card className="w-full h-[400px]">
           <CardHeader>
-            <CardTitle>{title || "Throttle & Engine Load"}</CardTitle>
+            <CardTitle>{title || "Engine Load (%)"}</CardTitle>
           </CardHeader>
           <CardContent className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -407,7 +407,6 @@ export const TelemetryCharts: React.FC<TelemetryChartsProps> = ({
                 <YAxis domain={[0, 100]} label={{ value: "%", angle: -90, position: "insideLeft" }} />
                 <Tooltip labelFormatter={(label) => formatTime(Number(label))} />
                 <Legend verticalAlign="top" height={36} />
-                <Area type="monotone" dataKey="thr" stroke="#8b5cf6" fill="#ede9fe" name="Throttle Position %" strokeWidth={2} />
                 <Area type="monotone" dataKey="lod" stroke="#ec4899" fill="#fce7f3" name="Engine Load %" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>

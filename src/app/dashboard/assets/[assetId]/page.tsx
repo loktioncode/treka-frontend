@@ -195,7 +195,6 @@ export default function AssetViewPage() {
         latest?.rpm != null ? `RPM: ${Number(latest.rpm).toFixed(3)}` : null,
         latest?.vlt != null ? `Battery: ${Number(latest.vlt).toFixed(3)}V` : null,
         latest?.tmp != null ? `Coolant: ${Number(latest.tmp).toFixed(3)}°C` : null,
-        latest?.thr != null ? `Throttle: ${Number(latest.thr).toFixed(3)}%` : null,
         latest?.lod != null ? `Engine Load: ${Number(latest.lod).toFixed(3)}%` : null,
         latest?.fl != null ? `Fuel Level: ${Number(latest.fl).toFixed(3)}%` : null,
         latest?.ia_tot != null ? `Total G-Force: ${Number(latest.ia_tot).toFixed(3)}g` : null,
@@ -242,7 +241,6 @@ Provide a concise, actionable insight for a fleet manager.`;
             `RPM: ${displayTelemetry?.rpm ?? "--"}`,
             `Battery: ${displayTelemetry?.vlt?.toFixed(1) ?? "--"}V`,
             `Coolant Temp: ${displayTelemetry?.tmp ?? "--"}°C`,
-            `Throttle: ${displayTelemetry?.thr ?? "--"}%`,
             `Records loaded: ${telemetry.length}`,
           ],
         },
@@ -1941,8 +1939,8 @@ Provide a concise, actionable insight for a fleet manager.`;
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <TelemetryCharts data={filteredSensorTelemetry} type="throttle" />
                       <TelemetryCharts data={filteredSensorTelemetry} type="fuel" />
+                      <TelemetryCharts data={filteredSensorTelemetry} type="load" />
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

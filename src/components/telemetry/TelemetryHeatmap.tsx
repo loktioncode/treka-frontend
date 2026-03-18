@@ -24,7 +24,6 @@ export interface HeatmapPointRecord {
     ptg?: number;
     plg?: number;
     plag?: number;
-    thr?: number;
     rpm?: number;
     spd?: number;
     oa_g?: number;
@@ -107,7 +106,6 @@ export const TelemetryHeatmap: React.FC<TelemetryHeatmapProps> = ({
                     ptg: d.ptg,
                     plg: d.plg,
                     plag: d.plag,
-                    thr: d.thr,
                     rpm: d.rpm,
                     spd: d.spd,
                     oa_g: d.oa_g,
@@ -151,7 +149,6 @@ export const TelemetryHeatmap: React.FC<TelemetryHeatmapProps> = ({
             ptg: selectedEvent.ptg,
             plg: selectedEvent.plg,
             plag: selectedEvent.plag,
-            thr: selectedEvent.thr,
             rpm: selectedEvent.rpm,
             spd: selectedEvent.spd,
             oa_g: selectedEvent.oa_g,
@@ -193,7 +190,6 @@ export const TelemetryHeatmap: React.FC<TelemetryHeatmapProps> = ({
                     ptg: p.ptg,
                     plg: p.plg,
                     plag: p.plag,
-                    thr: p.thr,
                     rpm: p.rpm,
                     spd: p.spd,
                     oa_g: p.oa_g,
@@ -260,7 +256,6 @@ export const TelemetryHeatmap: React.FC<TelemetryHeatmapProps> = ({
         ptg: selectedEvent.ptg,
         plg: selectedEvent.plg,
         plag: selectedEvent.plag,
-        thr: selectedEvent.thr,
         rpm: selectedEvent.rpm,
         spd: selectedEvent.spd,
         oa_g: selectedEvent.oa_g,
@@ -388,9 +383,6 @@ export const TelemetryHeatmap: React.FC<TelemetryHeatmapProps> = ({
                                         )}
                                         {displayRecord.plag != null && (
                                             <><span className="text-gray-500">Lat. G (plag)</span><span>{displayRecord.plag.toFixed(2)}g</span></>
-                                        )}
-                                        {displayRecord.thr != null && (
-                                            <><span className="text-gray-500">Throttle</span><span>{displayRecord.thr.toFixed(0)}%</span></>
                                         )}
                                         {displayRecord.rpm != null && (
                                             <><span className="text-gray-500">RPM</span><span>{displayRecord.rpm}</span></>

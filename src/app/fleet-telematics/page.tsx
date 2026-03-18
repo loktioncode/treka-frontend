@@ -78,7 +78,7 @@ export default function FleetTelematicsPage() {
       icon: Gauge,
       title: "Live Engine & Speed Monitoring",
       description:
-        "See every vehicle's speed, RPM, throttle position, and engine load in real-time. Know exactly how your vehicles are being driven — every second.",
+        "See every vehicle's speed, RPM, and engine load in real-time. Know exactly how your vehicles are being driven — every second.",
       benefit: "Reduce speeding incidents by 60%",
       gradient: "from-teal-500 to-emerald-500",
       color: "teal"
@@ -137,7 +137,6 @@ export default function FleetTelematicsPage() {
     { name: "Coolant Temperature", source: "ECU DATA", icon: Thermometer, status: "Active" },
     { name: "Battery Voltage", source: "ECU DATA", icon: Zap, status: "Active" },
     { name: "Engine Load", source: "ECU DATA", icon: Target, status: "Active" },
-    { name: "Throttle Position", source: "ECU DATA", icon: Gauge, status: "Active" },
     { name: "Mass Air Flow", source: "ECU DATA", icon: Activity, status: "Active" },
     { name: "Oil Temperature", source: "ECU DATA", icon: Thermometer, status: "Active" },
     { name: "Intake Air Temp", source: "ECU DATA", icon: Thermometer, status: "Active" },

@@ -133,7 +133,6 @@ export default function FleetMapPage() {
         r.rpm != null ? `RPM: ${Number(r.rpm).toFixed(3)}` : null,
         r.vlt != null ? `Battery: ${Number(r.vlt).toFixed(3)} V` : null,
         r.tmp != null ? `Coolant: ${Number(r.tmp).toFixed(3)} °C` : null,
-        r.thr != null ? `Throttle: ${Number(r.thr).toFixed(3)} %` : null,
         r.lod != null ? `Engine load: ${Number(r.lod).toFixed(3)} %` : null,
         r.fl != null ? `Fuel level: ${Number(r.fl).toFixed(3)} %` : null,
         r.fuel_vol != null || getExtra(r, "can.fuel.volume") != null ? `Fuel volume: ${Number(r.fuel_vol ?? getExtra(r, "can.fuel.volume")).toFixed(3)} L` : null,
@@ -401,7 +400,6 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
                 { label: "Fuel (L)", value: r.fuel_vol ?? getExtra(r, "can.fuel.volume") },
                 { label: "Odometer", value: r.odo },
                 { label: "Load", value: r.lod },
-                { label: "Throttle", value: r.thr },
                 { label: "Heading", value: r.hdg },
                 { label: "Altitude", value: r.alt },
                 { label: "Satellites", value: r.nsat },
@@ -465,31 +463,18 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
               </CardContent>
             </Card>
 
-            {/* RPM + Throttle */}
-            <div className="grid grid-cols-2 gap-2">
-              <Card className="bg-amber-50 border-amber-200">
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-1 mb-0.5">
-                    <Zap className="h-3 w-3 text-amber-600" />
-                    <span className="text-[9px] uppercase text-amber-700 font-bold">RPM</span>
-                  </div>
-                  <p className="text-lg font-bold text-amber-800">
-                    {fmt(selectedVehicle.last_record.rpm) ?? "—"}
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="bg-purple-50 border-purple-200">
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-1 mb-0.5">
-                    <Activity className="h-3 w-3 text-purple-600" />
-                    <span className="text-[9px] uppercase text-purple-700 font-bold">Throttle</span>
-                  </div>
-                  <p className="text-lg font-bold text-purple-800">
-                    {selectedVehicle.last_record.thr != null ? `${fmt(selectedVehicle.last_record.thr)}%` : "—"}
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+            {/* RPM */}
+            <Card className="bg-amber-50 border-amber-200">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-1 mb-0.5">
+                  <Zap className="h-3 w-3 text-amber-600" />
+                  <span className="text-[9px] uppercase text-amber-700 font-bold">RPM</span>
+                </div>
+                <p className="text-lg font-bold text-amber-800">
+                  {fmt(selectedVehicle.last_record.rpm) ?? "—"}
+                </p>
+              </CardContent>
+            </Card>
 
             {/* Load + Fuel */}
             <div className="grid grid-cols-2 gap-2">

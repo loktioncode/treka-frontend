@@ -118,7 +118,6 @@ const CSV_EXPORT_FIELDS: { key: keyof TelemetryRecord; label: string; gps: boole
   { key: "fl", label: "Fuel", gps: true, telematics: true },
   { key: "lod", label: "Load", gps: true, telematics: true },
   { key: "rpm", label: "RPM", gps: false, telematics: true },
-  { key: "thr", label: "Throttle", gps: false, telematics: true },
   { key: "tmp", label: "Engine temp", gps: false, telematics: true },
   { key: "vlt", label: "Voltage", gps: false, telematics: true },
   { key: "alt", label: "Altitude", gps: true, telematics: true },
