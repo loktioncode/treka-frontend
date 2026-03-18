@@ -147,13 +147,15 @@ export default function AssetViewPage() {
     val != null ? Number(val).toFixed(decimals) : null;
   const getExtra = (r: any, key: string) => (r?.extras && typeof r.extras === "object" ? r.extras[key] : undefined);
 
-  const [, setLoadingTelemetry] = useState(false);
+  const [loadingTelemetry, setLoadingTelemetry] = useState(false);
 
   // GPS Logs tab dedicated state
   const [gpsLogs, setGpsLogs] = useState<TelemetryRecord[]>([]);
   const [gpsLogsLoading, setGpsLogsLoading] = useState(false);
   const [gpsFilterStart, setGpsFilterStart] = useState("");
   const [gpsFilterEnd, setGpsFilterEnd] = useState("");
+  const [sensorFilterStart, setSensorFilterStart] = useState("");
+  const [sensorFilterEnd, setSensorFilterEnd] = useState("");
   const [gpsLogsLoaded, setGpsLogsLoaded] = useState(false);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loadingTrips, setLoadingTrips] = useState(false);
@@ -356,14 +358,18 @@ Provide a concise, actionable insight for a fleet manager.`;
     telemetry,
   ]);
 
-  const fetchTelemetry = useCallback(async (deviceId: string) => {
+  const fetchTelemetry = useCallback(async (deviceId: string, limit: number = 200, start?: string, end?: string) => {
     try {
       setLoadingTelemetry(true);
+      const params: { start_date?: string; end_date?: string } = {};
+      if (start) params.start_date = new Date(start).toISOString();
+      if (end) params.end_date = new Date(end).toISOString();
       const [history, latest] = await Promise.all([
-        telemetryAPI.getTelemetry(deviceId, 200),
+        telemetryAPI.getTelemetry(deviceId, limit, params),
         telemetryAPI.getLatestTelemetry(deviceId).catch(() => null),
       ]);
-      setTelemetry(history.records || []);
+      const records = Array.isArray(history) ? history : history.records || [];
+      setTelemetry(records);
       setLatestTelemetry(latest?.record || null);
     } catch (error) {
       console.error("Failed to fetch telemetry:", error);
@@ -383,7 +389,8 @@ Provide a concise, actionable insight for a fleet manager.`;
       if (start) params.start_date = new Date(start).toISOString();
       if (end) params.end_date = new Date(end).toISOString();
       const res = await telemetryAPI.getTelemetry(deviceId, 500, params);
-      setGpsLogs(res.records || []);
+      const records = Array.isArray(res) ? res : res.records || [];
+      setGpsLogs(records);
       setGpsLogsLoaded(true);
     } catch (error) {
       console.error("Failed to load GPS logs:", error);
@@ -1871,39 +1878,80 @@ Provide a concise, actionable insight for a fleet manager.`;
                     </div>
 
                     {/* Time range filter for sensor charts */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-medium text-gray-600 mr-2">
-                        Time range:
-                      </span>
-                      {(
-                        [
-                          "1M",
-                          "5M",
-                          "10M",
-                          "15M",
-                          "30M",
-                          "1HR",
-                          "all",
-                        ] as const
-                      ).map((range) => (
-                        <span key={range} className="inline-flex items-center">
-                          {range === "all" && (
-                            <span className="text-gray-300 mx-1" aria-hidden>
-                              |
-                            </span>
-                          )}
+                    <div className="flex flex-wrap items-end gap-3 bg-gray-50 border rounded-lg p-4 mb-6">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-gray-600">From</label>
+                        <input
+                          type="datetime-local"
+                          value={sensorFilterStart}
+                          onChange={(e) => setSensorFilterStart(e.target.value)}
+                          className="text-sm border rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-gray-600">To</label>
+                        <input
+                          type="datetime-local"
+                          value={sensorFilterEnd}
+                          onChange={(e) => setSensorFilterEnd(e.target.value)}
+                          className="text-sm border rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        disabled={loadingTelemetry}
+                        onClick={() => {
+                          if (asset?.vehicle_details?.device_id) {
+                            fetchTelemetry(asset.vehicle_details.device_id, 1000, sensorFilterStart || undefined, sensorFilterEnd || undefined);
+                          }
+                        }}
+                        className="bg-teal-600 hover:bg-teal-700 text-white"
+                      >
+                        {loadingTelemetry ? "Loading…" : "Fetch History"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={loadingTelemetry}
+                        onClick={() => {
+                          setSensorFilterStart("");
+                          setSensorFilterEnd("");
+                          if (asset?.vehicle_details?.device_id) {
+                            fetchTelemetry(asset.vehicle_details.device_id, 200);
+                          }
+                        }}
+                      >
+                        Reset
+                      </Button>
+
+                      <div className="flex flex-wrap items-center gap-2 ml-auto">
+                        <span className="text-xs font-medium text-gray-500 mr-1">
+                          View Range:
+                        </span>
+                        {(
+                          [
+                            "1M",
+                            "5M",
+                            "10M",
+                            "15M",
+                            "30M",
+                            "1HR",
+                            "all",
+                          ] as const
+                        ).map((range) => (
                           <button
+                            key={range}
                             type="button"
                             onClick={() => setSensorTimeRange(range)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${sensorTimeRange === range
+                            className={`px-2 py-1 rounded text-[10px] font-bold transition-colors ${sensorTimeRange === range
                               ? "bg-teal-600 text-white shadow-sm"
-                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                              : "bg-white border text-gray-700 hover:bg-gray-50"
                               }`}
                           >
-                            {range === "all" ? "All time" : range}
+                            {range === "all" ? "MAX" : range}
                           </button>
-                        </span>
-                      ))}
+                        ))}
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -2363,9 +2411,12 @@ Provide a concise, actionable insight for a fleet manager.`;
                             })()}
                             {gpsLogs
                               .sort((a, b) => {
-                                const ta = a.ts_server ? new Date(a.ts_server).getTime() : (a.ts ?? 0) * 1000;
-                                const tb = b.ts_server ? new Date(b.ts_server).getTime() : (b.ts ?? 0) * 1000;
-                                return tb - ta;
+                                const getT = (r: TelemetryRecord) => {
+                                  if (r.ts_server) return new Date(r.ts_server).getTime();
+                                  const t = r.ts ?? 0;
+                                  return t < 1e12 ? t * 1000 : t;
+                                };
+                                return getT(b) - getT(a);
                               })
                               .map((r, i) => {
                                 // API returns `lng`; type uses `lon` — support both

@@ -26,15 +26,10 @@ interface TelemetryChartsProps {
 
 const TICK_COUNT = 6;
 
-/** Format elapsed ms as human-readable axis label (e.g. "0s", "30s", "2m", "1h") */
-function formatElapsed(ms: number): string {
-  if (ms < 0) return "0s";
-  const sec = ms / 1000;
-  const min = sec / 60;
-  const hour = min / 60;
-  if (hour >= 1) return `${hour.toFixed(1)}h`;
-  if (min >= 1) return `${min.toFixed(0)}m`;
-  return `${Math.round(sec)}s`;
+/** Format timestamp as local clock time (e.g. "14:30:05") */
+function formatClockTime(ms: number): string {
+  const date = new Date(ms);
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 }
 
 /** Pick a nice step (in ms) for the given span so axis ticks are round numbers */
@@ -67,10 +62,10 @@ export const TelemetryCharts: React.FC<TelemetryChartsProps> = ({
   const spanMs = Math.max(0, maxTs - minTs);
 
   const formatTime = useMemo(() => {
-    return (ts: number) => formatElapsed((ts ?? minTs) - minTs);
-  }, [minTs]);
+    return (ts: number) => formatClockTime(ts);
+  }, []);
 
-  const xAxisLabel = spanMs >= 3600000 ? "Time (elapsed, h)" : spanMs >= 60000 ? "Time (elapsed, min)" : "Time (elapsed, s)";
+  const xAxisLabel = "Time of Day (Local)";
 
   /** Evenly spaced, “nice” tick values for the time axis (avoid duplicate labels) */
   const timeAxisTicks = useMemo(() => {

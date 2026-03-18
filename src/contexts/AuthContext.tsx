@@ -46,8 +46,26 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('user');
+      try {
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          return parsed?.id && parsed?.email ? parsed : null;
+        }
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
+  const [token, setToken] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('auth_token');
+    }
+    return null;
+  });
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const isClient = useIsClient();
