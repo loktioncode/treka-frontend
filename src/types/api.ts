@@ -679,6 +679,7 @@ export interface Trip {
   avg_vib: number;
   created_at: string;
   updated_at: string;
+  route_polyline?: string;
 }
 
 export interface TripReplayRecord {

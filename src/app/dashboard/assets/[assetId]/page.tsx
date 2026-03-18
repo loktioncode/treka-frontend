@@ -173,6 +173,46 @@ export default function AssetViewPage() {
     km_until_next_service: number | null;
   } | null>(null);
 
+  // Global filters
+  const [allVehicles, setAllVehicles] = useState<Asset[]>([]);
+  const [globalStartDate, setGlobalStartDate] = useState<string>("");
+  const [globalEndDate, setGlobalEndDate] = useState<string>("");
+
+
+  useEffect(() => {
+    // Load all vehicles for the selector
+    assetAPI.getAssets({ asset_type: "vehicle" }).then((res) => {
+      const list = res.assets || res || [];
+      if (Array.isArray(list)) {
+        setAllVehicles(list);
+      }
+    }).catch(() => {});
+  }, []);
+
+  // Compute trip polylines for the selected range for map overlay
+  const rangeTripPolylines = useMemo(() => {
+    if (!globalStartDate) return {};
+    const start = new Date(globalStartDate);
+    start.setHours(0, 0, 0, 0);
+    const end = globalEndDate ? new Date(globalEndDate) : new Date(globalStartDate);
+    end.setHours(23, 59, 59, 999);
+
+    const matchedTrips = trips.filter(t => {
+      const ts = new Date(t.start_ts);
+      return ts >= start && ts <= end;
+    });
+    
+    const polylines: Record<string, string> = {};
+    matchedTrips.forEach((t, i) => {
+      if (t.route_polyline) {
+        polylines[`Trip ${i + 1}`] = t.route_polyline;
+      }
+    });
+    return polylines;
+  }, [trips, globalStartDate, globalEndDate]);
+
+
+
   // AI Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -485,7 +525,7 @@ Provide a concise, actionable insight for a fleet manager.`;
   const fetchTrips = useCallback(async (deviceId: string) => {
     try {
       setLoadingTrips(true);
-      const tripList = await telemetryAPI.getTrips(deviceId);
+      const tripList = await telemetryAPI.getTrips(deviceId, 300);
       setTrips(Array.isArray(tripList) ? tripList : []);
     } catch (error) {
       console.error("Error fetching trips:", error);
@@ -513,7 +553,7 @@ Provide a concise, actionable insight for a fleet manager.`;
       if (response.asset_type === "vehicle") {
         fetchFleetMetrics(response.id);
         if (response.vehicle_details?.device_id) {
-          fetchTelemetry(response.vehicle_details.device_id);
+          fetchTelemetry(response.vehicle_details.device_id, 1000);
           fetchTrips(response.vehicle_details.device_id);
         }
       } else {
@@ -892,12 +932,12 @@ Provide a concise, actionable insight for a fleet manager.`;
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
+        className="flex flex-col md:flex-row md:items-center justify-between gap-4"
       >
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
-            onClick={() => router.back()}
+            onClick={() => router.push("/dashboard/assets")}
             className="gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -906,18 +946,93 @@ Provide a concise, actionable insight for a fleet manager.`;
           <div className="flex items-center gap-3">
             {getAssetTypeIcon(asset.asset_type)}
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{asset.name}</h1>
-              <p className="text-gray-600">{asset.description}</p>
+              <h1 className="text-2xl font-bold text-gray-900 leading-tight">{asset.name}</h1>
+              <p className="text-gray-600 text-sm">{asset.vehicle_details?.license_plate || asset.description}</p>
             </div>
           </div>
         </div>
-        <Button
-          onClick={() => router.push(`/dashboard/assets/${asset.id}/edit`)}
-          className="gap-2"
-        >
-          <Edit className="w-4 h-4" />
-          Edit {assetLabelSingular}
-        </Button>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Vehicle Selector */}
+          {asset.asset_type === "vehicle" && allVehicles.length > 0 && (
+            <div className="w-64">
+              <SearchableSelect
+                options={allVehicles.map((v) => ({
+                  value: v.id,
+                  label: v.vehicle_details?.license_plate || v.name,
+                }))}
+                value={asset.id}
+                onChange={(val) => router.push(`/dashboard/assets/${val}`)}
+                placeholder="Switch Vehicle..."
+              />
+            </div>
+          )}
+
+          {/* Global Date Filter (Range) */}
+          {asset.asset_type === "vehicle" && (
+            <div className="flex items-center bg-white border rounded-lg px-3 py-1.5 shadow-sm gap-2">
+              <div className="flex items-center gap-1">
+                <input
+                  type="date"
+                  value={globalStartDate}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setGlobalStartDate(val);
+                    if (asset.vehicle_details?.device_id) {
+                      const start = new Date(val);
+                      start.setHours(0, 0, 0, 0);
+                      const end = globalEndDate ? new Date(globalEndDate) : new Date(val);
+                      end.setHours(23, 59, 59, 999);
+                      fetchTelemetry(asset.vehicle_details.device_id, 1000, start.toISOString(), end.toISOString());
+                    }
+                  }}
+                  className="text-xs border-none focus:ring-0 bg-transparent outline-none w-28"
+                  placeholder="From"
+                />
+                <span className="text-gray-400 text-xs">to</span>
+                <input
+                  type="date"
+                  value={globalEndDate}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setGlobalEndDate(val);
+                    if (asset.vehicle_details?.device_id && globalStartDate) {
+                      const start = new Date(globalStartDate);
+                      start.setHours(0, 0, 0, 0);
+                      const end = new Date(val);
+                      end.setHours(23, 59, 59, 999);
+                      fetchTelemetry(asset.vehicle_details.device_id, 1000, start.toISOString(), end.toISOString());
+                    }
+                  }}
+                  className="text-xs border-none focus:ring-0 bg-transparent outline-none w-28"
+                  placeholder="To"
+                />
+              </div>
+              {(globalStartDate || globalEndDate) && (
+                <button 
+                  onClick={() => {
+                    setGlobalStartDate("");
+                    setGlobalEndDate("");
+                    if (asset.vehicle_details?.device_id) fetchTelemetry(asset.vehicle_details.device_id, 1000);
+                  }}
+                  className="ml-1 text-gray-400 hover:text-gray-600"
+                >
+                  <XCircle className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          )}
+
+
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/dashboard/assets/${asset.id}/edit`)}
+            className="gap-2"
+          >
+            <Edit className="w-4 h-4" />
+            Edit
+          </Button>
+        </div>
       </motion.div>
 
       {/* Section below header: overlay only covers this part when no device_id */}
@@ -1079,26 +1194,12 @@ Provide a concise, actionable insight for a fleet manager.`;
                 >
                   Sensor Data
                 </TabsTrigger>
-                <TabsTrigger
-                  value="components"
-                  className="flex-1 data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200"
-                >
-                  {componentLabel}
-                </TabsTrigger>
-                {asset.asset_type === "vehicle" && (
+                {asset.asset_type !== "vehicle" && (
                   <TabsTrigger
-                    value="trips"
+                    value="components"
                     className="flex-1 data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200"
                   >
-                    Trips
-                  </TabsTrigger>
-                )}
-                {asset.asset_type === "vehicle" && (
-                  <TabsTrigger
-                    value="gps_logs"
-                    className="flex-1 data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200"
-                  >
-                    GPS Logs
+                    {componentLabel}
                   </TabsTrigger>
                 )}
               </TabsList>
@@ -1168,11 +1269,13 @@ Provide a concise, actionable insight for a fleet manager.`;
                       deviceId={asset.vehicle_details.device_id}
                       height="420px"
                       initialCenter={mapCenter}
-                      encodedRoutes={
-                        (selectedPlanId ? tripPlans.find((p) => p.id === selectedPlanId) : tripPlans[0])?.route_polyline
+                      live={false}
+                      historicalRecords={telemetry}
+                      encodedRoutes={{
+                        ...((selectedPlanId ? tripPlans.find((p) => p.id === selectedPlanId) : tripPlans[0])?.route_polyline
                           ? { planned: (selectedPlanId ? tripPlans.find((p) => p.id === selectedPlanId) : tripPlans[0])!.route_polyline! }
-                          : undefined
-                      }
+                          : {})
+                      }}
                       encodedRoutePrecision={(selectedPlanId ? tripPlans.find((p) => p.id === selectedPlanId) : tripPlans[0])?.route_polyline_precision ?? 5}
                     />
                     <div className="absolute top-4 left-4 z-10 w-full max-w-sm">
@@ -1877,56 +1980,10 @@ Provide a concise, actionable insight for a fleet manager.`;
                       </Card>
                     </div>
 
-                    {/* Time range filter for sensor charts */}
-                    <div className="flex flex-wrap items-end gap-3 bg-gray-50 border rounded-lg p-4 mb-6">
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs font-medium text-gray-600">From</label>
-                        <input
-                          type="datetime-local"
-                          value={sensorFilterStart}
-                          onChange={(e) => setSensorFilterStart(e.target.value)}
-                          className="text-sm border rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs font-medium text-gray-600">To</label>
-                        <input
-                          type="datetime-local"
-                          value={sensorFilterEnd}
-                          onChange={(e) => setSensorFilterEnd(e.target.value)}
-                          className="text-sm border rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        />
-                      </div>
-                      <Button
-                        size="sm"
-                        disabled={loadingTelemetry}
-                        onClick={() => {
-                          if (asset?.vehicle_details?.device_id) {
-                            fetchTelemetry(asset.vehicle_details.device_id, 1000, sensorFilterStart || undefined, sensorFilterEnd || undefined);
-                          }
-                        }}
-                        className="bg-teal-600 hover:bg-teal-700 text-white"
-                      >
-                        {loadingTelemetry ? "Loading…" : "Fetch History"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={loadingTelemetry}
-                        onClick={() => {
-                          setSensorFilterStart("");
-                          setSensorFilterEnd("");
-                          if (asset?.vehicle_details?.device_id) {
-                            fetchTelemetry(asset.vehicle_details.device_id, 200);
-                          }
-                        }}
-                      >
-                        Reset
-                      </Button>
-
-                      <div className="flex flex-wrap items-center gap-2 ml-auto">
+                    {/* Sensor Data View options (Live Range) */}
+                    <div className="flex flex-wrap items-center justify-end gap-2 bg-gray-50 border rounded-lg p-4 mb-6">
                         <span className="text-xs font-medium text-gray-500 mr-1">
-                          View Range:
+                          Live View Range:
                         </span>
                         {(
                           [
@@ -1951,7 +2008,6 @@ Provide a concise, actionable insight for a fleet manager.`;
                             {range === "all" ? "MAX" : range}
                           </button>
                         ))}
-                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -2122,96 +2178,7 @@ Provide a concise, actionable insight for a fleet manager.`;
               </TabsContent>
 
               {/* Trip History Tab */}
-              <TabsContent value="trips" className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Trip List */}
-                  <Card className="lg:col-span-1 h-[600px] flex flex-col">
-                    <CardHeader className="border-b">
-                      <CardTitle className="text-md">Trip History</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-0 flex-1 overflow-y-auto">
-                      {!asset?.vehicle_details?.device_id ? (
-                        <div className="p-8 text-center text-gray-500">
-                          <MapPin className="h-10 w-10 mx-auto mb-2 opacity-40" />
-                          <p className="text-sm">Add IoT Device ID in Vehicle Details to view trips.</p>
-                        </div>
-                      ) : loadingTrips ? (
-                        <div className="p-8 text-center text-gray-400">
-                          Loading trips...
-                        </div>
-                      ) : trips.length === 0 ? (
-                        <div className="p-8 text-center text-gray-400">
-                          No trips recorded yet.
-                        </div>
-                      ) : (
-                        <div className="divide-y">
-                          {trips.map((trip) => (
-                            <div
-                              key={trip.id}
-                              className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${selectedTripId === trip.id ? "bg-blue-50 border-l-4 border-blue-600" : ""}`}
-                              onClick={() => setSelectedTripId(trip.id)}
-                            >
-                              <div className="flex justify-between items-start mb-1">
-                                <p className="font-semibold text-sm">
-                                  {formatDate(trip.start_ts)}
-                                </p>
-                                <div className="flex gap-1 items-center">
-                                  <Badge className="text-[10px] bg-green-100 text-green-700" title="Trip done – report available">
-                                    Report
-                                  </Badge>
-                                  <Badge variant="outline" className="text-[10px]">
-                                    {trip.driver_score} pts
-                                  </Badge>
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-500">
-                                <span>{trip.distance_km.toFixed(1)} km</span>
-                                <span>{trip.duration_min.toFixed(0)} min</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Trip Replay Map */}
-                  <Card className="lg:col-span-2 h-[600px]">
-                    <CardContent className="p-0 h-full relative">
-                      {selectedTripId && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="absolute top-2 right-2 z-10 bg-white"
-                          onClick={() => setShowTripReportId(selectedTripId)}
-                        >
-                          View Report
-                        </Button>
-                      )}
-                      {selectedTripId ? (
-                        <TripReplayMap tripId={selectedTripId} height="100%" initialCenter={mapCenter} />
-                      ) : (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-400 p-8">
-                          <MapPin className="h-12 w-12 mb-4 opacity-20" />
-                          <p>Select a trip from the list to view replay</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Trip Report Modal */}
-                {showTripReportId && (
-                  <TripReportModal
-                    tripId={showTripReportId}
-                    onClose={() => {
-                      setShowTripReportId(null);
-                      setTripReport(null);
-                    }}
-                    onReportLoaded={setTripReport}
-                  />
-                )}
-              </TabsContent>
+              {/* Trip History Tab moved to Map/Global Filter as per User request */}
 
               {/* GPS Logs Tab */}
               <TabsContent value="gps_logs" className="space-y-6">

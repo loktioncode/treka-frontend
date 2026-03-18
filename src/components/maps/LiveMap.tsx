@@ -53,7 +53,12 @@ interface LiveMapProps {
   initialCenter?: { lat: number; lon: number };
   /** Optional map device_id -> { name, plate } to show number plate in popup instead of device ID. */
   deviceToVehicle?: Record<string, { name: string; plate: string }>;
+  /** Historical telemetry records to draw as a trail. */
+  historicalRecords?: TelemetryRecord[];
+  /** Whether to enable live MQTT updates for markers. Defaults to true. */
+  live?: boolean;
 }
+
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
@@ -68,8 +73,11 @@ export default function LiveMap({
   encodedRoutePrecision = 5,
   initialCenter = JOHANNESBURG,
   deviceToVehicle,
+  historicalRecords,
+  live = true,
 }: LiveMapProps) {
-  const { vehicles, isConnected, vehicleList } = useMqttTracking(deviceId);
+  const { vehicles, isConnected, vehicleList } = useMqttTracking(live ? deviceId : undefined);
+
   const [selectedVehicle, setSelectedVehicle] = useState<LiveVehicle | null>(
     null,
   );
@@ -196,6 +204,37 @@ export default function LiveMap({
       return prev;
     });
   }, [deviceId, vehicles]);
+  
+  // Historical trail from records
+  const historicalTrailGeoJson = useMemo(() => {
+    if (!historicalRecords || historicalRecords.length < 2) return { type: "FeatureCollection" as const, features: [] };
+    
+    // Sort by timestamp just in case
+    const sorted = [...historicalRecords].sort((a, b) => a.ts - b.ts);
+    const coords = sorted
+      .filter(r => r.lat != null && (r.lng != null || r.lon != null))
+      .map(r => [r.lng ?? r.lon!, r.lat!] as [number, number]);
+      
+    if (coords.length < 2) return { type: "FeatureCollection" as const, features: [] };
+    
+    return {
+      type: "FeatureCollection" as const,
+      features: [{
+        type: "Feature" as const,
+        properties: { source: "historical" },
+        geometry: { type: "LineString" as const, coordinates: coords },
+      }]
+    };
+  }, [historicalRecords]);
+  
+  // Determine marker positions when NOT live
+  const lastHistoricalPos = useMemo(() => {
+    if (live || !historicalRecords || historicalRecords.length === 0) return null;
+    const sorted = [...historicalRecords].sort((a, b) => b.ts - a.ts);
+    const last = sorted.find(r => r.lat != null && (r.lng ?? r.lon) != null);
+    return last ? { lat: last.lat!, lon: (last.lng ?? last.lon)!, record: last } : null;
+  }, [live, historicalRecords]);
+
 
   const getLon = (p: TelemetryRecord) =>
     p.lon ?? p.lng;
@@ -223,6 +262,17 @@ export default function LiveMap({
     return { type: "FeatureCollection" as const, features };
   }, [encodedRoutes, encodedRoutePrecision]);
 
+  // Auto-center in historical mode
+  useEffect(() => {
+    if (live || !lastHistoricalPos) return;
+    setViewState((prev) => ({
+      ...prev,
+      latitude: lastHistoricalPos.lat,
+      longitude: lastHistoricalPos.lon,
+      zoom: 13,
+    }));
+  }, [live, lastHistoricalPos]);
+
   if (!MAPBOX_TOKEN) {
     return (
       <div
@@ -246,14 +296,17 @@ export default function LiveMap({
       className="relative w-full rounded-xl overflow-hidden shadow-lg border border-gray-200"
       style={{ height }}
     >
-      <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-white/90 backdrop-blur px-3 py-1.5 rounded-full shadow-sm border border-gray-100">
-        <div
-          className={`h-2 w-2 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-red-500"}`}
-        />
-        <span className="text-xs font-medium text-gray-700">
-          {isConnected ? "Live" : "Disconnected"}
-        </span>
-      </div>
+      {live && (
+        <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-white/90 backdrop-blur px-3 py-1.5 rounded-full shadow-sm border border-gray-100">
+          <div
+            className={`h-2 w-2 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-red-500"}`}
+          />
+          <span className="text-xs font-medium text-gray-700">
+            {isConnected ? "Live" : "Disconnected"}
+          </span>
+        </div>
+      )}
+
 
       <Map
         ref={mapRef}
@@ -274,7 +327,7 @@ export default function LiveMap({
               type="line"
               paint={{
                 "line-color": "#0d9488",
-                "line-width": 6,
+                "line-width": 4,
                 "line-join": "round",
                 "line-cap": "round",
               } as Record<string, unknown>}
@@ -282,133 +335,88 @@ export default function LiveMap({
           </Source>
         )}
 
-        {vehicleList
-          .filter((v) => deviceToVehicle?.[v.device_id]) // Never show unknown devices
+        {historicalTrailGeoJson.features.length > 0 && (
+          <Source id="historical-path" type="geojson" data={historicalTrailGeoJson}>
+            <Layer
+              id="historical-path-line"
+              type="line"
+              paint={{
+                "line-color": "#3b82f6", // blue for historical
+                "line-width": 5,
+                "line-join": "round",
+                "line-cap": "round",
+              } as Record<string, unknown>}
+            />
+          </Source>
+        )}
+
+
+        {/* Live Markers */}
+        {live && vehicleList
+          .filter((v) => !deviceToVehicle || deviceToVehicle?.[v.device_id])
           .map((vehicle) => {
-          const rec = vehicle.last_record;
-          const pos = markerPositions[vehicle.device_id];
-          const lastKnown = lastKnownPositionRef.current[vehicle.device_id];
-          const lat = pos?.lat ?? rec.lat ?? lastKnown?.lat;
-          const lon = pos?.lon ?? getLon(rec) ?? lastKnown?.lon;
-          const { hdg, spd, rpm, vlt } = rec;
-          if (lat == null || lon == null) return null;
-          // Always show marker at last known position from MQTT (engine off or moving false still sends position)
-          const status = getVehicleStatus(rec);
-          const iconBg =
-            status === "serious"
-              ? "bg-red-500 border-white"
-              : status === "warning"
-                ? "bg-orange-500 border-white"
-                : status === "idle"
-                ? "bg-gray-400 border-white"
-                : status === "stationary"
-                ? "bg-blue-500 border-white"
-                : "bg-green-600 border-white";
+            const rec = vehicle.last_record;
+            const pos = markerPositions[vehicle.device_id];
+            const lastKnown = lastKnownPositionRef.current[vehicle.device_id];
+            const lat = pos?.lat ?? rec.lat ?? lastKnown?.lat;
+            const lon = pos?.lon ?? getLon(rec) ?? lastKnown?.lon;
+            const { hdg } = rec;
+            if (lat == null || lon == null) return null;
+            const status = getVehicleStatus(rec);
+            const iconBg =
+              status === "serious"
+                ? "bg-red-500 border-white"
+                : status === "warning"
+                  ? "bg-orange-500 border-white"
+                  : status === "idle"
+                  ? "bg-gray-400 border-white"
+                  : status === "stationary"
+                  ? "bg-blue-500 border-white"
+                  : "bg-green-600 border-white";
 
-          return (
-            <React.Fragment key={vehicle.device_id}>
-              <Marker
-                latitude={lat}
-                longitude={lon}
-                anchor="center"
-                onClick={(e) => {
-                  e.originalEvent.stopPropagation();
-                  handleSelectVehicle(vehicle);
-                }}
-              >
-                <div
-                  className="relative cursor-pointer transition-transform hover:scale-110"
-                  style={{ transform: `rotate(${hdg || 0}deg)` }}
-                >
-                  <div className={`p-2 rounded-full shadow-md border-2 ${iconBg}`}>
-                    <Car className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[8px] border-b-gray-800" />
-                </div>
-              </Marker>
-
-              {selectedVehicle?.device_id === vehicle.device_id && (
-                <Popup
+            return (
+              <React.Fragment key={vehicle.device_id}>
+                <Marker
                   latitude={lat}
                   longitude={lon}
-                  anchor="bottom"
-                  offset={20}
-                  onClose={() => handleSelectVehicle(null)}
-                  closeButton={true}
-                  className="z-20"
+                  anchor="center"
+                  onClick={(e) => {
+                    e.originalEvent.stopPropagation();
+                    handleSelectVehicle(vehicle);
+                  }}
                 >
-                  <div className="p-2 min-w-[200px]">
-                    <div className="flex items-center justify-between border-b pb-2 mb-2">
-                      <h4 className="font-bold text-gray-900">
-                        {deviceToVehicle?.[vehicle.device_id]?.plate || deviceToVehicle?.[vehicle.device_id]?.name || "Unidentified Asset"}
-                      </h4>
-                      <span className="text-[10px] text-gray-500">
-                        {format(new Date(vehicle.last_update), "HH:mm:ss")}
-                      </span>
+                  <div
+                    className="relative cursor-pointer transition-transform hover:scale-110"
+                    style={{ transform: `rotate(${hdg || 0}deg)` }}
+                  >
+                    <div className={`p-2 rounded-full shadow-md border-2 ${iconBg}`}>
+                      <Car className="h-5 w-5 text-white" />
                     </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="flex flex-col">
-                        <span className="text-gray-500">Ignition</span>
-                        <span className="font-semibold">
-                          {(() => {
-                            const raw = (rec as any)?.extras?.["engine.ignition.status"];
-                            const ign = typeof raw === "boolean" ? raw : rec.ignition;
-                            if (ign === true) return "On";
-                            if (ign === false) return "Off";
-                            return "—";
-                          })()}
-                        </span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-gray-500">Signal</span>
-                        <span className="font-semibold">
-                          {(() => {
-                            const s = (rec as any)?.extras?.["gsm.signal.level"];
-                            const n = typeof s === "number" ? s : (typeof s === "string" ? Number(s) : NaN);
-                            return Number.isFinite(n) ? `${n}` : "—";
-                          })()}
-                        </span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-gray-500">Speed</span>
-                        <span className="font-semibold">
-                          {spd?.toFixed(1) || 0} km/h
-                        </span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-gray-500">RPM</span>
-                        <span className="font-semibold">{rpm || 0}</span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-gray-500">Voltage</span>
-                        <span className="font-semibold text-blue-600">
-                          {vlt?.toFixed(1) || 0}V
-                        </span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-gray-500">Status</span>
-                        <span className={`font-semibold ${
-                          getDrivingStatus(rec) === "moving" ? "text-green-600" :
-                          getDrivingStatus(rec) === "stationary" ? "text-blue-600" : "text-gray-500"
-                        }`}>
-                          {getDrivingStatusLabel(rec)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {(vehicle.last_record.hbk || 0) > 0 && (
-                      <div className="mt-2 p-1.5 bg-amber-50 rounded flex items-center gap-2 text-[10px] text-amber-700 border border-amber-100">
-                        <AlertTriangle className="h-3 w-3" />
-                        Harsh Braking Detected
-                      </div>
-                    )}
+                    <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[8px] border-b-gray-800" />
                   </div>
-                </Popup>
-              )}
-            </React.Fragment>
-          );
-        })}
+                </Marker>
+              </React.Fragment>
+            );
+          })}
+
+        {/* Static Historical Marker (if not live) */}
+        {!live && lastHistoricalPos && (
+          <Marker
+            latitude={lastHistoricalPos.lat}
+            longitude={lastHistoricalPos.lon}
+            anchor="center"
+          >
+            <div
+              className="relative cursor-pointer transition-transform hover:scale-110"
+              style={{ transform: `rotate(${lastHistoricalPos.record.hdg || 0}deg)` }}
+            >
+              <div className={`p-2 rounded-full shadow-md border-2 bg-blue-600 border-white`}>
+                <Car className="h-5 w-5 text-white" />
+              </div>
+              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[8px] border-b-gray-800" />
+            </div>
+          </Marker>
+        )}
       </Map>
 
       {pathGeoJson.features.length > 0 && (
