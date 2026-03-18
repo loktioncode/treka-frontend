@@ -401,7 +401,7 @@ Provide a concise, actionable insight for a fleet manager.`;
   const fetchTelemetry = useCallback(async (deviceId: string, limit: number = 200, start?: string, end?: string) => {
     try {
       setLoadingTelemetry(true);
-      setTelemetry([]); // Clear old records immediately to AvoidPersistence on map
+      setTelemetry([]); // Clear old records immediately to avoid persistence on map
       const params: { start_date?: string; end_date?: string } = {};
       if (start) params.start_date = new Date(start).toISOString();
       if (end) params.end_date = new Date(end).toISOString();
@@ -409,8 +409,14 @@ Provide a concise, actionable insight for a fleet manager.`;
         telemetryAPI.getTelemetry(deviceId, limit, params),
         telemetryAPI.getLatestTelemetry(deviceId).catch(() => null),
       ]);
-      const records = Array.isArray(history) ? history : history.records || [];
-      setTelemetry(records);
+      const rawRecords = Array.isArray(history) ? history : history.records || [];
+      // Sort records by timestamp (ascending) for proper path rendering and replay
+      const sorted = [...rawRecords].sort((a, b) => {
+        const ta = a.ts || (a.ts_server ? new Date(a.ts_server).getTime() / 1000 : 0);
+        const tb = b.ts || (b.ts_server ? new Date(b.ts_server).getTime() / 1000 : 0);
+        return ta - tb;
+      });
+      setTelemetry(sorted);
       setLatestTelemetry(latest?.record || null);
     } catch (error) {
       console.error("Failed to fetch telemetry:", error);
@@ -429,7 +435,8 @@ Provide a concise, actionable insight for a fleet manager.`;
       const params: { start_date?: string; end_date?: string } = {};
       if (start) params.start_date = new Date(start).toISOString();
       if (end) params.end_date = new Date(end).toISOString();
-      const res = await telemetryAPI.getTelemetry(deviceId, 500, params);
+      // Use high limit to capture full day's data
+      const res = await telemetryAPI.getTelemetry(deviceId, 10000, params);
       const records = Array.isArray(res) ? res : res.records || [];
       setGpsLogs(records);
       setGpsLogsLoaded(true);
@@ -554,7 +561,7 @@ Provide a concise, actionable insight for a fleet manager.`;
       if (response.asset_type === "vehicle") {
         fetchFleetMetrics(response.id);
         if (response.vehicle_details?.device_id) {
-          fetchTelemetry(response.vehicle_details.device_id, 3000);
+          fetchTelemetry(response.vehicle_details.device_id, 10000);
           fetchTrips(response.vehicle_details.device_id);
         }
       } else {
@@ -984,7 +991,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                       start.setHours(0, 0, 0, 0);
                       const end = globalEndDate ? new Date(globalEndDate) : new Date(val);
                       end.setHours(23, 59, 59, 999);
-                      fetchTelemetry(asset.vehicle_details.device_id, 3000, start.toISOString(), end.toISOString());
+                      fetchTelemetry(asset.vehicle_details.device_id, 10000, start.toISOString(), end.toISOString());
                     }
                   }}
                   className="text-xs border-none focus:ring-0 bg-transparent outline-none w-28"
@@ -1002,7 +1009,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                       start.setHours(0, 0, 0, 0);
                       const end = new Date(val);
                       end.setHours(23, 59, 59, 999);
-                      fetchTelemetry(asset.vehicle_details.device_id, 3000, start.toISOString(), end.toISOString());
+                      fetchTelemetry(asset.vehicle_details.device_id, 10000, start.toISOString(), end.toISOString());
                     }
                   }}
                   className="text-xs border-none focus:ring-0 bg-transparent outline-none w-28"
@@ -1014,7 +1021,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                   onClick={() => {
                     setGlobalStartDate("");
                     setGlobalEndDate("");
-                    if (asset.vehicle_details?.device_id) fetchTelemetry(asset.vehicle_details.device_id, 3000);
+                    if (asset.vehicle_details?.device_id) fetchTelemetry(asset.vehicle_details.device_id, 10000);
                   }}
                   className="ml-1 text-gray-400 hover:text-gray-600"
                 >
