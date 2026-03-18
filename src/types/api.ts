@@ -591,6 +591,8 @@ export interface TelemetryRecord {
   mil?: number;
   /** Odometer / mileage (km) when available from CAN/Flespi. */
   odo?: number;
+  /** Fuel volume in liters (L) from CAN/Flespi. */
+  fuel_vol?: number;
   /** Provider raw snapshot (e.g. Flespi telemetry key/value map). */
   extras?: Record<string, any>;
 

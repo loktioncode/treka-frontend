@@ -136,6 +136,8 @@ export default function FleetMapPage() {
         r.thr != null ? `Throttle: ${Number(r.thr).toFixed(3)} %` : null,
         r.lod != null ? `Engine load: ${Number(r.lod).toFixed(3)} %` : null,
         r.fl != null ? `Fuel level: ${Number(r.fl).toFixed(3)} %` : null,
+        r.fuel_vol != null || getExtra(r, "can.fuel.volume") != null ? `Fuel volume: ${Number(r.fuel_vol ?? getExtra(r, "can.fuel.volume")).toFixed(3)} L` : null,
+        r.odo != null ? `Odometer: ${Number(r.odo).toFixed(1)} km` : null,
         r.ia_tot != null ? `Total G: ${Number(r.ia_tot).toFixed(3)} g` : null,
         (r.hbk ?? 0) > 0 ? `Harsh braking events in interval: ${r.hbk}` : null,
         (r.hac ?? 0) > 0 ? `Harsh acceleration events: ${r.hac}` : null,
@@ -402,7 +404,9 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
                 { label: "RPM", value: r.rpm },
                 { label: "Voltage", value: r.vlt },
                 { label: "Coolant", value: r.tmp },
-                { label: "Fuel", value: r.fl },
+                { label: "Fuel %", value: r.fl },
+                { label: "Fuel (L)", value: r.fuel_vol ?? getExtra(r, "can.fuel.volume") },
+                { label: "Odometer", value: r.odo },
                 { label: "Load", value: r.lod },
                 { label: "Throttle", value: r.thr },
                 { label: "Heading", value: r.hdg },
@@ -530,14 +534,36 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
                     <Fuel className="h-3 w-3 text-green-600" />
                     <span className="text-[9px] uppercase text-green-700 font-bold">Fuel</span>
                   </div>
-                  <p className="text-lg font-bold text-green-800">
-                    {selectedVehicle.last_record.fl != null
-                      ? `${fmt(selectedVehicle.last_record.fl)}${selectedVehicle.last_record.fuel_unit === "l" ? " L" : "%"}`
-                      : "—"}
-                  </p>
+                  <div className="space-y-0.5">
+                    <p className="text-lg font-bold text-green-800 leading-tight">
+                      {selectedVehicle.last_record.fuel_vol != null || getExtra(selectedVehicle.last_record, "can.fuel.volume") != null
+                        ? `${fmt(selectedVehicle.last_record.fuel_vol ?? getExtra(selectedVehicle.last_record, "can.fuel.volume"))} L`
+                        : "—"}
+                    </p>
+                    {selectedVehicle.last_record.fl != null && (
+                      <p className="text-[10px] text-green-600 font-medium italic">
+                        ({fmt(selectedVehicle.last_record.fl)}%)
+                      </p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </div>
+
+            {/* Odometer */}
+            <Card className="bg-slate-50 border-slate-200">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <Gauge className="h-4 w-4 text-slate-600" />
+                  <span className="text-[10px] uppercase text-slate-700 font-bold">Odometer</span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-xl font-bold text-slate-800">
+                    {selectedVehicle.last_record.odo != null ? `${selectedVehicle.last_record.odo.toLocaleString()} km` : "—"}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Battery */}
             <Card className="bg-blue-50 border-blue-200">

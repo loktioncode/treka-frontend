@@ -145,6 +145,7 @@ export default function AssetViewPage() {
   const cardTelemetry = displayTelemetry ?? lastKnownTelemetry;
   const fmt = (val: number | null | undefined, decimals = 3) =>
     val != null ? Number(val).toFixed(decimals) : null;
+  const getExtra = (r: any, key: string) => (r?.extras && typeof r.extras === "object" ? r.extras[key] : undefined);
 
   const [, setLoadingTelemetry] = useState(false);
 
@@ -1105,6 +1106,46 @@ Provide a concise, actionable insight for a fleet manager.`;
 
               {/* Overview Tab Content */}
               <TabsContent value="overview" className="space-y-6">
+                {/* Maintenance Alert Banner */}
+                {asset.asset_type === "vehicle" && fleetMetrics?.km_until_next_service != null && fleetMetrics.km_until_next_service <= 2000 && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${
+                      fleetMetrics.km_until_next_service <= 500
+                        ? "bg-red-50 border-red-200 text-red-800"
+                        : "bg-amber-50 border-amber-200 text-amber-800"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-full ${fleetMetrics.km_until_next_service <= 500 ? "bg-red-100" : "bg-amber-100"}`}>
+                        <Wrench className={`w-5 h-5 ${fleetMetrics.km_until_next_service <= 500 ? "text-red-600" : "text-amber-600"}`} />
+                      </div>
+                      <div>
+                        <p className="font-bold">Maintenance due soon!</p>
+                        <p className="text-sm opacity-90">
+                          This vehicle is due for service in <span className="font-bold">{fleetMetrics.km_until_next_service.toLocaleString()} km</span>.
+                          Current odometer: {fleetMetrics.total_distance_km.toLocaleString()} km.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant={fleetMetrics.km_until_next_service <= 500 ? "destructive" : "outline"}
+                      className={fleetMetrics.km_until_next_service <= 500 ? "" : "border-amber-300 text-amber-700 hover:bg-amber-100"}
+                      onClick={async () => {
+                        try {
+                          await assetAPI.logService(asset.id);
+                          toast.success("Service logged. Odometer reset for next interval.");
+                          await loadAsset();
+                        } catch {
+                          toast.error("Failed to log service");
+                        }
+                      }}
+                    >
+                      Log complete service
+                    </Button>
+                  </motion.div>
+                )}
 
 
                 {/* Live Map + Floating Vehicle Card (Vehicle only) */}
@@ -1185,9 +1226,15 @@ Provide a concise, actionable insight for a fleet manager.`;
                               </p>
                             </div>
                             <div className="bg-gray-50 rounded-lg p-2 text-center">
-                              <p className="text-[10px] uppercase text-gray-500 font-medium">Status</p>
-                              <p className="text-lg font-bold text-green-600">
-                                {getDrivingStatusLabel(cardTelemetry)}
+                              <p className="text-[10px] uppercase text-gray-500 font-medium">Fuel (L)</p>
+                              <p className="text-lg font-bold text-green-700">
+                                {fmt(cardTelemetry?.fuel_vol ?? getExtra(cardTelemetry, "can.fuel.volume")) ?? "—"}
+                              </p>
+                            </div>
+                            <div className="bg-gray-50 rounded-lg p-2 text-center col-span-2">
+                              <p className="text-[10px] uppercase text-gray-500 font-medium">Dashboard Odometer</p>
+                              <p className="text-lg font-bold text-slate-800">
+                                {cardTelemetry?.odo != null ? `${cardTelemetry.odo.toLocaleString()} km` : "—"}
                               </p>
                             </div>
                           </div>
@@ -1815,12 +1862,17 @@ Provide a concise, actionable insight for a fleet manager.`;
                             </div>
                             <div>
                               <p className="text-sm font-medium text-green-600">
-                                Fuel Level
+                                Fuel Volume
                               </p>
                               <h3 className="text-2xl font-bold text-green-900">
-                                {fmt(cardTelemetry?.fl) ?? "—"}{" "}
-                                <span className="text-sm font-normal">%</span>
+                                {fmt(cardTelemetry?.fuel_vol ?? getExtra(cardTelemetry, "can.fuel.volume")) ?? "—"}{" "}
+                                <span className="text-sm font-normal">Liters</span>
                               </h3>
+                              {cardTelemetry?.fl != null && (
+                                <p className="text-xs text-green-600 font-medium">
+                                  Level: {fmt(cardTelemetry.fl)}%
+                                </p>
+                              )}
                             </div>
                           </div>
                         </CardContent>
