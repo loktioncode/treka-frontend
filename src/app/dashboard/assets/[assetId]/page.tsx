@@ -273,24 +273,18 @@ Provide a concise, actionable insight for a fleet manager.`;
   const filteredSensorTelemetry = useMemo(() => {
     const windowMs = sensorTimeRangeMs[sensorTimeRange];
     if (windowMs === Infinity || !telemetry.length) return telemetry;
-    const hasServerTs = telemetry.some((r) => r.ts_server != null);
-    let refTime: number;
-    if (hasServerTs) {
-      refTime = Math.max(
-        ...telemetry.map((r) =>
-          r.ts_server ? new Date(r.ts_server).getTime() : 0,
-        ),
-      );
-    } else {
-      refTime = Math.max(...telemetry.map((r) => r.ts ?? 0));
-    }
+
+    const getMs = (r: TelemetryRecord) => {
+      if (r.ts_server) return new Date(r.ts_server).getTime();
+      const t = r.ts ?? 0;
+      // If ts is in seconds (Teltonika), convert to ms
+      return t < 1e12 ? t * 1000 : t;
+    };
+
+    const refTime = Math.max(...telemetry.map(getMs));
     const cutoff = refTime - windowMs;
-    return telemetry.filter((r) => {
-      const t = hasServerTs && r.ts_server
-        ? new Date(r.ts_server).getTime()
-        : (r.ts ?? 0);
-      return t >= cutoff;
-    });
+
+    return telemetry.filter((r) => getMs(r) >= cutoff);
   }, [telemetry, sensorTimeRange, sensorTimeRangeMs]);
 
   // Simulated sensor data for machinery (will come from various sensors)
@@ -389,7 +383,7 @@ Provide a concise, actionable insight for a fleet manager.`;
     try {
       const params: { start_date?: string; end_date?: string } = {};
       if (start) params.start_date = new Date(start).toISOString();
-      if (end)   params.end_date   = new Date(end).toISOString();
+      if (end) params.end_date = new Date(end).toISOString();
       const res = await telemetryAPI.getTelemetry(deviceId, 500, params);
       setGpsLogs(res.records || []);
       setGpsLogsLoaded(true);
@@ -1111,11 +1105,10 @@ Provide a concise, actionable insight for a fleet manager.`;
                   <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${
-                      fleetMetrics.km_until_next_service <= 500
+                    className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${fleetMetrics.km_until_next_service <= 500
                         ? "bg-red-50 border-red-200 text-red-800"
                         : "bg-amber-50 border-amber-200 text-amber-800"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-full ${fleetMetrics.km_until_next_service <= 500 ? "bg-red-100" : "bg-amber-100"}`}>
@@ -1316,7 +1309,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                     <Card>
                       <CardHeader>
                         <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg">Fleet Metrics</CardTitle>
+                          <CardTitle className="text-lg">Vehicle Metrics</CardTitle>
                           {(asset.status === "maintenance" ||
                             (fleetMetrics?.km_until_next_service != null &&
                               fleetMetrics.km_until_next_service <= 1000)) && (
@@ -2332,8 +2325,8 @@ Provide a concise, actionable insight for a fleet manager.`;
                                       {r.ts_server
                                         ? new Date(r.ts_server).toLocaleString()
                                         : r.ts
-                                        ? new Date(r.ts * 1000).toLocaleString()
-                                        : "Now"}
+                                          ? new Date(r.ts * 1000).toLocaleString()
+                                          : "Now"}
                                     </span>
                                   </td>
                                   <td className="px-4 py-3 font-mono text-gray-600">{lat != null ? lat.toFixed(6) : "—"}</td>
@@ -2394,8 +2387,8 @@ Provide a concise, actionable insight for a fleet manager.`;
                                       {r.ts_server
                                         ? new Date(r.ts_server).toLocaleString()
                                         : r.ts
-                                        ? new Date(r.ts * 1000).toLocaleString()
-                                        : "Unknown"}
+                                          ? new Date(r.ts * 1000).toLocaleString()
+                                          : "Unknown"}
                                     </td>
                                     <td className="px-4 py-3 font-mono text-gray-600">
                                       {lat != null ? lat.toFixed(6) : "—"}
@@ -2427,16 +2420,14 @@ Provide a concise, actionable insight for a fleet manager.`;
                                     </td>
                                     <td className="px-4 py-3">
                                       <span
-                                        className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
-                                          isIgnitionOn
+                                        className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${isIgnitionOn
                                             ? "bg-green-100 text-green-700"
                                             : "bg-gray-100 text-gray-500"
-                                        }`}
+                                          }`}
                                       >
                                         <span
-                                          className={`w-1.5 h-1.5 rounded-full ${
-                                            isIgnitionOn ? "bg-green-500" : "bg-gray-400"
-                                          }`}
+                                          className={`w-1.5 h-1.5 rounded-full ${isIgnitionOn ? "bg-green-500" : "bg-gray-400"
+                                            }`}
                                         />
                                         {isIgnitionOn ? "On" : "Off"}
                                       </span>

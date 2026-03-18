@@ -363,7 +363,15 @@ export const TelemetryHeatmap: React.FC<TelemetryHeatmapProps> = ({
                                 <div className="min-w-[220px] max-w-[280px] p-2 text-left">
                                     <div className="text-xs text-gray-500 mb-2">
                                         {displayRecord.ts != null && (
-                                            <span>t+{(displayRecord.ts / 1000).toFixed(0)}s</span>
+                                            <span>{(() => {
+                                                const t = displayRecord.ts ?? 0;
+                                                const ts_ms = t < 1e12 ? t * 1000 : t;
+                                                const d = new Date(ts_ms);
+                                                if (d.getFullYear() > 2000) {
+                                                    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                                                }
+                                                return `t+${Math.floor(ts_ms / 1000)}s`;
+                                            })()}</span>
                                         )}
                                         {displayRecord.lat != null && displayRecord.lon != null && (
                                             <span className="ml-2">

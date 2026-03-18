@@ -51,7 +51,17 @@ export const TelemetryCharts: React.FC<TelemetryChartsProps> = ({
   type,
   title,
 }) => {
-  const chartData = useMemo(() => [...data].sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0)), [data]);
+  const chartData = useMemo(() => {
+    return [...data]
+      .map((r) => {
+        const t = r.ts ?? 0;
+        // Normalize to milliseconds if in seconds (Teltonika)
+        const ts_ms = t < 1e12 ? t * 1000 : t;
+        return { ...r, ts: ts_ms };
+      })
+      .sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
+  }, [data]);
+
   const minTs = chartData[0]?.ts ?? 0;
   const maxTs = chartData[chartData.length - 1]?.ts ?? minTs;
   const spanMs = Math.max(0, maxTs - minTs);

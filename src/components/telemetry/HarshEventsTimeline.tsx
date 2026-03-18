@@ -35,18 +35,25 @@ export const HarshEventsTimeline: React.FC<HarshEventsTimelineProps> = ({ data, 
     };
 
     const formatTime = (record: TelemetryRecord) => {
-        const ts = record.ts;
-        if (ts == null) return '—';
-        const sec = Math.floor(ts / 1000);
+        const ts_raw = record.ts ?? 0;
+        const ts_ms = ts_raw < 1e12 ? ts_raw * 1000 : ts_raw;
+
         if (record.ts_server) {
             try {
                 const d = new Date(record.ts_server);
                 return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             } catch {
-                return `t+${sec}s`;
+                return `t+${Math.floor(ts_ms / 1000)}s`;
             }
         }
-        return `t+${sec}s`;
+        
+        const d = new Date(ts_ms);
+        // If it looks like a real date (post-2000), show the time
+        if (d.getFullYear() > 2000) {
+            return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+        
+        return `t+${Math.floor(ts_ms / 1000)}s`;
     };
 
     const hasLocation = (r: TelemetryRecord) => r.lat != null && r.lon != null;
