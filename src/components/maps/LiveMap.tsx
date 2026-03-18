@@ -12,11 +12,22 @@ import Map, {
 import type { MapRef } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useMqttTracking, LiveVehicle } from "@/hooks/useMqttTracking";
-import type { TelemetryRecord } from "@/types/api";
+import { TelemetryRecord } from "@/types/api";
 import { decodeToGeoJSON } from "@/lib/polyline";
 import { getDrivingStatus, getDrivingStatusLabel } from "@/lib/driving-status";
-import { Car, AlertTriangle, Info, MapPin } from "lucide-react";
+import {
+  Car,
+  AlertTriangle,
+  Info,
+  MapPin,
+  Play,
+  Pause,
+  RotateCcw,
+} from "lucide-react";
 import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+
+
 
 /** Vehicle status for map icon: red = serious, orange = warning, gray = engine off, green = moving, blue = stationary (engine on) */
 function getVehicleStatus(record: TelemetryRecord): "serious" | "warning" | "ok" | "stationary" | "idle" {
@@ -76,7 +87,7 @@ export default function LiveMap({
   historicalRecords,
   live = true,
 }: LiveMapProps) {
-  const { vehicles, isConnected, vehicleList } = useMqttTracking(live ? deviceId : undefined);
+  const { vehicles, isConnected, vehicleList } = useMqttTracking(live ? deviceId : undefined, undefined, live);
 
   const [selectedVehicle, setSelectedVehicle] = useState<LiveVehicle | null>(
     null,
@@ -86,7 +97,19 @@ export default function LiveMap({
   /** Persist last known position per device so markers always show on fleet map (MQTT may send position even when engine off) */
   const lastKnownPositionRef = useRef<Record<string, { lat: number; lon: number }>>({});
 
+  // Animation / Replay state
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+
+  // Filter and sort historical records
+  const sortedRecords = useMemo(() => {
+    if (!historicalRecords) return [];
+    return [...historicalRecords].sort((a, b) => a.ts - b.ts);
+  }, [historicalRecords]);
+
   const handleSelectVehicle = (vehicle: LiveVehicle | null) => {
+
     setSelectedVehicle(vehicle);
     onVehicleSelect?.(vehicle?.device_id ?? null);
   };
@@ -205,13 +228,29 @@ export default function LiveMap({
     });
   }, [deviceId, vehicles]);
   
+  // Animation logic for replay
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isPlaying && sortedRecords.length > 0 && currentIndex < sortedRecords.length - 1) {
+      interval = setInterval(() => {
+        setCurrentIndex((prev) => prev + 1);
+      }, 1000 / playbackSpeed);
+    } else {
+      setIsPlaying(false);
+    }
+    return () => clearInterval(interval);
+  }, [isPlaying, currentIndex, sortedRecords, playbackSpeed]);
+
+  // Sync currentIndex when records change
+  useEffect(() => {
+    setCurrentIndex(sortedRecords.length > 0 ? sortedRecords.length - 1 : 0);
+    setIsPlaying(false);
+  }, [sortedRecords]);
+
   // Historical trail from records
   const historicalTrailGeoJson = useMemo(() => {
-    if (!historicalRecords || historicalRecords.length < 2) return { type: "FeatureCollection" as const, features: [] };
-    
-    // Sort by timestamp just in case
-    const sorted = [...historicalRecords].sort((a, b) => a.ts - b.ts);
-    const coords = sorted
+    if (sortedRecords.length < 2) return { type: "FeatureCollection" as const, features: [] };
+    const coords = sortedRecords
       .filter(r => r.lat != null && (r.lng != null || r.lon != null))
       .map(r => [r.lng ?? r.lon!, r.lat!] as [number, number]);
       
@@ -225,15 +264,15 @@ export default function LiveMap({
         geometry: { type: "LineString" as const, coordinates: coords },
       }]
     };
-  }, [historicalRecords]);
+  }, [sortedRecords]);
   
-  // Determine marker positions when NOT live
-  const lastHistoricalPos = useMemo(() => {
-    if (live || !historicalRecords || historicalRecords.length === 0) return null;
-    const sorted = [...historicalRecords].sort((a, b) => b.ts - a.ts);
-    const last = sorted.find(r => r.lat != null && (r.lng ?? r.lon) != null);
-    return last ? { lat: last.lat!, lon: (last.lng ?? last.lon)!, record: last } : null;
-  }, [live, historicalRecords]);
+  // Determine marker position: either current replay point or last known
+  const displayedHistoricalPos = useMemo(() => {
+    if (live || sortedRecords.length === 0) return null;
+    const record = sortedRecords[currentIndex] || sortedRecords[sortedRecords.length - 1];
+    if (record.lat == null || (record.lng ?? record.lon) == null) return null;
+    return { lat: record.lat!, lon: (record.lng ?? record.lon)!, record };
+  }, [live, sortedRecords, currentIndex]);
 
 
   const getLon = (p: TelemetryRecord) =>
@@ -264,14 +303,19 @@ export default function LiveMap({
 
   // Auto-center in historical mode
   useEffect(() => {
-    if (live || !lastHistoricalPos) return;
-    setViewState((prev) => ({
-      ...prev,
-      latitude: lastHistoricalPos.lat,
-      longitude: lastHistoricalPos.lon,
-      zoom: 13,
-    }));
-  }, [live, lastHistoricalPos]);
+    if (live || !displayedHistoricalPos) return;
+    setViewState((prev) => {
+      // Only recenter if the marker has moved significantly to avoid tiny jitters or if we just started
+      if (Math.abs(prev.latitude - displayedHistoricalPos.lat) > 0.0002 || Math.abs(prev.longitude - displayedHistoricalPos.lon) > 0.0002) {
+        return {
+          ...prev,
+          latitude: displayedHistoricalPos.lat,
+          longitude: displayedHistoricalPos.lon,
+        };
+      }
+      return prev;
+    });
+  }, [live, displayedHistoricalPos]);
 
   if (!MAPBOX_TOKEN) {
     return (
@@ -389,8 +433,8 @@ export default function LiveMap({
                     className="relative cursor-pointer transition-transform hover:scale-110"
                     style={{ transform: `rotate(${hdg || 0}deg)` }}
                   >
-                    <div className={`p-2 rounded-full shadow-md border-2 ${iconBg}`}>
-                      <Car className="h-5 w-5 text-white" />
+                    <div className={`p-1.5 rounded-full shadow-md border-2 ${iconBg}`}>
+                      <Car className="h-4 w-4 text-white" />
                     </div>
                     <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[8px] border-b-gray-800" />
                   </div>
@@ -399,25 +443,81 @@ export default function LiveMap({
             );
           })}
 
-        {/* Static Historical Marker (if not live) */}
-        {!live && lastHistoricalPos && (
+        {/* Static/Replay Historical Marker (if not live) */}
+        {!live && displayedHistoricalPos && (
           <Marker
-            latitude={lastHistoricalPos.lat}
-            longitude={lastHistoricalPos.lon}
+            latitude={displayedHistoricalPos.lat}
+            longitude={displayedHistoricalPos.lon}
             anchor="center"
           >
             <div
               className="relative cursor-pointer transition-transform hover:scale-110"
-              style={{ transform: `rotate(${lastHistoricalPos.record.hdg || 0}deg)` }}
+              style={{ transform: `rotate(${displayedHistoricalPos.record.hdg || 0}deg)` }}
             >
-              <div className={`p-2 rounded-full shadow-md border-2 bg-blue-600 border-white`}>
-                <Car className="h-5 w-5 text-white" />
+              <div className={`p-1.5 rounded-full shadow-md border-2 bg-blue-600 border-white`}>
+                <Car className="h-4 w-4 text-white" />
               </div>
               <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[8px] border-b-gray-800" />
             </div>
           </Marker>
         )}
       </Map>
+
+      {/* Historical Playback Controls */}
+      {!live && sortedRecords.length > 0 && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center w-[90%] max-w-sm bg-white/95 backdrop-blur-sm p-4 rounded-2xl shadow-2xl border border-gray-100 z-10">
+          <div className="w-full flex items-center gap-3 mb-2">
+            <button
+              onClick={() => setIsPlaying(!isPlaying)}
+              className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors shadow-lg"
+            >
+              {isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
+            </button>
+
+            <div className="flex-1 px-1">
+              <input
+                type="range"
+                min={0}
+                max={sortedRecords.length - 1}
+                step={1}
+                value={currentIndex}
+                onChange={(e) => setCurrentIndex(parseInt(e.target.value))}
+                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              />
+              <div className="flex justify-between text-[10px] text-gray-500 mt-1 font-medium">
+                <span>{format(new Date(sortedRecords[currentIndex]?.ts_server || sortedRecords[currentIndex]?.ts || Date.now()), "HH:mm:ss")}</span>
+                <span>{sortedRecords.length} pts</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                setCurrentIndex(0);
+                setIsPlaying(false);
+              }}
+              className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
+              title="Reset"
+            >
+              <RotateCcw size={16} />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3 mt-1">
+            {[1, 2, 5, 10].map((speed) => (
+              <button
+                key={speed}
+                onClick={() => setPlaybackSpeed(speed)}
+                className={`text-[9px] font-bold px-2 py-0.5 rounded transition-colors ${
+                  playbackSpeed === speed ? "bg-blue-100 text-blue-700" : "text-gray-400 hover:bg-gray-50"
+                }`}
+              >
+                {speed}x
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
 
       {pathGeoJson.features.length > 0 && (
         <div className="absolute bottom-4 right-4 z-10 bg-white/90 backdrop-blur px-3 py-2 rounded-lg shadow border border-gray-100 text-[10px]">

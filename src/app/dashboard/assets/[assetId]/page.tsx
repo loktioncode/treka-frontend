@@ -401,6 +401,7 @@ Provide a concise, actionable insight for a fleet manager.`;
   const fetchTelemetry = useCallback(async (deviceId: string, limit: number = 200, start?: string, end?: string) => {
     try {
       setLoadingTelemetry(true);
+      setTelemetry([]); // Clear old records immediately to AvoidPersistence on map
       const params: { start_date?: string; end_date?: string } = {};
       if (start) params.start_date = new Date(start).toISOString();
       if (end) params.end_date = new Date(end).toISOString();
@@ -553,7 +554,7 @@ Provide a concise, actionable insight for a fleet manager.`;
       if (response.asset_type === "vehicle") {
         fetchFleetMetrics(response.id);
         if (response.vehicle_details?.device_id) {
-          fetchTelemetry(response.vehicle_details.device_id, 1000);
+          fetchTelemetry(response.vehicle_details.device_id, 3000);
           fetchTrips(response.vehicle_details.device_id);
         }
       } else {

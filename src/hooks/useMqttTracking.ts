@@ -278,7 +278,7 @@ function flespiTelemetryToRecord(
     };
 }
 
-export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'teltonika') {
+export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'teltonika', enabled: boolean = true) {
     const { user } = useAuth();
     const [vehicles, setVehicles] = useState<Record<string, LiveVehicle>>({});
     const [trailState, setTrailState] = useState<{
@@ -330,7 +330,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
 
     // Fetch initial last-known positions so idle vehicles appear immediately
     useEffect(() => {
-        if (!user || assetsLoading) return;
+        if (!user || assetsLoading || !enabled) return;
         let mounted = true;
 
         const devicesToFetch: string[] = deviceId
@@ -386,7 +386,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
         });
 
         return () => { mounted = false; };
-    }, [assets, assetsLoading, deviceId, user]);
+    }, [assets, assetsLoading, deviceId, user, enabled]);
 
     const applyFlespiPosition = useCallback((flespiDeviceId: string, record: TelemetryRecord) => {
         record = normalizeTelemetryRecord(record);
@@ -455,7 +455,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
     // If MQTT messages arrive before assets load, we may drop updates due to allowedDeviceIds filtering.
     // Re-apply any cached Flespi telemetry once allowed IDs become known so markers still appear.
     useEffect(() => {
-        if (deviceId) return;
+        if (deviceId || !enabled) return;
         if (allowedDeviceIds.size === 0) return;
         for (const did of allowedDeviceIds) {
             const cache = flespiTelemetryCacheRef.current[did];
@@ -463,10 +463,10 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
             const record = flespiTelemetryToRecord(did, cache);
             if (record) applyFlespiPosition(did, record);
         }
-    }, [allowedDeviceIds, deviceId, applyFlespiPosition]);
+    }, [allowedDeviceIds, deviceId, applyFlespiPosition, enabled]);
 
     const connect = useCallback(() => {
-        if (!user) return;
+        if (!user || !enabled) return;
 
         // Always connect to both brokers so we have real-time data from Hive (custom) and Flespi (Teltonika)
         const updateConnected = () => {
