@@ -84,7 +84,6 @@ export default function Dashboard() {
     !!user?.client_id,
   );
 
-  // Fetch fleet telemetry and live tracking data
   const {
     data: fleetTelemetry,
     refetch: refetchFleetTelemetry,
@@ -94,25 +93,6 @@ export default function Dashboard() {
     !!currentClient && currentClient.client_type === "logistics",
   );
   const { vehicleList, vehicles } = useMqttTracking();
-  const connectedVehicles = useMemo(
-    () =>
-      vehicleList.filter(
-        (v) =>
-          vehicles[v.device_id]?.status === "online" &&
-          getDrivingStatus(v.last_record) === "moving",
-      ),
-    [vehicleList, vehicles]
-  );
-
-  const lastActiveVehicles = useMemo(() => {
-    const withTime = vehicleList
-      .map((v) => {
-        const t = Date.parse(v.last_update);
-        return { v, t: Number.isFinite(t) ? t : 0 };
-      })
-      .sort((a, b) => b.t - a.t);
-    return withTime.slice(0, 5).map((x) => x.v);
-  }, [vehicleList]);
   const { data: assetsData } = useAssets(
     { asset_type: "vehicle" as any },
     { limit: 500 },
@@ -134,6 +114,28 @@ export default function Dashboard() {
     }
     return map;
   }, [assetsData]);
+
+  const connectedVehicles = useMemo(
+    () =>
+      vehicleList.filter(
+        (v) =>
+          vehicles[v.device_id]?.status === "online" &&
+          getDrivingStatus(v.last_record) === "moving" &&
+          deviceToVehicle[v.device_id] // Only show devices mapped to an asset
+      ),
+    [vehicleList, vehicles, deviceToVehicle]
+  );
+
+  const lastActiveVehicles = useMemo(() => {
+    const withTime = vehicleList
+      .filter((v) => deviceToVehicle[v.device_id]) // Only show devices mapped to an asset
+      .map((v) => {
+        const t = Date.parse(v.last_update);
+        return { v, t: Number.isFinite(t) ? t : 0 };
+      })
+      .sort((a, b) => b.t - a.t);
+    return withTime.slice(0, 5).map((x) => x.v);
+  }, [vehicleList, deviceToVehicle]);
 
 
   const loadDashboardStats = useCallback(
@@ -582,7 +584,7 @@ export default function Dashboard() {
               <div className="divide-y">
                 {connectedVehicles.slice(0, 5).map((vehicle) => {
                   const linked = deviceToVehicle[vehicle.device_id];
-                  const displayLabel = linked?.plate || linked?.name || "Unknown vehicle";
+                  const displayLabel = linked?.plate || linked?.name || "Unidentified Asset";
                   return (
                     <div
                       key={vehicle.device_id}
@@ -649,7 +651,7 @@ export default function Dashboard() {
               <div className="divide-y">
                 {lastActiveVehicles.map((vehicle) => {
                   const linked = deviceToVehicle[vehicle.device_id];
-                  const displayLabel = linked?.plate || linked?.name || vehicle.device_id;
+                  const displayLabel = linked?.plate || linked?.name || "Unidentified Asset";
                   const isOnline = vehicles[vehicle.device_id]?.status === "online";
                   return (
                     <div

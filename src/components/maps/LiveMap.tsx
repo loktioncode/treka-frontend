@@ -285,7 +285,9 @@ export default function LiveMap({
           </Source>
         )}
 
-        {vehicleList.map((vehicle) => {
+        {vehicleList
+          .filter((v) => deviceToVehicle?.[v.device_id]) // Never show unknown devices
+          .map((vehicle) => {
           const rec = vehicle.last_record;
           const pos = markerPositions[vehicle.device_id];
           const lastKnown = lastKnownPositionRef.current[vehicle.device_id];
@@ -341,7 +343,7 @@ export default function LiveMap({
                   <div className="p-2 min-w-[200px]">
                     <div className="flex items-center justify-between border-b pb-2 mb-2">
                       <h4 className="font-bold text-gray-900">
-                        {deviceToVehicle?.[vehicle.device_id]?.plate || deviceToVehicle?.[vehicle.device_id]?.name || "Unknown vehicle"}
+                        {deviceToVehicle?.[vehicle.device_id]?.plate || deviceToVehicle?.[vehicle.device_id]?.name || "Unidentified Asset"}
                       </h4>
                       <span className="text-[10px] text-gray-500">
                         {format(new Date(vehicle.last_update), "HH:mm:ss")}

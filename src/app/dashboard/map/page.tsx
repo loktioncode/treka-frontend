@@ -75,11 +75,13 @@ export default function FleetMapPage() {
   }, [tripPlans]);
 
   const filteredVehicles = vehicleList.filter((v) => {
-    const q = searchQuery.toLowerCase();
     const info = deviceToVehicle[v.device_id];
-    const plate = info?.plate?.toLowerCase() ?? "";
-    const name = info?.name?.toLowerCase() ?? "";
-    return v.device_id.toLowerCase().includes(q) || plate.includes(q) || name.includes(q);
+    if (!info) return false; // Never show unknown devices
+    
+    const q = searchQuery.toLowerCase();
+    const plate = info.plate?.toLowerCase() ?? "";
+    const name = info.name?.toLowerCase() ?? "";
+    return plate.includes(q) || name.includes(q) || v.device_id.toLowerCase().includes(q);
   });
 
   const selectedVehicle = selectedVehicleId
@@ -262,7 +264,7 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
                       </div>
                       <div>
                         <h3 className="text-sm font-bold text-gray-900 group-hover:text-blue-700">
-                          {deviceToVehicle[vehicle.device_id]?.plate || deviceToVehicle[vehicle.device_id]?.name || vehicle.device_id}
+                          {deviceToVehicle[vehicle.device_id]?.plate || deviceToVehicle[vehicle.device_id]?.name || "Unidentified Asset"}
                         </h3>
                         <div className="flex items-center gap-1.5 text-[10px] text-gray-500" title={lastDataFmt(vehicle.last_update)}>
                           <Clock className="h-3 w-3 shrink-0" />
@@ -377,7 +379,7 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
               Live vehicle data
             </h2>
             <p className="text-xs text-gray-500 mt-1 truncate" title={selectedVehicle.device_id}>
-              {deviceToVehicle[selectedVehicle.device_id]?.plate || deviceToVehicle[selectedVehicle.device_id]?.name || "Unknown vehicle"}
+              {deviceToVehicle[selectedVehicle.device_id]?.plate || deviceToVehicle[selectedVehicle.device_id]?.name || "Unidentified Asset"}
             </p>
             <p className="text-[10px] text-gray-600 mt-1 font-medium" title={`Received at: ${selectedVehicle.last_update}`}>
               Received at: {lastDataFmt(selectedVehicle.last_update)}
