@@ -633,6 +633,7 @@ export interface TelemetryRecord {
   // GPS
   lat?: number;
   lon?: number;
+  lng?: number;
   alt?: number;
   cog?: number;
   hdg?: number;
@@ -683,6 +684,7 @@ export interface TripReplayRecord {
   ts_server?: string;
   lat?: number;
   lon?: number;
+  lng?: number;
   spd?: number;
   rpm?: number;
   hdg?: number;

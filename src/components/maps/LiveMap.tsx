@@ -100,7 +100,7 @@ export default function LiveMap({
       let next = prev;
       for (const v of vehicleList) {
         const lat = v.last_record.lat;
-        const lon = v.last_record.lon ?? (v.last_record as unknown as { lng?: number }).lng;
+        const lon = v.last_record.lon ?? v.last_record.lng;
         if (lat != null && lon != null) {
           lastKnownPositionRef.current[v.device_id] = { lat, lon };
           const cur = prev[v.device_id];
@@ -122,7 +122,7 @@ export default function LiveMap({
         let next: Record<string, { lat: number; lon: number }> = prev;
         for (const v of list) {
           const lat = v.last_record.lat;
-          const lon = v.last_record.lon ?? (v.last_record as unknown as { lng?: number }).lng;
+          const lon = v.last_record.lon ?? v.last_record.lng;
           if (lat != null && lon != null) {
             lastKnownPositionRef.current[v.device_id] = { lat, lon };
             const key = v.device_id;
@@ -148,7 +148,7 @@ export default function LiveMap({
     const positions = vehicleList
       .map((v) => {
         const lat = v.last_record.lat;
-        const lon = v.last_record.lon ?? (v.last_record as unknown as { lng?: number }).lng;
+        const lon = v.last_record.lon ?? v.last_record.lng;
         return lat != null && lon != null ? [lon, lat] as [number, number] : null;
       })
       .filter((p): p is [number, number] => p !== null);
@@ -180,7 +180,7 @@ export default function LiveMap({
     hasFittedFleetRef.current = false;
     if (!vehicles[deviceId]) return;
     const record = vehicles[deviceId].last_record;
-    const lon = record.lon ?? (record as unknown as { lng?: number }).lng;
+    const lon = record.lon ?? record.lng;
     if (record.lat == null || lon == null) return;
 
     // Continuously update the center if it changes significantly to avoid jitter
@@ -198,10 +198,7 @@ export default function LiveMap({
   }, [deviceId, vehicles]);
 
   const getLon = (p: TelemetryRecord) =>
-    p.lon ??
-    (p as unknown as { lng?: number; longitude?: number; long?: number }).lng ??
-    (p as unknown as { lng?: number; longitude?: number; long?: number }).longitude ??
-    (p as unknown as { lng?: number; longitude?: number; long?: number }).long;
+    p.lon ?? p.lng;
 
   // Path: only encoded polyline routes (hardcoded test path)
   const pathGeoJson = useMemo(() => {

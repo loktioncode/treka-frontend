@@ -2262,7 +2262,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                             {liveVehicleRecord && (() => {
                               const r = liveVehicleRecord;
                               const lat = r.lat ?? null;
-                              const lng = (r as TelemetryRecord & { lng?: number }).lng ?? r.lon ?? null;
+                              const lng = r.lng ?? r.lon ?? null;
                               const hasCoords = lat != null && lng != null;
                               const mapsUrl = hasCoords ? `https://www.google.com/maps?q=${lat},${lng}` : null;
                               const isIgnitionOn =
@@ -2327,7 +2327,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                               .map((r, i) => {
                                 // API returns `lng`; type uses `lon` — support both
                                 const lat = r.lat ?? null;
-                                const lng = (r as TelemetryRecord & { lng?: number }).lng ?? r.lon ?? null;
+                                const lng = r.lng ?? r.lon ?? null;
                                 const hasCoords = lat != null && lng != null;
                                 const mapsUrl = hasCoords
                                   ? `https://www.google.com/maps?q=${lat},${lng}`
