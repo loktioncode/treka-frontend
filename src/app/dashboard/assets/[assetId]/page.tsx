@@ -147,6 +147,13 @@ export default function AssetViewPage() {
     val != null ? Number(val).toFixed(decimals) : null;
 
   const [, setLoadingTelemetry] = useState(false);
+
+  // GPS Logs tab dedicated state
+  const [gpsLogs, setGpsLogs] = useState<TelemetryRecord[]>([]);
+  const [gpsLogsLoading, setGpsLogsLoading] = useState(false);
+  const [gpsFilterStart, setGpsFilterStart] = useState("");
+  const [gpsFilterEnd, setGpsFilterEnd] = useState("");
+  const [gpsLogsLoaded, setGpsLogsLoaded] = useState(false);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loadingTrips, setLoadingTrips] = useState(false);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
@@ -369,6 +376,28 @@ Provide a concise, actionable insight for a fleet manager.`;
       console.error("Failed to fetch telemetry:", error);
     } finally {
       setLoadingTelemetry(false);
+    }
+  }, []);
+
+  const fetchGpsLogs = useCallback(async (
+    deviceId: string,
+    start?: string,
+    end?: string
+  ) => {
+    setGpsLogsLoading(true);
+    try {
+      const params: { start_date?: string; end_date?: string } = {};
+      if (start) params.start_date = new Date(start).toISOString();
+      if (end)   params.end_date   = new Date(end).toISOString();
+      const res = await telemetryAPI.getTelemetry(deviceId, 500, params);
+      setGpsLogs(res.records || []);
+      setGpsLogsLoaded(true);
+    } catch (error) {
+      console.error("Failed to load GPS logs:", error);
+      toast.error("Failed to load GPS logs");
+      setGpsLogs([]);
+    } finally {
+      setGpsLogsLoading(false);
     }
   }, []);
 
@@ -609,6 +638,12 @@ Provide a concise, actionable insight for a fleet manager.`;
       fetchTrips(asset.vehicle_details.device_id);
     }
   }, [activeTab, asset, fetchTrips]);
+
+  useEffect(() => {
+    if (activeTab === "gps_logs" && asset?.vehicle_details?.device_id && !gpsLogsLoaded) {
+      fetchGpsLogs(asset.vehicle_details.device_id);
+    }
+  }, [activeTab, asset, fetchGpsLogs, gpsLogsLoaded]);
 
   // Read tripId and tab from URL (e.g. from leaderboard link ?tab=trips&tripId=xxx)
   useEffect(() => {
@@ -2091,14 +2126,14 @@ Provide a concise, actionable insight for a fleet manager.`;
               <TabsContent value="gps_logs" className="space-y-6">
                 <Card>
                   <CardHeader>
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
                       <div>
                         <CardTitle className="flex items-center gap-2">
                           <MapPin className="w-5 h-5 text-teal-600" />
                           GPS Telemetry Logs
                         </CardTitle>
-                        <p className="text-sm text-gray-500">
-                          Historical location data for this vehicle (connected device telemetry)
+                        <p className="text-sm text-gray-500 mt-1">
+                          Historical location data for this vehicle — up to 500 records
                         </p>
                       </div>
                       {asset?.vehicle_details?.device_id && (
@@ -2131,66 +2166,228 @@ Provide a concise, actionable insight for a fleet manager.`;
                         </div>
                       )}
                     </div>
+
+                    {/* Datetime Filter Bar */}
+                    {asset?.vehicle_details?.device_id && (
+                      <div className="mt-4 flex flex-wrap items-end gap-3 bg-gray-50 border rounded-lg p-4">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-medium text-gray-600">From</label>
+                          <input
+                            type="datetime-local"
+                            value={gpsFilterStart}
+                            onChange={(e) => setGpsFilterStart(e.target.value)}
+                            className="text-sm border rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-medium text-gray-600">To</label>
+                          <input
+                            type="datetime-local"
+                            value={gpsFilterEnd}
+                            onChange={(e) => setGpsFilterEnd(e.target.value)}
+                            className="text-sm border rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          />
+                        </div>
+                        <Button
+                          size="sm"
+                          disabled={gpsLogsLoading}
+                          onClick={() => {
+                            if (asset.vehicle_details?.device_id) {
+                              fetchGpsLogs(asset.vehicle_details.device_id, gpsFilterStart || undefined, gpsFilterEnd || undefined);
+                            }
+                          }}
+                          className="bg-teal-600 hover:bg-teal-700 text-white"
+                        >
+                          {gpsLogsLoading ? "Loading…" : "Apply"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={gpsLogsLoading}
+                          onClick={() => {
+                            setGpsFilterStart("");
+                            setGpsFilterEnd("");
+                            if (asset.vehicle_details?.device_id) {
+                              fetchGpsLogs(asset.vehicle_details.device_id);
+                            }
+                          }}
+                        >
+                          Clear
+                        </Button>
+                        {gpsLogs.length > 0 && (
+                          <span className="text-xs text-gray-500 ml-auto self-end">
+                            {gpsLogs.filter((r) => r.lat != null && (r.lng ?? r.lon) != null).length} records with coordinates
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </CardHeader>
+
                   <CardContent>
                     {!asset?.vehicle_details?.device_id ? (
-                      <div className="text-center py-10 text-gray-500">
+                      <div className="text-center py-14 text-gray-400">
                         <MapPin className="mx-auto h-12 w-12 opacity-20 mb-3" />
-                        <p>Assign a device ID in Vehicle Details to view GPS logs.</p>
+                        <p className="font-medium">No device assigned</p>
+                        <p className="text-sm mt-1">Assign a device ID in Vehicle Details to view GPS logs.</p>
                       </div>
-                    ) : telemetry.length === 0 ? (
-                      <div className="text-center py-10 text-gray-500">
-                        <p>No GPS logs available yet.</p>
+                    ) : gpsLogsLoading ? (
+                      <div className="flex flex-col items-center justify-center py-14 gap-3 text-gray-500">
+                        <div className="w-8 h-8 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin" />
+                        <p className="text-sm">Loading GPS logs…</p>
+                      </div>
+                    ) : gpsLogs.length === 0 ? (
+                      <div className="text-center py-14 text-gray-400">
+                        <MapPin className="mx-auto h-12 w-12 opacity-20 mb-3" />
+                        <p className="font-medium">No GPS logs found</p>
+                        <p className="text-sm mt-1">Try adjusting the date range or check that the device is active.</p>
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left border">
+                        <table className="w-full text-sm text-left border rounded-lg overflow-hidden">
                           <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b">
                             <tr>
-                              <th className="px-4 py-3">Timestamp</th>
-                              <th className="px-4 py-3">Latitude</th>
-                              <th className="px-4 py-3">Longitude</th>
-                              <th className="px-4 py-3 border-l">Speed</th>
-                              <th className="px-4 py-3">Fuel Level</th>
-                              <th className="px-4 py-3 border-l">Voltage</th>
-                              <th className="px-4 py-3 text-right">Map</th>
+                              <th className="px-4 py-3 whitespace-nowrap">Timestamp</th>
+                              <th className="px-4 py-3 whitespace-nowrap">Latitude</th>
+                              <th className="px-4 py-3 whitespace-nowrap">Longitude</th>
+                              <th className="px-4 py-3 border-l whitespace-nowrap">Speed (km/h)</th>
+                              <th className="px-4 py-3 whitespace-nowrap">Fuel Level</th>
+                              <th className="px-4 py-3 whitespace-nowrap">Coolant °C</th>
+                              <th className="px-4 py-3 whitespace-nowrap">Voltage</th>
+                              <th className="px-4 py-3 whitespace-nowrap">Ignition</th>
+                              <th className="px-4 py-3 text-right whitespace-nowrap">Map</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {telemetry
-                              .filter((r) => r.lat != null && r.lon != null)
+                            {/* Pinned live row from MQTT */}
+                            {liveVehicleRecord && (() => {
+                              const r = liveVehicleRecord;
+                              const lat = r.lat ?? null;
+                              const lng = (r as TelemetryRecord & { lng?: number }).lng ?? r.lon ?? null;
+                              const hasCoords = lat != null && lng != null;
+                              const mapsUrl = hasCoords ? `https://www.google.com/maps?q=${lat},${lng}` : null;
+                              const isIgnitionOn =
+                                r.ignition != null
+                                  ? r.ignition
+                                  : (r.extras as Record<string, unknown>)?.["engine.ignition.status"] === true;
+                              return (
+                                <tr key="live" className="bg-teal-50 border-b border-teal-200 hover:bg-teal-100 transition-colors">
+                                  <td className="px-4 py-3 whitespace-nowrap">
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 bg-teal-100 border border-teal-300 px-2 py-0.5 rounded-full mr-2">
+                                      <span className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-pulse" />
+                                      Live
+                                    </span>
+                                    <span className="text-gray-700 text-xs">
+                                      {r.ts_server
+                                        ? new Date(r.ts_server).toLocaleString()
+                                        : r.ts
+                                        ? new Date(r.ts * 1000).toLocaleString()
+                                        : "Now"}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 font-mono text-gray-600">{lat != null ? lat.toFixed(6) : "—"}</td>
+                                  <td className="px-4 py-3 font-mono text-gray-600">{lng != null ? lng.toFixed(6) : "—"}</td>
+                                  <td className="px-4 py-3 border-l font-medium">
+                                    {r.spd != null ? (
+                                      <span className={r.spd > 0 ? "text-teal-700" : "text-gray-400"}>
+                                        {Number(r.spd).toFixed(1)}
+                                      </span>
+                                    ) : <span className="text-gray-400">—</span>}
+                                  </td>
+                                  <td className="px-4 py-3">{r.fl != null ? `${Number(r.fl).toFixed(1)}%` : "—"}</td>
+                                  <td className="px-4 py-3">
+                                    {r.tmp != null ? (
+                                      <span className={r.tmp > 105 ? "text-red-600 font-semibold" : "text-gray-700"}>
+                                        {Number(r.tmp).toFixed(0)}°C
+                                      </span>
+                                    ) : "—"}
+                                  </td>
+                                  <td className="px-4 py-3 text-blue-600">{r.vlt != null ? `${Number(r.vlt).toFixed(2)}V` : "—"}</td>
+                                  <td className="px-4 py-3">
+                                    <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${isIgnitionOn ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                                      <span className={`w-1.5 h-1.5 rounded-full ${isIgnitionOn ? "bg-green-500" : "bg-gray-400"}`} />
+                                      {isIgnitionOn ? "On" : "Off"}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    {hasCoords && mapsUrl ? (
+                                      <a href={mapsUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-teal-700 hover:text-teal-900 underline">
+                                        Map ↗
+                                      </a>
+                                    ) : <span className="text-xs text-gray-400">No coords</span>}
+                                  </td>
+                                </tr>
+                              );
+                            })()}
+                            {gpsLogs
                               .sort((a, b) => {
-                                const ta = a.ts_server ? new Date(a.ts_server).getTime() : a.ts ?? 0;
-                                const tb = b.ts_server ? new Date(b.ts_server).getTime() : b.ts ?? 0;
+                                const ta = a.ts_server ? new Date(a.ts_server).getTime() : (a.ts ?? 0) * 1000;
+                                const tb = b.ts_server ? new Date(b.ts_server).getTime() : (b.ts ?? 0) * 1000;
                                 return tb - ta;
                               })
-                              .slice(0, 100) // limit to recent 100 for performance
                               .map((r, i) => {
+                                // API returns `lng`; type uses `lon` — support both
                                 const lat = r.lat ?? null;
-                                const lon = r.lon ?? null;
-                                const hasCoords = lat != null && lon != null;
+                                const lng = (r as TelemetryRecord & { lng?: number }).lng ?? r.lon ?? null;
+                                const hasCoords = lat != null && lng != null;
                                 const mapsUrl = hasCoords
-                                  ? `https://www.google.com/maps?q=${lat},${lon}`
+                                  ? `https://www.google.com/maps?q=${lat},${lng}`
                                   : null;
+                                const isIgnitionOn =
+                                  r.ignition != null
+                                    ? r.ignition
+                                    : (r.extras as Record<string, unknown>)?.["engine.ignition.status"] === true;
                                 return (
-                                  <tr key={i} className="bg-white border-b hover:bg-gray-50">
-                                    <td className="px-4 py-3 whitespace-nowrap">
+                                  <tr key={i} className="bg-white border-b hover:bg-gray-50 transition-colors">
+                                    <td className="px-4 py-3 whitespace-nowrap text-gray-700">
                                       {r.ts_server
                                         ? new Date(r.ts_server).toLocaleString()
                                         : r.ts
                                         ? new Date(r.ts * 1000).toLocaleString()
                                         : "Unknown"}
                                     </td>
-                                    <td className="px-4 py-3 font-mono">{lat != null ? lat.toFixed(5) : "—"}</td>
-                                    <td className="px-4 py-3 font-mono">{lon != null ? lon.toFixed(5) : "—"}</td>
-                                    <td className="px-4 py-3 border-l">
-                                      {r.spd != null ? `${r.spd.toFixed(1)} km/h` : "—"}
+                                    <td className="px-4 py-3 font-mono text-gray-600">
+                                      {lat != null ? lat.toFixed(6) : "—"}
+                                    </td>
+                                    <td className="px-4 py-3 font-mono text-gray-600">
+                                      {lng != null ? lng.toFixed(6) : "—"}
+                                    </td>
+                                    <td className="px-4 py-3 border-l font-medium">
+                                      {r.spd != null ? (
+                                        <span className={r.spd > 0 ? "text-teal-700" : "text-gray-400"}>
+                                          {Number(r.spd).toFixed(1)}
+                                        </span>
+                                      ) : (
+                                        <span className="text-gray-400">—</span>
+                                      )}
                                     </td>
                                     <td className="px-4 py-3">
-                                      {r.fl != null ? `${r.fl.toFixed(1)}%` : "—"}
+                                      {r.fl != null ? `${Number(r.fl).toFixed(1)}%` : "—"}
                                     </td>
-                                    <td className="px-4 py-3 border-l text-blue-600">
-                                      {r.vlt != null ? `${r.vlt.toFixed(1)}V` : "—"}
+                                    <td className="px-4 py-3">
+                                      {r.tmp != null ? (
+                                        <span className={r.tmp > 105 ? "text-red-600 font-semibold" : "text-gray-700"}>
+                                          {Number(r.tmp).toFixed(0)}°C
+                                        </span>
+                                      ) : "—"}
+                                    </td>
+                                    <td className="px-4 py-3 text-blue-600">
+                                      {r.vlt != null ? `${Number(r.vlt).toFixed(2)}V` : "—"}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                      <span
+                                        className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
+                                          isIgnitionOn
+                                            ? "bg-green-100 text-green-700"
+                                            : "bg-gray-100 text-gray-500"
+                                        }`}
+                                      >
+                                        <span
+                                          className={`w-1.5 h-1.5 rounded-full ${
+                                            isIgnitionOn ? "bg-green-500" : "bg-gray-400"
+                                          }`}
+                                        />
+                                        {isIgnitionOn ? "On" : "Off"}
+                                      </span>
                                     </td>
                                     <td className="px-4 py-3 text-right">
                                       {hasCoords && mapsUrl ? (
@@ -2200,7 +2397,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                                           rel="noreferrer"
                                           className="inline-flex items-center gap-1 text-xs font-medium text-teal-700 hover:text-teal-900 underline"
                                         >
-                                          Open in Google Maps
+                                          Map ↗
                                         </a>
                                       ) : (
                                         <span className="text-xs text-gray-400">No coords</span>
