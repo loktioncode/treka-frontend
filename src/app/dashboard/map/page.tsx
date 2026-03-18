@@ -77,7 +77,7 @@ export default function FleetMapPage() {
   const filteredVehicles = vehicleList.filter((v) => {
     const info = deviceToVehicle[v.device_id];
     if (!info) return false; // Never show unknown devices
-    
+
     const q = searchQuery.toLowerCase();
     const plate = info.plate?.toLowerCase() ?? "";
     const name = info.name?.toLowerCase() ?? "";
@@ -257,8 +257,8 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
                           ? getDrivingStatus(vehicle.last_record) === "moving"
                             ? "bg-green-100 text-green-600"
                             : getDrivingStatus(vehicle.last_record) === "stationary"
-                            ? "bg-blue-100 text-blue-600"
-                            : "bg-gray-100 text-gray-400"
+                              ? "bg-blue-100 text-blue-600"
+                              : "bg-gray-100 text-gray-400"
                           : "bg-gray-100 text-gray-400"
                           }`}
                       >
@@ -272,7 +272,7 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
                           <Clock className="h-3 w-3 shrink-0" />
                           <span>{lastDataFmt(vehicle.last_update)}</span>
                         </div>
-                        {vehicles[vehicle.device_id]?.status === "online" }
+                        {vehicles[vehicle.device_id]?.status === "online"}
                       </div>
                     </div>
                     <ChevronRight
@@ -386,14 +386,7 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
             <p className="text-[10px] text-gray-600 mt-1 font-medium" title={`Received at: ${selectedVehicle.last_update}`}>
               Received at: {lastDataFmt(selectedVehicle.last_update)}
             </p>
-            <p className="text-[10px] text-gray-600 mt-0.5 font-medium" title={`ECU/OBD2 data timestamp (when device produced this sample): ${selectedVehicle.last_record.ts ?? "—"}`}>
-              ECU/OBD2 data at: {ecuTsFmt(selectedVehicle.last_record.ts)}
-            </p>
-            {vehicles[selectedVehicle.device_id]?.status === "online" ? (
-              <Badge className="mt-1 bg-green-100 text-green-700 border-green-200 text-[10px]">Live (last {LIVE_STALE_MINUTES} min)</Badge>
-            ) : (
-              <Badge variant="outline" className="mt-1 text-gray-500 text-[10px]">Offline / stale</Badge>
-            )}
+
           </div>
           <div className="p-4 space-y-3 flex-1">
             {/* Available CAN  Flespi fields */}
@@ -417,24 +410,7 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
               ];
               const available = canFields.filter((f) => f.value != null && f.value !== "");
               if (available.length === 0) return null;
-              return (
-                <Card className="bg-slate-50 border-slate-200">
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Sparkles className="h-3.5 w-3 text-slate-600" />
-                      <span className="text-[10px] uppercase text-slate-700 font-bold">Live CAN / Flespi</span>
-                    </div>
-                    <p className="text-[10px] text-slate-500 mb-1.5">Available in this session:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {available.map((f) => (
-                        <Badge key={f.label} variant="secondary" className="text-[9px] font-normal bg-slate-200/80 text-slate-700">
-                          {f.label}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
+
             })()}
 
             {/* Ignition + GSM */}
@@ -681,10 +657,9 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
             ) : null}
 
             {/* Status */}
-            <div className={`text-center text-xs font-bold py-2 rounded-lg ${
-              getDrivingStatus(selectedVehicle.last_record) === "moving" ? "bg-green-100 text-green-700" :
+            <div className={`text-center text-xs font-bold py-2 rounded-lg ${getDrivingStatus(selectedVehicle.last_record) === "moving" ? "bg-green-100 text-green-700" :
               getDrivingStatus(selectedVehicle.last_record) === "stationary" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"
-            }`}>
+              }`}>
               ● {getDrivingStatusLabel(selectedVehicle.last_record)}
             </div>
           </div>
