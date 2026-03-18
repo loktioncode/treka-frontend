@@ -984,7 +984,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                       start.setHours(0, 0, 0, 0);
                       const end = globalEndDate ? new Date(globalEndDate) : new Date(val);
                       end.setHours(23, 59, 59, 999);
-                      fetchTelemetry(asset.vehicle_details.device_id, 1000, start.toISOString(), end.toISOString());
+                      fetchTelemetry(asset.vehicle_details.device_id, 3000, start.toISOString(), end.toISOString());
                     }
                   }}
                   className="text-xs border-none focus:ring-0 bg-transparent outline-none w-28"
@@ -1002,7 +1002,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                       start.setHours(0, 0, 0, 0);
                       const end = new Date(val);
                       end.setHours(23, 59, 59, 999);
-                      fetchTelemetry(asset.vehicle_details.device_id, 1000, start.toISOString(), end.toISOString());
+                      fetchTelemetry(asset.vehicle_details.device_id, 3000, start.toISOString(), end.toISOString());
                     }
                   }}
                   className="text-xs border-none focus:ring-0 bg-transparent outline-none w-28"
@@ -1014,7 +1014,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                   onClick={() => {
                     setGlobalStartDate("");
                     setGlobalEndDate("");
-                    if (asset.vehicle_details?.device_id) fetchTelemetry(asset.vehicle_details.device_id, 1000);
+                    if (asset.vehicle_details?.device_id) fetchTelemetry(asset.vehicle_details.device_id, 3000);
                   }}
                   className="ml-1 text-gray-400 hover:text-gray-600"
                 >
