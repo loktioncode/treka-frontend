@@ -1,4 +1,4 @@
-export type AuditAction = 
+export type AuditAction =
   | 'user_login' | 'user_logout' | 'user_created' | 'user_updated' | 'user_deactivated'
   | 'client_created' | 'client_updated' | 'client_deactivated'
   | 'asset_created' | 'asset_updated' | 'asset_deleted'
@@ -21,6 +21,7 @@ export interface AuditHistoryEntry {
   reason?: string;
   days_until_maintenance?: number;
 }
+
 
 export interface AuditEntry {
   id: string;
