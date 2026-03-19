@@ -2240,6 +2240,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                               <th className="px-4 py-3 border-l whitespace-nowrap">Speed (km/h)</th>
                               <th className="px-4 py-3 whitespace-nowrap">Fuel Level</th>
                               <th className="px-4 py-3 whitespace-nowrap">Coolant °C</th>
+                              <th className="px-4 py-3 whitespace-nowrap">Odometer</th>
                               <th className="px-4 py-3 whitespace-nowrap">Voltage</th>
                               <th className="px-4 py-3 whitespace-nowrap">Ignition</th>
                               <th className="px-4 py-3 text-right whitespace-nowrap">Map</th>
@@ -2327,6 +2328,18 @@ Provide a concise, actionable insight for a fleet manager.`;
                                   r.ignition != null
                                     ? r.ignition
                                     : (r.extras as Record<string, unknown>)?.["engine.ignition.status"] === true;
+                                
+                                const extras = (r.extras || {}) as Record<string, any>;
+                                // Prioritize external voltage (vehicle battery) over internal tracker battery if external is likely valid
+                                const externalV = extras["external.powersource.voltage"];
+                                const displayVlt = (externalV && externalV > 9) ? externalV : r.vlt;
+
+                                // Prioritize GPS speed or CAN speed if main spd is 0 (standard for many devices)
+                                let displaySpeed = r.spd || 0;
+                                if (displaySpeed === 0) {
+                                  displaySpeed = r.gspd || extras["can.vehicle.speed"] || 0;
+                                }
+
                                 return (
                                   <tr key={i} className="bg-white border-b hover:bg-gray-50 transition-colors">
                                     <td className="px-4 py-3 whitespace-nowrap text-gray-700">
@@ -2343,9 +2356,9 @@ Provide a concise, actionable insight for a fleet manager.`;
                                       {lng != null ? lng.toFixed(6) : "—"}
                                     </td>
                                     <td className="px-4 py-3 border-l font-medium">
-                                      {r.spd != null ? (
-                                        <span className={r.spd > 0 ? "text-teal-700" : "text-gray-400"}>
-                                          {Number(r.spd).toFixed(1)}
+                                      {displaySpeed != null ? (
+                                        <span className={Number(displaySpeed) > 0 ? "text-teal-700" : "text-gray-400"}>
+                                          {Number(displaySpeed).toFixed(1)}
                                         </span>
                                       ) : (
                                         <span className="text-gray-400">—</span>
@@ -2361,8 +2374,11 @@ Provide a concise, actionable insight for a fleet manager.`;
                                         </span>
                                       ) : "—"}
                                     </td>
+                                    <td className="px-4 py-3 text-gray-600">
+                                      {r.odo != null ? `${Number(r.odo).toLocaleString()} km` : "—"}
+                                    </td>
                                     <td className="px-4 py-3 text-blue-600">
-                                      {r.vlt != null ? `${Number(r.vlt).toFixed(2)}V` : "—"}
+                                      {displayVlt != null ? `${Number(displayVlt).toFixed(2)}V` : "—"}
                                     </td>
                                     <td className="px-4 py-3">
                                       <span
