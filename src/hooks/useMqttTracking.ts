@@ -474,6 +474,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
             `color: white; background: ${logColor}; padding: 2px 6px; border-radius: 4px; font-weight: bold;`
         );
         console.log(`   > Values: Odo=${odoVal} | RPM=${rpmVal} | Ignition=${record.ignition}`);
+        console.log(`   > Full Record:`, record);
         console.log(`   > Keys: ${receivedKeys.join(', ')}`);
 
         setVehicles((prev) => {
@@ -543,38 +544,11 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
         }
     }, [allowedDeviceIds, deviceId, applyFlespiPosition, enabled]);
 
-    // Sync initial Flespi state for all relevant devices on mount
+    // Initial state is automatically handled by MQTT 'Retained' messages from Flespi.
+    // Subscribing to 'flespi/state/gw/devices/+/telemetry/#' populates the dashboard on connect.
     useEffect(() => {
         if (!user || !enabled || assetsLoading) return;
-        const devices = deviceId
-            ? [deviceId]
-            : assets.filter((a: Asset) => a.vehicle_details?.device_id).map((a: Asset) => String(a.vehicle_details!.device_id));
-
-        if (devices.length === 0) return;
-
-        // Fetch current state from Flespi API to populate real-time diagnostics (RPM, Fuel, etc.) immediately
-        const fToken = FLESPI_USERNAME.split(' ')[1];
-        fetch(`https://flespi.io/gw/devices/${devices.join(',')}/state`, {
-            headers: { 'Authorization': `FlespiToken ${fToken}` }
-        })
-            .then(r => r.json())
-            .then((data: FlespiStatePayload) => {
-                if (data.result) {
-                    data.result.forEach(res => {
-                        const did = String(res.id);
-                        if (res.telemetry) {
-                            const cache = (flespiTelemetryCacheRef.current[did] ??= {});
-                            Object.entries(res.telemetry).forEach(([k, v]) => {
-                                cache[k] = v;
-                            });
-                            const record = flespiTelemetryToRecord(did, cache);
-                            if (record) applyFlespiPosition(did, record);
-                        }
-                    });
-                }
-            })
-            .catch(err => console.error('Flespi initial state fetch failed:', err));
-    }, [user, enabled, assetsLoading, deviceId, assets, applyFlespiPosition]);
+    }, [user, enabled, assetsLoading]);
 
     const connect = useCallback(() => {
         if (!user || !enabled) return;
