@@ -643,6 +643,8 @@ export interface TelemetryRecord {
   mov?: boolean;
   /** Engine/ignition on (true) or off (false). Flespi: engine.ignition.status. When false, engine is off regardless of cached RPM. */
   ignition?: boolean;
+  /** Current driving status: moving (spd > 0), idle (spd = 0, engine on), or off (spd = 0, engine off). Matches dashboard color codes. */
+  status?: "moving" | "idle" | "off";
 }
 
 export interface TelemetryHistoryResponse {

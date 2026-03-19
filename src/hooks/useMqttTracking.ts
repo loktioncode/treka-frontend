@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import mqtt from 'mqtt';
 import { useAssets } from '@/hooks/useAssets';
 import { telemetryAPI, type Asset } from '@/services/api';
+import { getDrivingStatus, getDrivingStatusLabel } from '@/lib/driving-status';
 
 interface TrackingMessage {
     type?: 'telemetry' | 'incident' | 'geofence';
@@ -398,6 +399,15 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
             writeLastPositions(next);
         }
         const dataTime = record.ts_server || (record.ts != null ? new Date(record.ts * 1000).toISOString() : new Date().toISOString());
+
+        // Color-coded console logging for live monitoring (Flespi)
+        const dStatus = getDrivingStatus(record);
+        const logColor = dStatus === 'moving' ? '#22c55e' : dStatus === 'idle' ? '#3b82f6' : '#94a3b8';
+        console.log(
+            `%c[FLESPI] ${flespiDeviceId} | ${getDrivingStatusLabel(record).toUpperCase()} | Speed: ${record.spd?.toFixed(1) ?? '0'} km/h | Odo: ${record.odo?.toFixed(0) ?? '—'} km`,
+            `color: white; background: ${logColor}; padding: 2px 6px; border-radius: 4px; font-weight: bold;`
+        );
+
         setVehicles((prev) => {
             const existing = prev[flespiDeviceId]?.last_record;
             const lastRecord: TelemetryRecord = {
@@ -500,7 +510,11 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                 const client = mqtt.connect(brokerUrl, options);
                 clientRef.current = client;
                 const subscribeHive = () => {
-                    if (!client.connected) return;
+                    // Check if component still active and client is still our primary connected client
+                    if (!activeRef.current || !client.connected || client !== clientRef.current) return;
+                    // @ts-ignore - MQTT.js has disconnecting property internally
+                    if (client.disconnecting) return;
+
                     try {
                         if (deviceId) {
                             client.subscribe(`trekaman/telematrics/${deviceId}`, { qos: 0 });
@@ -519,7 +533,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                     if (!activeRef.current) return;
                     connectedCountRef.current.hive = 1;
                     updateConnected();
-                    setTimeout(subscribeHive, 0);
+                    subscribeHive(); // Call immediately on connect for faster setup
                 });
                 client.on('reconnect', () => {
                     if (activeRef.current) updateConnected();
@@ -561,6 +575,15 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                                     pit: data.pit ?? latestRecord.pit,
                                 };
                                 const dataTime = record.ts_server || (record.ts != null ? new Date(record.ts * 1000).toISOString() : new Date().toISOString());
+                                
+                                // Color-coded console logging for live monitoring
+                                const dStatus = getDrivingStatus(record);
+                                const logColor = dStatus === 'moving' ? '#22c55e' : dStatus === 'idle' ? '#3b82f6' : '#94a3b8';
+                                console.log(
+                                    `%c[MQTT] ${actualDeviceId} | ${getDrivingStatusLabel(record).toUpperCase()} | Speed: ${record.spd?.toFixed(1) ?? '0'} km/h | Odo: ${record.odo?.toFixed(0) ?? '—'} km`,
+                                    `color: white; background: ${logColor}; padding: 2px 6px; border-radius: 4px; font-weight: bold;`
+                                );
+
                                 setVehicles((prev) => {
                                     const existing = prev[actualDeviceId]?.last_record;
                                     const lastRecord: TelemetryRecord = {
@@ -658,7 +681,11 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                 const client = mqtt.connect(FLESPI_BROKER_URL, options);
                 flespiClientRef.current = client;
                 const subscribeFlespi = () => {
-                    if (!client.connected) return;
+                    // Check if component still active and client is still our primary connected client
+                    if (!activeRef.current || !client.connected || client !== flespiClientRef.current) return;
+                    // @ts-ignore - MQTT.js has disconnecting property internally
+                    if (client.disconnecting) return;
+
                     try {
                         if (deviceId) {
                             client.subscribe(`flespi/state/gw/devices/${deviceId}/telemetry/+`, { qos: 1 });
@@ -673,7 +700,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                     if (!activeRef.current) return;
                     connectedCountRef.current.flespi = 1;
                     updateConnected();
-                    setTimeout(subscribeFlespi, 0);
+                    subscribeFlespi(); // Call immediately on connect for faster setup
                 });
                 client.on('reconnect', () => {
                     if (activeRef.current) updateConnected();

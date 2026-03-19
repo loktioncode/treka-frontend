@@ -29,8 +29,8 @@ import { Button } from "@/components/ui/button";
 
 
 
-/** Vehicle status for map icon: red = serious, orange = warning, gray = engine off, green = moving, blue = stationary (engine on) */
-function getVehicleStatus(record: TelemetryRecord): "serious" | "warning" | "ok" | "stationary" | "idle" {
+/** Vehicle status for map icon: red = serious, orange = warning, gray = engine off, green = moving, blue = idling (stationary, engine on) */
+function getVehicleStatus(record: TelemetryRecord): "serious" | "warning" | "ok" | "idle" | "off" {
   const vlt = record.vlt ?? 0;
   const tmp = record.tmp ?? 0;
   const hbk = record.hbk ?? 0;
@@ -46,8 +46,8 @@ function getVehicleStatus(record: TelemetryRecord): "serious" | "warning" | "ok"
   if (spd > 120) return "warning";
   const driving = getDrivingStatus(record);
   if (driving === "moving") return "ok";
-  if (driving === "stationary") return "stationary";
-  return "idle";
+  if (driving === "idle") return "idle";
+  return "off";
 }
 
 interface LiveMapProps {
@@ -404,7 +404,7 @@ export default function LiveMap({
             const lastKnown = lastKnownPositionRef.current[vehicle.device_id];
             const lat = pos?.lat ?? rec.lat ?? lastKnown?.lat;
             const lon = pos?.lon ?? getLon(rec) ?? lastKnown?.lon;
-            const { hdg } = rec;
+            const hdg = rec.hdg ?? 0;
             if (lat == null || lon == null) return null;
             const status = getVehicleStatus(rec);
             const iconBg =
@@ -413,10 +413,10 @@ export default function LiveMap({
                 : status === "warning"
                   ? "bg-orange-500 border-white"
                   : status === "idle"
-                  ? "bg-gray-400 border-white"
-                  : status === "stationary"
-                  ? "bg-blue-500 border-white"
-                  : "bg-green-600 border-white";
+                  ? "bg-blue-500 border-white" // blue for idle (engine on)
+                  : status === "off"
+                  ? "bg-gray-400 border-white" // gray for off
+                  : "bg-green-500 border-white"; // bright green for ok (moving)
 
             return (
               <React.Fragment key={vehicle.device_id}>
@@ -431,7 +431,7 @@ export default function LiveMap({
                 >
                   <div
                     className="relative cursor-pointer transition-transform hover:scale-110"
-                    style={{ transform: `rotate(${hdg || 0}deg)` }}
+                    style={{ transform: `rotate(${hdg}deg)` }}
                   >
                     <div className={`p-1.5 rounded-full shadow-md border-2 ${iconBg}`}>
                       <Car className="h-4 w-4 text-white" />
@@ -442,6 +442,86 @@ export default function LiveMap({
               </React.Fragment>
             );
           })}
+
+        {/* Info Popup for Selected Vehicle */}
+        {selectedVehicle && (
+          <Popup
+            latitude={selectedVehicle.last_record.lat!}
+            longitude={getLon(selectedVehicle.last_record)!}
+            closeButton={true}
+            closeOnClick={false}
+            onClose={() => handleSelectVehicle(null)}
+            anchor="bottom"
+            offset={20}
+            maxWidth="240px"
+            className="z-50"
+          >
+            <div className="p-1">
+              <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
+                <div className={`p-1.5 rounded-lg ${getVehicleStatus(selectedVehicle.last_record) === 'serious' ? 'bg-red-50' : 'bg-blue-50'}`}>
+                  <Car className={`h-4 w-4 ${getVehicleStatus(selectedVehicle.last_record) === 'serious' ? 'text-red-500' : 'text-blue-500'}`} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-gray-900 leading-tight">
+                    {deviceToVehicle?.[selectedVehicle.device_id]?.name || `Device ${selectedVehicle.device_id}`}
+                  </h4>
+                  <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">
+                    {deviceToVehicle?.[selectedVehicle.device_id]?.plate || selectedVehicle.last_record.vin || "No Plate"}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-500">Status</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    getDrivingStatus(selectedVehicle.last_record) === 'moving' ? 'bg-green-100 text-green-700' :
+                    getDrivingStatus(selectedVehicle.last_record) === 'idle' ? 'bg-blue-100 text-blue-700' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>
+                    {getDrivingStatusLabel(selectedVehicle.last_record)}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center text-xs text-gray-600">
+                  <span>Speed</span>
+                  <span className="font-semibold">{(selectedVehicle.last_record.spd || 0).toFixed(0)} km/h</span>
+                </div>
+
+                {selectedVehicle.last_record.odo !== undefined && (
+                  <div className="flex justify-between items-center text-xs text-gray-600">
+                    <span>Odometer</span>
+                    <span className="font-semibold">{(selectedVehicle.last_record.odo || 0).toLocaleString()} km</span>
+                  </div>
+                )}
+                
+                <div className="flex justify-between items-center text-xs text-gray-600">
+                  <span>Location</span>
+                  <span className="font-semibold text-[10px] text-blue-600">
+                    {selectedVehicle.last_record.lat?.toFixed(5)}, {(selectedVehicle.last_record.lon ?? selectedVehicle.last_record.lng)?.toFixed(5)}
+                  </span>
+                </div>
+                
+                <div className="pt-1 mt-1 text-[9px] text-gray-400 font-medium">
+                  Last seen {format(new Date(selectedVehicle.last_record.ts_server || selectedVehicle.last_record.ts || Date.now()), "HH:mm:ss")}
+                </div>
+              </div>
+
+              {!deviceId && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    className="w-full h-8 text-xs font-bold bg-blue-600 hover:bg-blue-700"
+                    onClick={() => window.location.href = `/dashboard/assets/${selectedVehicle.device_id}`}
+                  >
+                    View Full Details
+                  </Button>
+                </div>
+              )}
+            </div>
+          </Popup>
+        )}
 
         {/* Static/Replay Historical Marker (if not live) */}
         {!live && displayedHistoricalPos && (

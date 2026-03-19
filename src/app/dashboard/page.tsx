@@ -593,7 +593,7 @@ export default function Dashboard() {
                       <div className="flex items-center gap-3">
                         <div
                           className={`w-2 h-2 rounded-full ${getDrivingStatus(vehicle.last_record) === "moving" ? "bg-green-500 animate-pulse" :
-                              getDrivingStatus(vehicle.last_record) === "stationary" ? "bg-blue-500" : "bg-gray-400"
+                              getDrivingStatus(vehicle.last_record) === "idle" ? "bg-blue-500" : "bg-gray-400"
                             }`}
                         />
                         <div className="flex flex-col">

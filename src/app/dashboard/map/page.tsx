@@ -57,6 +57,7 @@ export default function FleetMapPage() {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(
     null,
   );
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
 
@@ -195,10 +196,25 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
   };
 
   return (
-    <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-gray-50">
+    <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-gray-50 relative">
+      {/* Sidebar Toggle Button (Floating) */}
+      <button
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        className={`absolute top-1/2 -translate-y-1/2 z-30 bg-white border border-gray-200 shadow-md p-1.5 rounded-full transition-all duration-300 hover:bg-gray-50 focus:outline-none ${
+          isSidebarOpen ? "left-[308px]" : "left-4"
+        }`}
+        title={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+      >
+        <ChevronRight className={`h-4 w-4 text-gray-500 transition-transform duration-300 ${isSidebarOpen ? "rotate-180" : ""}`} />
+      </button>
+
       {/* Sidebar */}
-      <div className="w-80 border-r bg-white flex flex-col shadow-sm z-10">
-        <div className="p-4 border-b space-y-4">
+      <div 
+        className={`border-r bg-white flex flex-col shadow-sm z-20 transition-all duration-300 ease-in-out relative ${
+          isSidebarOpen ? "w-80 opacity-100 translate-x-0" : "w-0 opacity-0 -translate-x-full overflow-hidden"
+        }`}
+      >
+        <div className="p-4 border-b space-y-4 min-w-[320px]">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
               <MapIcon className="h-5 w-5 text-blue-600" />
@@ -235,84 +251,93 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="flex-1 overflow-y-auto custom-scrollbar min-w-[320px]">
           {filteredVehicles.length > 0 ? (
             <div className="divide-y divide-gray-100">
-              {filteredVehicles.map((vehicle) => (
-                <div
-                  key={vehicle.device_id}
-                  onClick={() => setSelectedVehicleId(
-                    selectedVehicleId === vehicle.device_id ? null : vehicle.device_id
-                  )}
-                  className={`p-4 cursor-pointer transition-all hover:bg-blue-50/50 group ${selectedVehicleId === vehicle.device_id
-                    ? "bg-blue-50 border-r-4 border-blue-600"
-                    : ""
-                    }`}
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`p-2 rounded-lg ${vehicles[vehicle.device_id]?.status === "online"
-                          ? getDrivingStatus(vehicle.last_record) === "moving"
-                            ? "bg-green-100 text-green-600"
-                            : getDrivingStatus(vehicle.last_record) === "stationary"
-                              ? "bg-blue-100 text-blue-600"
+              {filteredVehicles.map((vehicle) => {
+                const isMoving = getDrivingStatus(vehicle.last_record) === "moving";
+                const isIdle = getDrivingStatus(vehicle.last_record) === "idle";
+                const isOnline = vehicles[vehicle.device_id]?.status === "online";
+                
+                return (
+                  <div
+                    key={vehicle.device_id}
+                    onClick={() => setSelectedVehicleId(
+                      selectedVehicleId === vehicle.device_id ? null : vehicle.device_id
+                    )}
+                    className={`p-4 cursor-pointer transition-all hover:bg-blue-50/50 group ${selectedVehicleId === vehicle.device_id
+                      ? "bg-blue-50 border-r-4 border-blue-600 font-medium"
+                      : ""
+                      }`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`p-2 rounded-lg transition-colors ${
+                            isOnline
+                              ? isMoving
+                                ? "bg-green-500 text-white shadow-sm"
+                                : isIdle
+                                  ? "bg-blue-500 text-white shadow-sm"
+                                  : "bg-gray-100 text-gray-400"
                               : "bg-gray-100 text-gray-400"
-                          : "bg-gray-100 text-gray-400"
                           }`}
-                      >
-                        <Car className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-gray-900 group-hover:text-blue-700">
-                          {deviceToVehicle[vehicle.device_id]?.plate || deviceToVehicle[vehicle.device_id]?.name || "Unidentified Asset"}
-                        </h3>
-                        <div className="flex items-center gap-1.5 text-[10px] text-gray-500" title={lastDataFmt(vehicle.last_update)}>
-                          <Clock className="h-3 w-3 shrink-0" />
-                          <span>{lastDataFmt(vehicle.last_update)}</span>
+                        >
+                          <Car className="h-4 w-4" />
                         </div>
-                        {vehicles[vehicle.device_id]?.status === "online"}
+                        <div>
+                          <h3 className="text-sm font-bold text-gray-900 group-hover:text-blue-700">
+                            {deviceToVehicle[vehicle.device_id]?.plate || deviceToVehicle[vehicle.device_id]?.name || "Unidentified Asset"}
+                          </h3>
+                          <div className="flex items-center gap-1.5 text-[10px] text-gray-500" title={lastDataFmt(vehicle.last_update)}>
+                            <Clock className="h-3 w-3 shrink-0" />
+                            <span>{lastDataFmt(vehicle.last_update)}</span>
+                            {isOnline && (
+                              <span className="inline-flex items-center ml-1 px-1 rounded-sm bg-green-50 text-green-600 text-[8px] font-bold uppercase">Online</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <ChevronRight
+                        className={`h-4 w-4 text-gray-300 group-hover:text-blue-400 transition-transform ${selectedVehicleId === vehicle.device_id
+                          ? "rotate-90 text-blue-600"
+                          : ""
+                          }`}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 mt-3">
+                      <div className={`p-1.5 rounded-md flex flex-col items-center justify-center transition-colors ${isMoving ? 'bg-green-50' : 'bg-gray-50'}`}>
+                        <span className={`text-[9px] uppercase font-bold ${isMoving ? 'text-green-600' : 'text-gray-400'}`}>
+                          Speed
+                        </span>
+                        <span className={`text-xs font-bold ${isMoving ? 'text-green-700' : 'text-gray-700'}`}>
+                          {vehicle.last_record.spd?.toFixed(0) || 0}{" "}
+                          <span className="text-[9px] font-normal">km/h</span>
+                        </span>
+                      </div>
+                      <div className="bg-gray-50 p-1.5 rounded-md flex flex-col items-center justify-center">
+                        <span className="text-[9px] uppercase text-gray-400 font-bold">
+                          Voltage
+                        </span>
+                        <span className="text-xs font-bold text-blue-600">
+                          {vehicle.last_record.vlt?.toFixed(1) || 0}V
+                        </span>
                       </div>
                     </div>
-                    <ChevronRight
-                      className={`h-4 w-4 text-gray-300 group-hover:text-blue-400 transition-transform ${selectedVehicleId === vehicle.device_id
-                        ? "rotate-90 text-blue-600"
-                        : ""
-                        }`}
-                    />
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-2 mt-3">
-                    <div className="bg-gray-50 p-1.5 rounded-md flex flex-col items-center justify-center">
-                      <span className="text-[9px] uppercase text-gray-400 font-bold">
-                        Speed
-                      </span>
-                      <span className="text-xs font-bold text-gray-700">
-                        {vehicle.last_record.spd?.toFixed(0) || 0}{" "}
-                        <span className="text-[9px] font-normal">km/h</span>
-                      </span>
-                    </div>
-                    <div className="bg-gray-50 p-1.5 rounded-md flex flex-col items-center justify-center">
-                      <span className="text-[9px] uppercase text-gray-400 font-bold">
-                        Voltage
-                      </span>
-                      <span className="text-xs font-bold text-blue-600">
-                        {vehicle.last_record.vlt?.toFixed(1) || 0}V
-                      </span>
-                    </div>
+                    {vehicle.last_record.hbk ? (
+                      <div className="mt-2 flex items-center gap-1 text-[10px] text-red-500 bg-red-50 px-2 py-1 rounded border border-red-100 font-medium">
+                        <Activity className="h-3 w-3 animate-pulse" />
+                        Harsh Event Detected
+                      </div>
+                    ) : null}
                   </div>
-
-                  {vehicle.last_record.hbk ? (
-                    <div className="mt-2 flex items-center gap-1 text-[10px] text-red-500 bg-red-50 px-2 py-1 rounded border border-red-100 font-medium">
-                      <Activity className="h-3 w-3 animate-pulse" />
-                      Harsh Event Detected
-                    </div>
-                  ) : null}
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
-            <div className="p-8 text-center">
+            <div className="p-8 text-center min-w-[320px]">
               <div className="bg-gray-50 rounded-full h-12 w-12 flex items-center justify-center mx-auto mb-3">
                 <Navigation className="h-6 w-6 text-gray-300" />
               </div>
@@ -324,7 +349,7 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
         </div>
 
         {/* User Stats Summary */}
-        <div className="p-4 border-t bg-gray-50 mt-auto">
+        <div className="p-4 border-t bg-gray-50 mt-auto min-w-[320px]">
           <div className="grid grid-cols-2 gap-3">
             <div className="text-center">
               <p className="text-[10px] text-gray-400 uppercase font-bold">
@@ -348,7 +373,7 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
       </div>
 
       {/* Main Map Area */}
-      <div className="flex-1 relative bg-gray-200 min-w-0">
+      <div className="flex-1 relative bg-gray-200 min-w-0 h-full">
         <LiveMap
           deviceId={selectedVehicleId || undefined}
           height="100%"
@@ -373,13 +398,21 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
 
       {/* Right column: Live KPI cards when a vehicle is selected */}
       {selectedVehicleId && selectedVehicle && (
-        <div className="w-72 border-l bg-white flex flex-col shadow-sm z-10 overflow-y-auto">
+        <div className="w-72 border-l bg-white flex flex-col shadow-sm z-20 overflow-y-auto transform transition-transform duration-300">
           <div className="p-4 border-b">
-            <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-              <Car className="h-4 w-4 text-blue-600" />
-              Live vehicle data
-            </h2>
-            <p className="text-xs text-gray-500 mt-1 truncate" title={selectedVehicle.device_id}>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                <Car className="h-4 w-4 text-blue-600" />
+                Live vehicle data
+              </h2>
+              <button 
+                onClick={() => setSelectedVehicleId(null)}
+                className="text-gray-400 hover:text-gray-600 p-1"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 truncate" title={selectedVehicle.device_id}>
               {deviceToVehicle[selectedVehicle.device_id]?.plate || deviceToVehicle[selectedVehicle.device_id]?.name || "Unidentified Asset"}
             </p>
             <p className="text-[10px] text-gray-600 mt-1 font-medium" title={`Received at: ${selectedVehicle.last_update}`}>
@@ -388,28 +421,14 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
 
           </div>
           <div className="p-4 space-y-3 flex-1">
-            {/* Available CAN  Flespi fields */}
-            {(() => {
-              const r = selectedVehicle.last_record;
-              const canFields: { label: string; value: unknown }[] = [
-                { label: "Speed", value: r.spd },
-                { label: "RPM", value: r.rpm },
-                { label: "Voltage", value: r.vlt },
-                { label: "Coolant", value: r.tmp },
-                { label: "Fuel %", value: r.fl },
-                { label: "Fuel (L)", value: r.fuel_vol ?? getExtra(r, "can.fuel.volume") },
-                { label: "Odometer", value: r.odo },
-                { label: "Load", value: r.lod },
-                { label: "Heading", value: r.hdg },
-                { label: "Altitude", value: r.alt },
-                { label: "Satellites", value: r.nsat },
-                { label: "Ignition", value: r.ignition ?? getExtra(r as any, "engine.ignition.status") },
-                { label: "GSM Signal", value: getExtra(r as any, "gsm.signal.level") },
-              ];
-              const available = canFields.filter((f) => f.value != null && f.value !== "");
-              if (available.length === 0) return null;
-
-            })()}
+            {/* Available CAN / Flespi fields - cards rendered below */}
+            
+            {/* Status (Top of right panel) */}
+            <div className={`text-center text-xs font-bold py-2 rounded-lg ${getDrivingStatus(selectedVehicle.last_record) === "moving" ? "bg-green-500 text-white shadow-sm" :
+              getDrivingStatus(selectedVehicle.last_record) === "idle" ? "bg-blue-500 text-white shadow-sm" : "bg-gray-100 text-gray-500"
+              }`}>
+              ● {getDrivingStatusLabel(selectedVehicle.last_record)}
+            </div>
 
             {/* Ignition + GSM */}
             <div className="grid grid-cols-2 gap-2">
@@ -450,13 +469,13 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
               </Card>
             </div>
             {/* Speed */}
-            <Card className="bg-teal-50 border-teal-200">
+            <Card className={`${getDrivingStatus(selectedVehicle.last_record) === 'moving' ? 'bg-green-50 border-green-200' : 'bg-teal-50 border-teal-200'}`}>
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <Gauge className="h-4 w-4 text-teal-600" />
-                  <span className="text-[10px] uppercase text-teal-700 font-bold">Speed</span>
+                  <Gauge className={`h-4 w-4 ${getDrivingStatus(selectedVehicle.last_record) === 'moving' ? 'text-green-600' : 'text-teal-600'}`} />
+                  <span className={`text-[10px] uppercase font-bold ${getDrivingStatus(selectedVehicle.last_record) === 'moving' ? 'text-green-700' : 'text-teal-700'}`}>Speed</span>
                 </div>
-                <p className="text-2xl font-bold text-teal-800">
+                <p className={`text-2xl font-bold ${getDrivingStatus(selectedVehicle.last_record) === 'moving' ? 'text-green-800' : 'text-teal-800'}`}>
                   {fmt(selectedVehicle.last_record.spd) ?? "—"}{" "}
                   <span className="text-sm font-normal">km/h</span>
                 </p>
@@ -489,20 +508,20 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
                   </p>
                 </CardContent>
               </Card>
-              <Card className="bg-green-50 border-green-200">
+              <Card className="bg-emerald-50 border-emerald-200">
                 <CardContent className="p-3">
                   <div className="flex items-center gap-1 mb-0.5">
-                    <Fuel className="h-3 w-3 text-green-600" />
-                    <span className="text-[9px] uppercase text-green-700 font-bold">Fuel</span>
+                    <Fuel className="h-3 w-3 text-emerald-600" />
+                    <span className="text-[9px] uppercase text-emerald-700 font-bold">Fuel</span>
                   </div>
                   <div className="space-y-0.5">
-                    <p className="text-lg font-bold text-green-800 leading-tight">
+                    <p className="text-lg font-bold text-emerald-800 leading-tight">
                       {selectedVehicle.last_record.fuel_vol != null || getExtra(selectedVehicle.last_record, "can.fuel.volume") != null
                         ? `${fmt(selectedVehicle.last_record.fuel_vol ?? getExtra(selectedVehicle.last_record, "can.fuel.volume"))} L`
                         : "—"}
                     </p>
                     {selectedVehicle.last_record.fl != null && (
-                      <p className="text-[10px] text-green-600 font-medium italic">
+                      <p className="text-[10px] text-emerald-600 font-medium italic">
                         ({fmt(selectedVehicle.last_record.fl)}%)
                       </p>
                     )}
@@ -570,18 +589,31 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
               </CardContent>
             </Card>
 
-            {/* Heading */}
-            <Card className="bg-sky-50 border-sky-200">
-              <CardContent className="p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <Compass className="h-4 w-4 text-sky-600" />
-                  <span className="text-[10px] uppercase text-sky-700 font-bold">Heading</span>
-                </div>
-                <p className="text-xl font-bold text-sky-800">
-                  {selectedVehicle.last_record.hdg != null ? `${selectedVehicle.last_record.hdg.toFixed(0)}°` : "—"}
-                </p>
-              </CardContent>
-            </Card>
+            {/* Heading & Location */}
+            <div className="grid grid-cols-2 gap-2">
+              <Card className="bg-sky-50 border-sky-200">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <Compass className="h-3 w-3 text-sky-600" />
+                    <span className="text-[9px] uppercase text-sky-700 font-bold">Heading</span>
+                  </div>
+                  <p className="text-lg font-bold text-sky-800 leading-tight">
+                    {selectedVehicle.last_record.hdg != null ? `${selectedVehicle.last_record.hdg.toFixed(0)}°` : "—"}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="bg-blue-50/50 border-blue-200">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <Navigation className="h-3 w-3 text-blue-600" />
+                    <span className="text-[9px] uppercase text-blue-700 font-bold">Location</span>
+                  </div>
+                  <p className="text-[10px] font-bold text-blue-800 leading-tight">
+                    {selectedVehicle.last_record.lat?.toFixed(4)}, {(selectedVehicle.last_record.lon ?? selectedVehicle.last_record.lng)?.toFixed(4)}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Roll & Pitch */}
             <div className="grid grid-cols-2 gap-2">
@@ -633,26 +665,19 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
               </CardContent>
             </Card>
 
-            {/* Harsh events */}
+            {/* Trackers Harsh events */}
             {(selectedVehicle.last_record.hbk || selectedVehicle.last_record.hac || selectedVehicle.last_record.hco) ? (
               <div className="flex items-center gap-1 text-[10px] text-red-500 bg-red-50 px-2 py-1.5 rounded border border-red-100 font-medium">
                 <Activity className="h-3 w-3 animate-pulse" />
                 Harsh Event Detected
               </div>
             ) : null}
-
-            {/* Status */}
-            <div className={`text-center text-xs font-bold py-2 rounded-lg ${getDrivingStatus(selectedVehicle.last_record) === "moving" ? "bg-green-100 text-green-700" :
-              getDrivingStatus(selectedVehicle.last_record) === "stationary" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"
-              }`}>
-              ● {getDrivingStatusLabel(selectedVehicle.last_record)}
-            </div>
           </div>
         </div>
       )}
 
-      {/* Floating AI Chat — only visible when right panel is closed */}
-      {!selectedVehicleId && (
+      {/* Floating AI Chat — only visible when no vehicle is selected or right panel not blocking */}
+      {!selectedVehicleId && isSidebarOpen && (
         <FloatingChatButton
           onSendMessage={handleChatMessage}
           messages={chatMessages}

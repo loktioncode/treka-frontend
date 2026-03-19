@@ -18,7 +18,7 @@ const VIB_MOVING_THRESHOLD_G = 0.02;
 /** |ia_tot - 1.0| above this (g) suggests motion/vibration. At rest ia_tot ≈ 1.0. */
 const IA_TOT_MOTION_DEVIATION_G = 0.04;
 
-export type DrivingStatus = "moving" | "stationary" | "off";
+export type DrivingStatus = "moving" | "idle" | "off";
 
 /** Record shape needed for driving status (all fields used here are optional). */
 type TelemetryLike = Partial<TelemetryRecord> | null | undefined;
@@ -47,7 +47,7 @@ function hasMpuData(record: TelemetryLike): boolean {
  *   (Flespi keeps sending last-known values; ignition is the current engine state).
  * - Flespi: "moving" only when movement.status === true.
  * - Custom (HiveMQ) with MPU: "moving" only when speed > threshold AND MPU suggests motion (vib/ia_tot).
- * - No movement/MPU: moving when speed > 0; stationary/off from RPM.
+ * - No movement/MPU: moving when speed > 0; idle/off from RPM.
  */
 export function getDrivingStatus(record: TelemetryLike): DrivingStatus {
   if (!record) return "off";
@@ -61,20 +61,20 @@ export function getDrivingStatus(record: TelemetryLike): DrivingStatus {
   // Explicit movement.status (Flespi): only show moving when true
   if (record.mov === true) return "moving";
   if (record.mov === false) {
-    if (rpm > ENGINE_ON_RPM_THRESHOLD) return "stationary";
+    if (rpm > ENGINE_ON_RPM_THRESHOLD) return "idle";
     return "off";
   }
 
   // Custom devices (HiveMQ) with MPU: only show moving when speed is above threshold AND MPU indicates motion
   if (hasMpuData(record)) {
     if (spd > MOVING_SPEED_KMH && mpuSuggestsMoving(record)) return "moving";
-    if (rpm > ENGINE_ON_RPM_THRESHOLD) return "stationary";
+    if (rpm > ENGINE_ON_RPM_THRESHOLD) return "idle";
     return "off";
   }
 
   // No movement.status and no MPU: use speed and RPM only
-  if (spd > 0) return "moving";
-  if (rpm > ENGINE_ON_RPM_THRESHOLD) return "stationary";
+  if (spd > MOVING_SPEED_KMH) return "moving";
+  if (rpm > ENGINE_ON_RPM_THRESHOLD) return "idle";
   return "off";
 }
 
@@ -83,8 +83,8 @@ export function getDrivingStatusLabel(record: TelemetryLike): string {
   switch (getDrivingStatus(record)) {
     case "moving":
       return "Moving";
-    case "stationary":
-      return "Stationary";
+    case "idle":
+      return "Idling (Stationary)";
     case "off":
     default:
       return "Engine off";
