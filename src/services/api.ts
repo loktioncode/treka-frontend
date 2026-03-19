@@ -595,8 +595,17 @@ export const telemetryAPI = {
   },
 
   getLatestTelemetry: async (deviceId: string) => {
-    const response = await api.get(`/telemetry/${deviceId}/latest`);
-    return response.data;
+    // Consolidated: fetch with limit 1 from the main telemetry endpoint
+    const response = await api.get(`/telemetry/${deviceId}`, {
+      params: { limit: 1 },
+    });
+    // The main endpoint returns { records: [...] }, while old /latest returned { record: ... }.
+    // We wrap it to maintain frontend compatibility.
+    const records = response.data.records || [];
+    return {
+      device_id: deviceId,
+      record: records.length > 0 ? records[0] : null
+    };
   },
 
   ingestBatch: async (deviceId: string, batch: any[]) => {
