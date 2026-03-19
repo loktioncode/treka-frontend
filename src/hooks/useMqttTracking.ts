@@ -134,6 +134,11 @@ function extractLatLon(input: unknown): { lat?: number; lon?: number } {
         (gps ? (asFiniteNumber(gps.lon) ?? asFiniteNumber(gps.lng) ?? asFiniteNumber(gps.longitude) ?? asFiniteNumber(gps.long)) : undefined);
     return { lat, lon };
 }
+function getExtra(r: TelemetryRecord | null | undefined, key: string): any {
+    if (!r?.extras) return undefined;
+    if (typeof r.extras !== 'object') return undefined;
+    return (r.extras as Record<string, any>)[key];
+}
 
 function normalizeTelemetryRecord(input: TelemetryRecord): TelemetryRecord {
     const raw = input as unknown as Record<string, unknown>;
@@ -232,10 +237,15 @@ function flespiTelemetryToRecord(
         flespiNum(telemetry['engine.oil.temperature']) ??
         flespiNum(telemetry['can.oil.temperature']) ??
         flespiNum(telemetry['io.243']); // Teltonika IO ID for Engine Oil Temp
-    // IMPORTANT: vehicle.mileage from Flespi is distance since device connected/session (not true odometer).
-    // Only treat can.vehicle.mileage as odometer.
-    const odo =
-        flespiNum(telemetry['can.vehicle.mileage']);
+    // Only treat can.vehicle.mileage as true odometer, but fallback to total.distance or vehicle.mileage if true CAN odo is missing.
+    const odo = 
+        flespiNum(telemetry['can.vehicle.mileage']) ?? 
+        (() => {
+            const td = flespiNum(telemetry['total.distance']);
+            return typeof td === 'number' ? td / 1000 : undefined;
+        })() ??
+        flespiNum(telemetry['can.total.distance']) ?? 
+        flespiNum(telemetry['vehicle.mileage']);
     const mil = flespiNum(telemetry['can.mil.mileage']) ?? flespiNum(telemetry['mil.mileage']);
     const fuelLevel =
         flespiNum(telemetry['can.fuel.level']) ??
@@ -454,12 +464,17 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
         // Color-coded console logging for live monitoring (Flespi)
         const dStatus = getDrivingStatus(record);
         const logColor = dStatus === 'moving' ? '#22c55e' : dStatus === 'idle' ? '#3b82f6' : '#94a3b8';
-        const receivedKeys = Object.keys(flespiTelemetryCacheRef.current[flespiDeviceId] || {}).join(', ');
+        const currentCache = flespiTelemetryCacheRef.current[flespiDeviceId] || {};
+        const receivedKeys = Object.keys(currentCache);
+        const odoVal = currentCache['can.vehicle.mileage']?.value ?? currentCache['vehicle.mileage']?.value ?? currentCache['total.distance']?.value;
+        const rpmVal = currentCache['can.engine.rpm']?.value ?? currentCache['io.24']?.value;
+
         console.log(
             `%c[FLESPI] ${flespiDeviceId} | ${getDrivingStatusLabel(record).toUpperCase()} | Speed: ${record.spd?.toFixed(1) ?? '0'} km/h | Odo: ${record.odo?.toFixed(0) ?? '—'} km | RPM: ${record.rpm ?? '—'} | Load: ${record.lod ?? '—'}%`,
             `color: white; background: ${logColor}; padding: 2px 6px; border-radius: 4px; font-weight: bold;`
         );
-        console.log(`   > Keys: ${receivedKeys}`);
+        console.log(`   > Values: Odo=${odoVal} | RPM=${rpmVal} | Ignition=${record.ignition}`);
+        console.log(`   > Keys: ${receivedKeys.join(', ')}`);
 
         setVehicles((prev) => {
             const existing = prev[flespiDeviceId]?.last_record;
@@ -801,6 +816,9 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                 });
                 client.on('message', (topic: string, message: Buffer) => {
                     if (!activeRef.current) return;
+                    if (!topic.includes('/telemetry/gsm.') && !topic.includes('/telemetry/battery.')) {
+                        console.log(`[TOPIC DEBUG] ${topic} | ${message.toString().substring(0, 100)}`);
+                    }
                     try {
                         const payload = message.toString();
                         const parsed = JSON.parse(payload) as unknown;
