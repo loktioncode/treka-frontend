@@ -150,13 +150,9 @@ export default function AssetViewPage() {
   const [loadingTelemetry, setLoadingTelemetry] = useState(false);
 
   // GPS Logs tab dedicated state
-  const [gpsLogs, setGpsLogs] = useState<TelemetryRecord[]>([]);
-  const [gpsLogsLoading, setGpsLogsLoading] = useState(false);
-  const [gpsFilterStart, setGpsFilterStart] = useState("");
-  const [gpsFilterEnd, setGpsFilterEnd] = useState("");
+  // Redundant GPS Logs state removed. Using global 'telemetry' state.
   const [sensorFilterStart, setSensorFilterStart] = useState("");
   const [sensorFilterEnd, setSensorFilterEnd] = useState("");
-  const [gpsLogsLoaded, setGpsLogsLoaded] = useState(false);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loadingTrips, setLoadingTrips] = useState(false);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
@@ -425,29 +421,6 @@ Provide a concise, actionable insight for a fleet manager.`;
     }
   }, []);
 
-  const fetchGpsLogs = useCallback(async (
-    deviceId: string,
-    start?: string,
-    end?: string
-  ) => {
-    setGpsLogsLoading(true);
-    try {
-      const params: { start_date?: string; end_date?: string } = {};
-      if (start) params.start_date = new Date(start).toISOString();
-      if (end) params.end_date = new Date(end).toISOString();
-      // Use high limit to capture full day's data
-      const res = await telemetryAPI.getTelemetry(deviceId, 10000, params);
-      const records = Array.isArray(res) ? res : res.records || [];
-      setGpsLogs(records);
-      setGpsLogsLoaded(true);
-    } catch (error) {
-      console.error("Failed to load GPS logs:", error);
-      toast.error("Failed to load GPS logs");
-      setGpsLogs([]);
-    } finally {
-      setGpsLogsLoading(false);
-    }
-  }, []);
 
   // Form state for component creation/editing
   const [componentFormData, setComponentFormData] = useState<{
@@ -687,11 +660,6 @@ Provide a concise, actionable insight for a fleet manager.`;
     }
   }, [activeTab, asset, fetchTrips]);
 
-  useEffect(() => {
-    if (activeTab === "gps_logs" && asset?.vehicle_details?.device_id && !gpsLogsLoaded) {
-      fetchGpsLogs(asset.vehicle_details.device_id);
-    }
-  }, [activeTab, asset, fetchGpsLogs, gpsLogsLoaded]);
 
   // Read tripId and tab from URL (e.g. from leaderboard link ?tab=trips&tripId=xxx)
   useEffect(() => {
@@ -1202,6 +1170,14 @@ Provide a concise, actionable insight for a fleet manager.`;
                 >
                   Sensor Data
                 </TabsTrigger>
+                {asset.asset_type === "vehicle" && (
+                  <TabsTrigger
+                    value="gps_logs"
+                    className="flex-1 data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200"
+                  >
+                    GPS Logs
+                  </TabsTrigger>
+                )}
                 {asset.asset_type !== "vehicle" && (
                   <TabsTrigger
                     value="components"
@@ -2199,7 +2175,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                           GPS Telemetry Logs
                         </CardTitle>
                         <p className="text-sm text-gray-500 mt-1">
-                          Historical location data for this vehicle — up to 500 records
+                          Detailed historical telemetry logs — use the date filter above to refine the list.
                         </p>
                       </div>
                       {asset?.vehicle_details?.device_id && (
@@ -2233,60 +2209,6 @@ Provide a concise, actionable insight for a fleet manager.`;
                       )}
                     </div>
 
-                    {/* Datetime Filter Bar */}
-                    {asset?.vehicle_details?.device_id && (
-                      <div className="mt-4 flex flex-wrap items-end gap-3 bg-gray-50 border rounded-lg p-4">
-                        <div className="flex flex-col gap-1">
-                          <label className="text-xs font-medium text-gray-600">From</label>
-                          <input
-                            type="datetime-local"
-                            value={gpsFilterStart}
-                            onChange={(e) => setGpsFilterStart(e.target.value)}
-                            className="text-sm border rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-xs font-medium text-gray-600">To</label>
-                          <input
-                            type="datetime-local"
-                            value={gpsFilterEnd}
-                            onChange={(e) => setGpsFilterEnd(e.target.value)}
-                            className="text-sm border rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                          />
-                        </div>
-                        <Button
-                          size="sm"
-                          disabled={gpsLogsLoading}
-                          onClick={() => {
-                            if (asset.vehicle_details?.device_id) {
-                              fetchGpsLogs(asset.vehicle_details.device_id, gpsFilterStart || undefined, gpsFilterEnd || undefined);
-                            }
-                          }}
-                          className="bg-teal-600 hover:bg-teal-700 text-white"
-                        >
-                          {gpsLogsLoading ? "Loading…" : "Apply"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={gpsLogsLoading}
-                          onClick={() => {
-                            setGpsFilterStart("");
-                            setGpsFilterEnd("");
-                            if (asset.vehicle_details?.device_id) {
-                              fetchGpsLogs(asset.vehicle_details.device_id);
-                            }
-                          }}
-                        >
-                          Clear
-                        </Button>
-                        {gpsLogs.length > 0 && (
-                          <span className="text-xs text-gray-500 ml-auto self-end">
-                            {gpsLogs.filter((r) => r.lat != null && (r.lng ?? r.lon) != null).length} records with coordinates
-                          </span>
-                        )}
-                      </div>
-                    )}
                   </CardHeader>
 
                   <CardContent>
@@ -2296,16 +2218,16 @@ Provide a concise, actionable insight for a fleet manager.`;
                         <p className="font-medium">No device assigned</p>
                         <p className="text-sm mt-1">Assign a device ID in Vehicle Details to view GPS logs.</p>
                       </div>
-                    ) : gpsLogsLoading ? (
+                    ) : loadingTelemetry ? (
                       <div className="flex flex-col items-center justify-center py-14 gap-3 text-gray-500">
                         <div className="w-8 h-8 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin" />
                         <p className="text-sm">Loading GPS logs…</p>
                       </div>
-                    ) : gpsLogs.length === 0 ? (
+                    ) : telemetry.length === 0 ? (
                       <div className="text-center py-14 text-gray-400">
                         <MapPin className="mx-auto h-12 w-12 opacity-20 mb-3" />
                         <p className="font-medium">No GPS logs found</p>
-                        <p className="text-sm mt-1">Try adjusting the date range or check that the device is active.</p>
+                        <p className="text-sm mt-1">Try adjusting the global date range or check that the device is active.</p>
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
@@ -2384,7 +2306,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                                 </tr>
                               );
                             })()}
-                            {gpsLogs
+                            {[...telemetry]
                               .sort((a, b) => {
                                 const getT = (r: TelemetryRecord) => {
                                   if (r.ts_server) return new Date(r.ts_server).getTime();
