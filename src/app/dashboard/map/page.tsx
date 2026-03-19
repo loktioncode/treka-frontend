@@ -416,7 +416,11 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
               {deviceToVehicle[selectedVehicle.device_id]?.plate || deviceToVehicle[selectedVehicle.device_id]?.name || "Unidentified Asset"}
             </p>
             <p className="text-[10px] text-gray-600 mt-1 font-medium" title={`Received at: ${selectedVehicle.last_update}`}>
-              Received at: {lastDataFmt(selectedVehicle.last_update)}
+              Last seen: {lastDataFmt(selectedVehicle.last_update)}
+            </p>
+            <p className="text-[10px] text-blue-600 mt-0.5 font-bold flex items-center gap-1">
+              <Navigation className="h-2.5 w-2.5" />
+              {getExtra(selectedVehicle.last_record, "position.address") || getExtra(selectedVehicle.last_record, "address") || "Syncing street address..."}
             </p>
 
           </div>
@@ -482,18 +486,32 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
               </CardContent>
             </Card>
 
-            {/* RPM */}
-            <Card className="bg-amber-50 border-amber-200">
-              <CardContent className="p-3">
-                <div className="flex items-center gap-1 mb-0.5">
-                  <Zap className="h-3 w-3 text-amber-600" />
-                  <span className="text-[9px] uppercase text-amber-700 font-bold">RPM</span>
-                </div>
-                <p className="text-lg font-bold text-amber-800">
-                  {fmt(selectedVehicle.last_record.rpm) ?? "—"}
-                </p>
-              </CardContent>
-            </Card>
+            {/* Engine Health (RPM & DTC) */}
+            <div className="grid grid-cols-2 gap-2">
+              <Card className="bg-amber-50 border-amber-200">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <Zap className="h-3 w-3 text-amber-600" />
+                    <span className="text-[9px] uppercase text-amber-700 font-bold">RPM</span>
+                  </div>
+                  <p className="text-lg font-bold text-amber-800">
+                    {fmt(selectedVehicle.last_record.rpm) ?? "—"}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className={selectedVehicle.last_record.dtc && selectedVehicle.last_record.dtc > 0 ? "bg-red-50 border-red-200" : "bg-emerald-50 border-emerald-200"}>
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <Activity className={selectedVehicle.last_record.dtc && selectedVehicle.last_record.dtc > 0 ? "h-3 w-3 text-red-600" : "h-3 w-3 text-emerald-600"} />
+                    <span className={selectedVehicle.last_record.dtc && selectedVehicle.last_record.dtc > 0 ? "text-[9px] uppercase text-red-700 font-bold" : "text-[9px] uppercase text-emerald-700 font-bold"}>DTC Status</span>
+                  </div>
+                  <p className={selectedVehicle.last_record.dtc && selectedVehicle.last_record.dtc > 0 ? "text-lg font-bold text-red-800" : "text-lg font-bold text-emerald-800"}>
+                    {selectedVehicle.last_record.dtc != null ? `${selectedVehicle.last_record.dtc} Codes` : "Healthy"}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Load + Fuel */}
             <div className="grid grid-cols-2 gap-2">
@@ -589,31 +607,18 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
               </CardContent>
             </Card>
 
-            {/* Heading & Location */}
-            <div className="grid grid-cols-2 gap-2">
-              <Card className="bg-sky-50 border-sky-200">
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-1 mb-0.5">
-                    <Compass className="h-3 w-3 text-sky-600" />
-                    <span className="text-[9px] uppercase text-sky-700 font-bold">Heading</span>
-                  </div>
-                  <p className="text-lg font-bold text-sky-800 leading-tight">
-                    {selectedVehicle.last_record.hdg != null ? `${selectedVehicle.last_record.hdg.toFixed(0)}°` : "—"}
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="bg-blue-50/50 border-blue-200">
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-1 mb-0.5">
-                    <Navigation className="h-3 w-3 text-blue-600" />
-                    <span className="text-[9px] uppercase text-blue-700 font-bold">Location</span>
-                  </div>
-                  <p className="text-[10px] font-bold text-blue-800 leading-tight">
-                    {selectedVehicle.last_record.lat?.toFixed(4)}, {(selectedVehicle.last_record.lon ?? selectedVehicle.last_record.lng)?.toFixed(4)}
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+            {/* Heading */}
+            <Card className="bg-sky-50 border-sky-200">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-1 mb-0.5">
+                  <Compass className="h-4 w-4 text-sky-600" />
+                  <span className="text-[10px] uppercase text-sky-700 font-bold">Heading</span>
+                </div>
+                <p className="text-xl font-bold text-sky-800">
+                  {selectedVehicle.last_record.hdg != null ? `${selectedVehicle.last_record.hdg.toFixed(0)}°` : "—"}
+                </p>
+              </CardContent>
+            </Card>
 
             {/* Roll & Pitch */}
             <div className="grid grid-cols-2 gap-2">

@@ -205,20 +205,60 @@ function flespiTelemetryToRecord(
     const tsEntry = telemetry['timestamp'] ?? telemetry['position'];
     const posTs = pos?.ts ?? pos?.timestamp;
     const ts = typeof tsEntry?.value === 'number' ? tsEntry.value : (typeof posTs === 'number' ? posTs : Math.floor(Date.now() / 1000));
-    const spd = flespiNum(telemetry['can.vehicle.speed']) ?? pos?.speed;
-    const rpm = flespiNum(telemetry['can.engine.rpm']);
-    const vlt = flespiNum(telemetry['external.powersource.voltage']) ?? flespiNum(telemetry['battery.voltage']);
-    const tmp = flespiNum(telemetry['can.engine.coolant.temperature']);
+    const spd = flespiNum(telemetry['can.vehicle.speed']) ?? flespiNum(telemetry['position.speed']) ?? pos?.speed;
+    const rpm =
+        flespiNum(telemetry['can.engine.rpm']) ??
+        flespiNum(telemetry['engine.rpm']) ??
+        flespiNum(telemetry['obd.engine.rpm']) ??
+        flespiNum(telemetry['io.24']);
+    const vlt =
+        flespiNum(telemetry['external.powersource.voltage']) ??
+        flespiNum(telemetry['battery.voltage']) ??
+        flespiNum(telemetry['can.external.powersource.voltage']) ??
+        flespiNum(telemetry['can.battery.voltage']) ??
+        flespiNum(telemetry['io.66']) ??
+        flespiNum(telemetry['io.67']);
+    const tmp =
+        flespiNum(telemetry['can.engine.coolant.temperature']) ??
+        flespiNum(telemetry['engine.coolant.temperature']) ??
+        flespiNum(telemetry['can.engine.temperature']) ??
+        flespiNum(telemetry['io.239']);
+    const iat =
+        flespiNum(telemetry['can.intake.air.temperature']) ??
+        flespiNum(telemetry['intake.air.temperature']) ??
+        flespiNum(telemetry['io.240']); // Teltonika IO ID for Intake Air Temp
+    const oil =
+        flespiNum(telemetry['can.engine.oil.temperature']) ??
+        flespiNum(telemetry['engine.oil.temperature']) ??
+        flespiNum(telemetry['can.oil.temperature']) ??
+        flespiNum(telemetry['io.243']); // Teltonika IO ID for Engine Oil Temp
     // IMPORTANT: vehicle.mileage from Flespi is distance since device connected/session (not true odometer).
     // Only treat can.vehicle.mileage as odometer.
-    const odo = flespiNum(telemetry['can.vehicle.mileage']);
-    const mil = flespiNum(telemetry['can.mil.mileage']);
-    const fuelLevel = flespiNum(telemetry['can.fuel.level']);
-    const fuelVol = fuelLevel == null ? flespiNum(telemetry['can.fuel.volume']) : undefined;
+    const odo =
+        flespiNum(telemetry['can.vehicle.mileage']);
+    const mil = flespiNum(telemetry['can.mil.mileage']) ?? flespiNum(telemetry['mil.mileage']);
+    const fuelLevel =
+        flespiNum(telemetry['can.fuel.level']) ??
+        flespiNum(telemetry['fuel.level']) ??
+        flespiNum(telemetry['io.242']) ??
+        flespiNum(telemetry['io.215']);
+    const fuelVol =
+        flespiNum(telemetry['can.fuel.volume']) ??
+        flespiNum(telemetry['fuel.volume']) ??
+        flespiNum(telemetry['io.244']);
+    const dtc = flespiNum(telemetry['can.dtc.number']);
     const fl = fuelLevel ?? fuelVol;
     const fuel_unit: TelemetryRecord['fuel_unit'] =
         fuelLevel != null ? 'percent' : fuelVol != null ? 'l' : undefined;
-    const lod = flespiNum(telemetry['can.engine.load.level']);
+    const lod =
+        flespiNum(telemetry['can.engine.load.level']) ??
+        flespiNum(telemetry['engine.load.level']) ??
+        flespiNum(telemetry['can.engine.load']) ??
+        flespiNum(telemetry['engine.load']) ??
+        flespiNum(telemetry['io.170']); // Teltonika IO ID for Engine Load
+    const hbk = flespiNum(telemetry['harsh.braking.status']) ?? flespiNum(telemetry['can.harsh.braking.status']);
+    const hac = flespiNum(telemetry['harsh.acceleration.status']) ?? flespiNum(telemetry['can.harsh.acceleration.status']);
+    const hco = flespiNum(telemetry['harsh.cornering.status']) ?? flespiNum(telemetry['can.harsh.cornering.status']);
     // Flespi sends last position on telemetry/position with latitude/longitude (and sometimes lat/lng/lon).
     // Some integrations use alternate keys, so we fall back to generic extraction too.
     const extractedFromPos = extractLatLon(pos);
@@ -245,16 +285,20 @@ function flespiTelemetryToRecord(
         flespiNum(telemetry['position.lng']) ??
         flespiNum(telemetry['positionLongitude']) ??
         extractedFromTelemetry.lon;
-    const movValue = telemetry['movement.status']?.value;
+    const movValue = telemetry['movement.status']?.value ?? telemetry['can.movement.status']?.value ?? telemetry['movement.event']?.value;
     const mov = movValue !== undefined ? Boolean(movValue) : undefined;
-    const ignitionValue = telemetry['engine.ignition.status']?.value ?? telemetry['can.engine.ignition']?.value ?? telemetry['can.engine.ignition.status']?.value;
+    const ignitionValue =
+        telemetry['engine.ignition.status']?.value ??
+        telemetry['can.engine.ignition']?.value ??
+        telemetry['can.engine.ignition.status']?.value ??
+        telemetry['ignition.status']?.value;
     const ignition = ignitionValue !== undefined ? Boolean(ignitionValue) : undefined;
 
     const extras: TelemetryRecord['extras'] = Object.fromEntries(
         Object.entries(telemetry).map(([k, v]) => [k, (v as FlespiTelemetryEntry | undefined)?.value])
     );
 
-    if (lat == null && lon == null && spd == null && rpm == null && mov == null && tmp == null && ignition == null && odo == null && mil == null && fl == null) return null;
+    if (lat == null && lon == null && spd == null && rpm == null && mov == null && tmp == null && ignition == null && odo == null && mil == null && fl == null && dtc == null) return null;
     return {
         ts: Math.floor(ts),
         ts_server: new Date(ts * 1000).toISOString(),
@@ -268,11 +312,18 @@ function flespiTelemetryToRecord(
         rpm,
         vlt,
         tmp,
+        iat,
+        oil,
         fl,
         fuel_unit,
+        fuel_vol: fuelVol,
         lod,
         odo,
         mil,
+        dtc,
+        hbk,
+        hac,
+        hco,
         extras,
         mov,
         ignition,
@@ -365,16 +416,16 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                             };
                             changed = true;
                         } else {
-                                const persisted = persistedPositionsRef.current[did];
+                            const persisted = persistedPositionsRef.current[did];
                             // Dummy record so it shows up in the sidebar list even if it has no telemetry yet
                             updated[did] = {
                                 device_id: did,
-                                    last_record: {
-                                        ts: Math.floor(Date.now() / 1000),
-                                        spd: 0,
-                                        lat: persisted?.lat,
-                                        lon: persisted?.lon,
-                                    },
+                                last_record: {
+                                    ts: Math.floor(Date.now() / 1000),
+                                    spd: 0,
+                                    lat: persisted?.lat,
+                                    lon: persisted?.lon,
+                                },
                                 last_update: new Date().toISOString(),
                                 status: 'offline'
                             };
@@ -403,10 +454,12 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
         // Color-coded console logging for live monitoring (Flespi)
         const dStatus = getDrivingStatus(record);
         const logColor = dStatus === 'moving' ? '#22c55e' : dStatus === 'idle' ? '#3b82f6' : '#94a3b8';
+        const receivedKeys = Object.keys(flespiTelemetryCacheRef.current[flespiDeviceId] || {}).join(', ');
         console.log(
-            `%c[FLESPI] ${flespiDeviceId} | ${getDrivingStatusLabel(record).toUpperCase()} | Speed: ${record.spd?.toFixed(1) ?? '0'} km/h | Odo: ${record.odo?.toFixed(0) ?? '—'} km`,
+            `%c[FLESPI] ${flespiDeviceId} | ${getDrivingStatusLabel(record).toUpperCase()} | Speed: ${record.spd?.toFixed(1) ?? '0'} km/h | Odo: ${record.odo?.toFixed(0) ?? '—'} km | RPM: ${record.rpm ?? '—'} | Load: ${record.lod ?? '—'}%`,
             `color: white; background: ${logColor}; padding: 2px 6px; border-radius: 4px; font-weight: bold;`
         );
+        console.log(`   > Keys: ${receivedKeys}`);
 
         setVehicles((prev) => {
             const existing = prev[flespiDeviceId]?.last_record;
@@ -475,6 +528,39 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
         }
     }, [allowedDeviceIds, deviceId, applyFlespiPosition, enabled]);
 
+    // Sync initial Flespi state for all relevant devices on mount
+    useEffect(() => {
+        if (!user || !enabled || assetsLoading) return;
+        const devices = deviceId
+            ? [deviceId]
+            : assets.filter((a: Asset) => a.vehicle_details?.device_id).map((a: Asset) => String(a.vehicle_details!.device_id));
+
+        if (devices.length === 0) return;
+
+        // Fetch current state from Flespi API to populate real-time diagnostics (RPM, Fuel, etc.) immediately
+        const fToken = FLESPI_USERNAME.split(' ')[1];
+        fetch(`https://flespi.io/gw/devices/${devices.join(',')}/state`, {
+            headers: { 'Authorization': `FlespiToken ${fToken}` }
+        })
+            .then(r => r.json())
+            .then((data: FlespiStatePayload) => {
+                if (data.result) {
+                    data.result.forEach(res => {
+                        const did = String(res.id);
+                        if (res.telemetry) {
+                            const cache = (flespiTelemetryCacheRef.current[did] ??= {});
+                            Object.entries(res.telemetry).forEach(([k, v]) => {
+                                cache[k] = v;
+                            });
+                            const record = flespiTelemetryToRecord(did, cache);
+                            if (record) applyFlespiPosition(did, record);
+                        }
+                    });
+                }
+            })
+            .catch(err => console.error('Flespi initial state fetch failed:', err));
+    }, [user, enabled, assetsLoading, deviceId, assets, applyFlespiPosition]);
+
     const connect = useCallback(() => {
         if (!user || !enabled) return;
 
@@ -517,13 +603,13 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
 
                     try {
                         if (deviceId) {
-                            client.subscribe(`trekaman/telematrics/${deviceId}`, { qos: 0 });
-                            client.subscribe(`trekaman/incident/${deviceId}`, { qos: 0 });
-                            client.subscribe(`trekaman/geofence/${deviceId}`, { qos: 0 });
+                            client.subscribe(`trekaman/telematrics/${deviceId}/#`, { qos: 0 });
+                            client.subscribe(`trekaman/incident/${deviceId}/#`, { qos: 0 });
+                            client.subscribe(`trekaman/geofence/${deviceId}/#`, { qos: 0 });
                         } else {
-                            client.subscribe('trekaman/telematrics/+', { qos: 0 });
-                            client.subscribe('trekaman/incident/+', { qos: 0 });
-                            client.subscribe('trekaman/geofence/+', { qos: 0 });
+                            client.subscribe('trekaman/telematrics/#', { qos: 0 });
+                            client.subscribe('trekaman/incident/#', { qos: 0 });
+                            client.subscribe('trekaman/geofence/#', { qos: 0 });
                         }
                     } catch (err) {
                         if (activeRef.current) console.error('HiveMQ subscribe error:', err);
@@ -575,7 +661,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                                     pit: data.pit ?? latestRecord.pit,
                                 };
                                 const dataTime = record.ts_server || (record.ts != null ? new Date(record.ts * 1000).toISOString() : new Date().toISOString());
-                                
+
                                 // Color-coded console logging for live monitoring
                                 const dStatus = getDrivingStatus(record);
                                 const logColor = dStatus === 'moving' ? '#22c55e' : dStatus === 'idle' ? '#3b82f6' : '#94a3b8';
@@ -688,9 +774,13 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
 
                     try {
                         if (deviceId) {
-                            client.subscribe(`flespi/state/gw/devices/${deviceId}/telemetry/+`, { qos: 1 });
+                            client.subscribe(`flespi/state/gw/devices/${deviceId}/telemetry/#`, { qos: 1 });
+                            client.subscribe(`flespi/state/gw/devices/${deviceId}/properties/#`, { qos: 1 });
+                            client.subscribe(`flespi/message/gw/devices/${deviceId}/+`, { qos: 1 });
                         } else {
-                            client.subscribe('flespi/state/gw/devices/+/telemetry/+', { qos: 0 });
+                            client.subscribe('flespi/state/gw/devices/+/telemetry/#', { qos: 0 });
+                            client.subscribe('flespi/state/gw/devices/+/properties/#', { qos: 0 });
+                            client.subscribe('flespi/message/gw/devices/+/+', { qos: 0 });
                         }
                     } catch (err) {
                         if (activeRef.current) console.error('Flespi subscribe error:', err);
@@ -715,33 +805,34 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                         const payload = message.toString();
                         const parsed = JSON.parse(payload) as unknown;
                         const parts = topic.split('/');
-                        const fromTopicDeviceId = parts[4]; // flespi/state/gw/devices/{id}/telemetry/{param}
-                        const paramKey = parts[parts.length - 1];
+                        const isMessage = parts[1] === 'message';
+                        const fromTopicDeviceId = parts[4];
                         const deviceIdStr = String(fromTopicDeviceId || '');
                         if (!deviceIdStr) return;
                         if (deviceId && deviceIdStr !== deviceId) return;
 
                         const cache = (flespiTelemetryCacheRef.current[deviceIdStr] ??= {});
 
-                        // Support both telemetry/+ (single param per message) and legacy payloads with result[0].telemetry.
-                        if (
-                            parsed &&
-                            typeof parsed === 'object' &&
-                            'result' in (parsed as Record<string, unknown>) &&
-                            Array.isArray((parsed as FlespiStatePayload).result)
-                        ) {
-                            const data = parsed as FlespiStatePayload;
-                            const first = data.result?.[0];
-                            const tel = first?.telemetry;
-                            if (tel) {
-                                Object.entries(tel).forEach(([k, v]) => {
-                                    const vv = v as unknown;
-                                    if (vv && typeof vv === 'object' && 'value' in (vv as Record<string, unknown>) && 'ts' in (vv as Record<string, unknown>)) {
-                                        cache[k] = vv as FlespiTelemetryEntry;
-                                    }
-                                });
-                            }
+                        if (isMessage) {
+                            // Flespi messages are usually flat JSON objects: { "timestamp": ..., "position.latitude": ..., "can.engine.rpm": ... }
+                            const data = parsed as Record<string, unknown>;
+                            const ts = asFiniteNumber(data.timestamp ?? data.ts) ?? Math.floor(Date.now() / 1000);
+                            Object.entries(data).forEach(([k, v]) => {
+                                cache[k] = { ts, value: v };
+                            });
                         } else {
+                            // Flespi state topics: flespi/state/gw/devices/{id}/[telemetry|properties|settings]/{param}
+                            let paramKey = '';
+                            if (topic.includes('/telemetry/')) {
+                                paramKey = topic.substring(topic.indexOf('/telemetry/') + 11);
+                            } else if (topic.includes('/properties/')) {
+                                paramKey = topic.substring(topic.indexOf('/properties/') + 12);
+                            } else if (topic.includes('/settings/')) {
+                                paramKey = topic.substring(topic.indexOf('/settings/') + 10);
+                            } else {
+                                paramKey = parts[parts.length - 1]; // Fallback
+                            }
+
                             let entry: FlespiTelemetryEntry;
                             if (parsed && typeof parsed === 'object' && 'value' in (parsed as Record<string, unknown>)) {
                                 const obj = parsed as Record<string, unknown>;
@@ -754,7 +845,6 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                                             : Math.floor(Date.now() / 1000);
                                 entry = { ts, value: obj.value };
                             } else {
-                                // Direct payload e.g. flespi/.../telemetry/position: { latitude, longitude, altitude, direction, speed, satellites }
                                 const obj = parsed as Record<string, unknown>;
                                 const tsRaw = obj.ts ?? obj.timestamp;
                                 const ts =
@@ -772,7 +862,25 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                         // Fleet mode: ONLY apply to devices linked to assets. We still keep cache so when assets load
                         // we can re-apply the latest cached telemetry for allowed devices.
                         if (!deviceId && !allowedDeviceIdsRef.current.has(deviceIdStr)) return;
-                        if (record) applyFlespiPosition(deviceIdStr, record);
+                        if (record) {
+                            applyFlespiPosition(deviceIdStr, record);
+
+                            // Sync VIN to asset if missing
+                            const vin = record.vin || getExtra(record, "vehicle.vin");
+                            if (vin && assets.length > 0) {
+                                const asset = assets.find((a: Asset) => a.vehicle_details?.device_id == deviceIdStr);
+                                if (asset && (!asset.vehicle_details?.vin || asset.vehicle_details.vin === 'unknown')) {
+                                    // Best effort local update for immediate UI feedback (VIN card)
+                                    setVehicles(prev => ({
+                                        ...prev,
+                                        [deviceIdStr]: {
+                                            ...prev[deviceIdStr],
+                                            last_record: { ...prev[deviceIdStr].last_record, vin }
+                                        }
+                                    }));
+                                }
+                            }
+                        }
                     } catch (err) {
                         console.error('Error parsing Flespi MQTT message:', err);
                     }

@@ -84,10 +84,10 @@ export function getDrivingStatusLabel(record: TelemetryLike): string {
     case "moving":
       return "Moving";
     case "idle":
-      return "Idling (Stationary)";
+      return "Stationary (Idling)";
     case "off":
     default:
-      return "Engine off";
+      return "Stationary (Engine off)";
   }
 }
 

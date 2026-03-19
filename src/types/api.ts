@@ -593,6 +593,8 @@ export interface TelemetryRecord {
   odo?: number;
   /** Fuel volume in liters (L) from CAN/Flespi. */
   fuel_vol?: number;
+  /** Number of Diagnostic Trouble Codes (DTC). */
+  dtc?: number;
   /** Provider raw snapshot (e.g. Flespi telemetry key/value map). */
   extras?: Record<string, any>;
 
