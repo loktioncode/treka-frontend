@@ -95,7 +95,7 @@ export default function Home() {
     'Automate trip reports — no more manual driver logbooks',
     'Prove delivery times with GPS-verified arrival data',
     'Track fleet utilization and reduce idle vehicle costs',
-    'Get WhatsApp/email alerts for speeding, geofence breaches, and breakdowns',
+    'Get email alerts for speeding, geofence breaches, and breakdowns',
   ];
 
   return (

@@ -78,7 +78,7 @@ export default function GPSTrackingPage() {
       icon: Bell,
       title: "Instant Notifications",
       description:
-        "Speed limit violations, after-hours usage, geofence breaches, and unauthorized detours — get alerted via email or WhatsApp the moment it happens.",
+        "Speed limit violations, after-hours usage, geofence breaches, and unauthorized detours — get alerted via email the moment it happens.",
       gradient: "from-rose-500 to-red-500",
       color: "rose"
     },

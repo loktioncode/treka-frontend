@@ -15,7 +15,6 @@ interface User {
   is_active: boolean;
   notification_preferences?: {
     email: boolean;
-    whatsapp: boolean;
   };
   map_center?: { lat: number; lon: number };
   country?: string;

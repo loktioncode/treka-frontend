@@ -76,7 +76,6 @@ interface ProfileFormData {
   email: string;
   notification_preferences: {
     email: boolean;
-    whatsapp: boolean;
   };
   currency: string;
   map_center?: { lat: number; lon: number };
@@ -101,8 +100,7 @@ export default function ProfilePage() {
     last_name: '',
     email: '',
     notification_preferences: {
-      email: true,
-      whatsapp: false
+      email: true
     },
     currency: 'ZAR'
   });
@@ -223,8 +221,7 @@ export default function ProfilePage() {
         last_name: user.last_name || '',
         email: user.email || '',
         notification_preferences: {
-          email: user.notification_preferences?.email ?? true,
-          whatsapp: user.notification_preferences?.whatsapp ?? false
+          email: user.notification_preferences?.email ?? true
         },
         currency: 'ZAR',
         map_center: user.map_center,
@@ -341,8 +338,7 @@ export default function ProfilePage() {
         last_name: user.last_name || '',
         email: user.email || '',
         notification_preferences: {
-          email: user.notification_preferences?.email ?? true,
-          whatsapp: user.notification_preferences?.whatsapp ?? false
+          email: user.notification_preferences?.email ?? true
         },
         currency: 'ZAR',
         map_center: user.map_center,
@@ -759,23 +755,6 @@ export default function ProfilePage() {
                       />
                     </div>
 
-                    <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                      <div className="flex items-start gap-3">
-                        <MessageSquare className="h-5 w-5 text-green-600 mt-0.5" />
-                        <div>
-                          <h4 className="font-medium text-gray-900">WhatsApp Notifications</h4>
-                          <p className="text-sm text-gray-500">
-                            Get instant alerts and updates on WhatsApp
-                          </p>
-                        </div>
-                      </div>
-                      <Checkbox
-                        label=""
-                        checked={formData.notification_preferences.whatsapp}
-                        onChange={(e) => handleInputChange('notification_preferences.whatsapp', e.target.checked)}
-                        disabled={!editing}
-                      />
-                    </div>
                   </div>
                 </FormSection>
 

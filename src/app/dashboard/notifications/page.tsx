@@ -89,8 +89,6 @@ export default function NotificationsPage() {
         return Wrench;
       case 'email':
         return Bell;
-      case 'whatsapp':
-        return BellRing;
       default:
         return Info;
     }

@@ -77,8 +77,7 @@ export default function ClientDetailPage() {
     last_name: '',
     client_id: clientId,
     notification_preferences: {
-      email: true,
-      whatsapp: false
+      email: true
     }
   });
   const [editUserFormData, setEditUserFormData] = useState<Partial<User>>({});
@@ -143,8 +142,7 @@ export default function ClientDetailPage() {
       last_name: '',
       client_id: clientId,
       notification_preferences: {
-        email: true,
-        whatsapp: false
+        email: true
       }
     });
     setUserFormErrors({});
@@ -435,8 +433,7 @@ export default function ClientDetailPage() {
       render: (user) => (
         <div className="text-sm text-gray-600">
           {user.notification_preferences?.email && '📧 '}
-          {user.notification_preferences?.whatsapp && '📱 '}
-          {!user.notification_preferences?.email && !user.notification_preferences?.whatsapp && '-'}
+          {!user.notification_preferences?.email && '-'}
         </div>
       )
     },
@@ -781,20 +778,7 @@ export default function ClientDetailPage() {
                 onChange={(e) => setUserFormData({
                   ...userFormData,
                   notification_preferences: {
-                    email: e.target.checked,
-                    whatsapp: userFormData.notification_preferences?.whatsapp || false
-                  }
-                })}
-                disabled={isSubmitting}
-              />
-              <Checkbox
-                label="WhatsApp notifications"
-                checked={userFormData.notification_preferences?.whatsapp || false}
-                onChange={(e) => setUserFormData({
-                  ...userFormData,
-                  notification_preferences: {
-                    email: userFormData.notification_preferences?.email || false,
-                    whatsapp: e.target.checked
+                    email: e.target.checked
                   }
                 })}
                 disabled={isSubmitting}
@@ -981,13 +965,6 @@ export default function ClientDetailPage() {
                         {selectedUser.notification_preferences?.email ? 'Enabled' : 'Disabled'}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm">WhatsApp notifications</span>
-                      <span className={`text-sm font-medium ${selectedUser.notification_preferences?.whatsapp ? 'text-green-600' : 'text-gray-400'}`}>
-                        {selectedUser.notification_preferences?.whatsapp ? 'Enabled' : 'Disabled'}
-                      </span>
-                    </div>
                   </div>
                 </div>
 
@@ -1079,20 +1056,7 @@ export default function ClientDetailPage() {
                         onChange={(e) => setEditUserFormData({
                           ...editUserFormData,
                           notification_preferences: {
-                            email: e.target.checked,
-                            whatsapp: editUserFormData.notification_preferences?.whatsapp || false
-                          }
-                        })}
-                        disabled={isSubmitting}
-                      />
-                      <Checkbox
-                        label="WhatsApp notifications"
-                        checked={editUserFormData.notification_preferences?.whatsapp || false}
-                        onChange={(e) => setEditUserFormData({
-                          ...editUserFormData,
-                          notification_preferences: {
-                            email: editUserFormData.notification_preferences?.email || false,
-                            whatsapp: e.target.checked
+                            email: e.target.checked
                           }
                         })}
                         disabled={isSubmitting}

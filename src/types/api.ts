@@ -9,7 +9,6 @@ export interface User {
   is_active: boolean;
   notification_preferences: {
     email: boolean;
-    whatsapp: boolean;
     phone_number?: string;
   };
   created_at: string;
@@ -41,7 +40,6 @@ export interface CreateUserRequest {
   role?: "user" | "admin" | "technician" | "driver"; // Allow all user roles
   notification_preferences?: {
     email?: boolean;
-    whatsapp?: boolean;
     phone_number?: string;
   };
   // Technician fields (optional)
@@ -314,7 +312,7 @@ export interface CreateMaintenanceLogRequest {
 }
 
 // Notification types
-export type NotificationType = "email" | "whatsapp" | "MAINTENANCE";
+export type NotificationType = "email" | "MAINTENANCE";
 export type NotificationStatus = "pending" | "sent" | "failed";
 export type NotificationUrgency =
   | "low"
@@ -329,14 +327,11 @@ export type NotificationUrgency =
 export interface NotificationRecipient {
   user_id: string;
   email: string;
-  whatsapp?: string;
   status: {
     email: NotificationStatus;
-    whatsapp: NotificationStatus;
     read: boolean;
   };
   email_sent_at?: string;
-  whatsapp_sent_at?: string;
   read_at?: string;
 }
 

@@ -140,8 +140,7 @@ export default function UsersPage() {
     vehicle_assignments: [],
     uber_driver_uuid: undefined,
     notification_preferences: {
-      email: true,
-      whatsapp: false
+      email: true
     }
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -266,8 +265,7 @@ export default function UsersPage() {
       vehicle_assignments: [],
       uber_driver_uuid: undefined,
       notification_preferences: {
-        email: true,
-        whatsapp: false
+        email: true
       }
     });
     setFormErrors({});
@@ -1526,20 +1524,7 @@ export default function UsersPage() {
                 onChange={(e) => setFormData({
                   ...formData,
                   notification_preferences: {
-                    email: e.target.checked,
-                    whatsapp: formData.notification_preferences?.whatsapp || false
-                  }
-                })}
-                disabled={isSubmitting}
-              />
-              <Checkbox
-                label="WhatsApp notifications"
-                checked={formData.notification_preferences?.whatsapp || false}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  notification_preferences: {
-                    email: formData.notification_preferences?.email || false,
-                    whatsapp: e.target.checked
+                    email: e.target.checked
                   }
                 })}
                 disabled={isSubmitting}
@@ -1761,13 +1746,6 @@ export default function UsersPage() {
                   <span className="text-sm">Email notifications</span>
                   <span className={`text-sm font-medium ${selectedUser.notification_preferences?.email ? 'text-green-600' : 'text-gray-400'}`}>
                     {selectedUser.notification_preferences?.email ? 'Enabled' : 'Disabled'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm">WhatsApp notifications</span>
-                  <span className={`text-sm font-medium ${selectedUser.notification_preferences?.whatsapp ? 'text-green-600' : 'text-gray-400'}`}>
-                    {selectedUser.notification_preferences?.whatsapp ? 'Enabled' : 'Disabled'}
                   </span>
                 </div>
               </div>
@@ -2226,20 +2204,7 @@ export default function UsersPage() {
                 onChange={(e) => setEditFormData({
                   ...editFormData,
                   notification_preferences: {
-                    email: e.target.checked,
-                    whatsapp: editFormData.notification_preferences?.whatsapp || false
-                  }
-                })}
-                disabled={isSubmitting}
-              />
-              <Checkbox
-                label="WhatsApp notifications"
-                checked={editFormData.notification_preferences?.whatsapp || false}
-                onChange={(e) => setEditFormData({
-                  ...editFormData,
-                  notification_preferences: {
-                    email: editFormData.notification_preferences?.email || false,
-                    whatsapp: e.target.checked
+                    email: e.target.checked
                   }
                 })}
                 disabled={isSubmitting}
