@@ -569,6 +569,8 @@ export interface TelemetryRecord {
   // OBD-II Data
   rpm?: number;
   spd?: number;
+  /** GPS speed (km/h) when available from provider. */
+  gspd?: number;
   lod?: number;
   thr?: number;
   tmp?: number;
@@ -688,6 +690,8 @@ export interface TripReplayRecord {
   lon?: number;
   lng?: number;
   spd?: number;
+  /** GPS speed (km/h) when available from provider. */
+  gspd?: number;
   rpm?: number;
   hdg?: number;
   cog?: number;
