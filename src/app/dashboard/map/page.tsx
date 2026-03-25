@@ -125,10 +125,13 @@ export default function FleetMapPage() {
     const startMs = start.getTime();
     const endMs = end.getTime();
     telemetryAPI
-      .getTelemetry(selectedVehicleId, 10000, start.toISOString(), end.toISOString())
+      .getTelemetry(selectedVehicleId, 10000, {
+        start_date: start.toISOString(),
+        end_date: end.toISOString(),
+      })
       .then((res) => {
         if (cancelled) return;
-        const raw = Array.isArray(res) ? res : res.records || [];
+        const raw = (Array.isArray(res) ? res : res.records || []) as TelemetryRecord[];
         const inToday = raw.filter((r) => {
           const ms = getTelemetryEventTimeMs(r);
           return ms >= startMs && ms <= endMs;
