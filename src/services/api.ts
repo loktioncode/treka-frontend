@@ -595,6 +595,9 @@ export const analyticsAPI = {
       avg_l_100km: number | null;
       service_interval_km: number;
       km_until_next_service: number | null;
+      service_baseline?: "last_service" | "first_telemetry" | "none";
+      first_telemetry_at?: string | null;
+      service_reference_odometer_km?: number | null;
     };
   },
 };

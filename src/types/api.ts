@@ -184,6 +184,9 @@ export interface VehicleDetails {
   mileage?: number;
   service_interval_km?: number; // km between services (e.g. 10000)
   last_service_at_km?: number; // odometer at last service (reset service alerts)
+  /** Odometer (km) from the oldest stored telemetry batch — baseline when no service logged */
+  first_telemetry_odometer_km?: number;
+  first_telemetry_at?: string;
   driver_id?: string; // ID of assigned driver
   device_id?: string; // Hardware ID of the telematics device
   /** When "teltonika", device uses Flespi MQTT; otherwise HiveMQ (custom/firmware). */

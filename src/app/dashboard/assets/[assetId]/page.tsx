@@ -240,6 +240,9 @@ export default function AssetViewPage() {
     avg_l_100km: number | null;
     service_interval_km: number;
     km_until_next_service: number | null;
+    service_baseline?: "last_service" | "first_telemetry" | "none";
+    first_telemetry_at?: string | null;
+    service_reference_odometer_km?: number | null;
   } | null>(null);
   /** Ignore stale fleet-metrics responses when switching vehicles quickly. */
   const fleetMetricsFetchSeq = useRef(0);
@@ -1346,6 +1349,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                           await assetAPI.logService(asset.id);
                           toast.success("Service logged. Odometer reset for next interval.");
                           await loadAsset();
+                          fetchFleetMetrics(asset.id);
                         } catch {
                           toast.error("Failed to log service");
                         }
@@ -1601,30 +1605,26 @@ Provide a concise, actionable insight for a fleet manager.`;
 
                     <Card>
                       <CardHeader>
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2">
                           <CardTitle className="text-lg">Vehicle Metrics</CardTitle>
-                          {(asset.status === "maintenance" ||
-                            (fleetMetrics?.km_until_next_service != null &&
-                              fleetMetrics.km_until_next_service <= 1000)) && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-teal-600 border-teal-300 hover:bg-teal-50"
-                                onClick={async () => {
-                                  if (!asset?.id) return;
-                                  try {
-                                    await assetAPI.logService(asset.id);
-                                    toast.success("Service logged. Vehicle status set to active.");
-                                    await loadAsset();
-                                    fetchFleetMetrics(asset.id);
-                                  } catch {
-                                    toast.error("Failed to log service");
-                                  }
-                                }}
-                              >
-                                Log service
-                              </Button>
-                            )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-teal-600 border-teal-300 hover:bg-teal-50 shrink-0"
+                            onClick={async () => {
+                              if (!asset?.id) return;
+                              try {
+                                await assetAPI.logService(asset.id);
+                                toast.success("Service logged at current odometer. Next interval started.");
+                                await loadAsset();
+                                fetchFleetMetrics(asset.id);
+                              } catch {
+                                toast.error("Failed to log service");
+                              }
+                            }}
+                          >
+                            Log service
+                          </Button>
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-4">
@@ -1643,9 +1643,11 @@ Provide a concise, actionable insight for a fleet manager.`;
                             Service Interval
                           </span>
                           <span className="font-bold">
-                            {fleetMetrics?.service_interval_km != null
-                              ? `${fleetMetrics.service_interval_km.toLocaleString()} km`
-                              : "10,000 km"}
+                            {(fleetMetrics?.service_interval_km ??
+                              asset.vehicle_details?.service_interval_km ??
+                              10000
+                            ).toLocaleString()}{" "}
+                            km
                           </span>
                         </div>
                         <div className="flex justify-between items-center py-2 border-b">
@@ -1658,6 +1660,28 @@ Provide a concise, actionable insight for a fleet manager.`;
                               : "—"}
                           </span>
                         </div>
+                        {fleetMetrics?.service_baseline === "first_telemetry" &&
+                          fleetMetrics.first_telemetry_at && (
+                            <p className="text-xs text-gray-500 -mt-2 pb-2 border-b">
+                              Interval from first telemetry on{" "}
+                              {formatDate(new Date(fleetMetrics.first_telemetry_at))}.
+                            </p>
+                          )}
+                        {fleetMetrics?.service_baseline === "last_service" && (
+                          <p className="text-xs text-gray-500 -mt-2 pb-2 border-b">
+                            Based on last logged service at{" "}
+                            {fleetMetrics.service_reference_odometer_km != null
+                              ? `${fleetMetrics.service_reference_odometer_km.toLocaleString()} km`
+                              : "—"}{" "}
+                            odometer.
+                          </p>
+                        )}
+                        {fleetMetrics?.service_baseline === "none" && (
+                          <p className="text-xs text-amber-800/90 -mt-2 pb-2 border-b">
+                            No service baseline yet. After the device sends odometer readings, we use
+                            the first reading as the start point until you log a service.
+                          </p>
+                        )}
                         <div className="flex justify-between items-center py-2">
                           <span className="text-sm text-gray-500">
                             Fuel Efficiency
