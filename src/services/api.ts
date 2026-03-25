@@ -92,6 +92,15 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
+    const err = error as { code?: string; name?: string; response?: unknown };
+    if (
+      err.code === "ERR_CANCELED" ||
+      err.name === "CanceledError" ||
+      err.name === "AbortError"
+    ) {
+      return Promise.reject(error);
+    }
+
     // Log API errors
     const config = error.config as ExtendedAxiosRequestConfig;
 

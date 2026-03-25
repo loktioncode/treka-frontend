@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 import {
@@ -204,6 +204,24 @@ export default function AssetViewPage() {
     val != null ? Number(val).toFixed(decimals) : null;
   const getExtra = (r: any, key: string) => (r?.extras && typeof r.extras === "object" ? r.extras[key] : undefined);
 
+  /** DTC count drives check-engine state; `mil` here is km with MIL on, not a lamp boolean (see map DTC card). */
+  const engineDtcInfo = useMemo(() => {
+    const r = cardTelemetry as TelemetryRecord | undefined;
+    if (!r) return { count: null as number | null, hasActiveDtc: false };
+    const raw =
+      r.dtc ??
+      (r.extras && typeof r.extras === "object"
+        ? (r.extras as Record<string, unknown>)["can.dtc.number"]
+        : undefined);
+    if (raw === null || raw === undefined || raw === "") {
+      return { count: null, hasActiveDtc: false };
+    }
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) return { count: null, hasActiveDtc: false };
+    const count = Math.floor(n);
+    return { count, hasActiveDtc: count > 0 };
+  }, [cardTelemetry]);
+
   const [loadingTelemetry, setLoadingTelemetry] = useState(false);
 
   // GPS Logs tab uses shared `telemetry`; pagination state below.
@@ -223,6 +241,8 @@ export default function AssetViewPage() {
     service_interval_km: number;
     km_until_next_service: number | null;
   } | null>(null);
+  /** Ignore stale fleet-metrics responses when switching vehicles quickly. */
+  const fleetMetricsFetchSeq = useRef(0);
 
   // Global filters
   const [allVehicles, setAllVehicles] = useState<Asset[]>([]);
@@ -608,10 +628,13 @@ Provide a concise, actionable insight for a fleet manager.`;
 
   // Load asset and components
   const fetchFleetMetrics = useCallback(async (aid: string) => {
+    const seq = ++fleetMetricsFetchSeq.current;
     try {
       const data = await analyticsAPI.getVehicleFleetMetrics(aid);
+      if (fleetMetricsFetchSeq.current !== seq) return;
       setFleetMetrics(data);
     } catch {
+      if (fleetMetricsFetchSeq.current !== seq) return;
       setFleetMetrics(null);
     }
   }, []);
@@ -627,6 +650,7 @@ Provide a concise, actionable insight for a fleet manager.`;
           fetchTrips(response.vehicle_details.device_id);
         }
       } else {
+        fleetMetricsFetchSeq.current += 1;
         setFleetMetrics(null);
       }
     } catch (error) {
@@ -1523,16 +1547,27 @@ Provide a concise, actionable insight for a fleet manager.`;
                           </div>
                           <div className="p-4 rounded-xl border bg-gray-50">
                             <p className="text-xs text-gray-500 uppercase font-bold mb-1">
-                              Check Engine (MIL)
+                              Check Engine (DTC)
                             </p>
                             <div className="flex items-center gap-2">
                               <div
-                                className={`h-3 w-3 rounded-full ${cardTelemetry?.mil ? "bg-red-500 animate-pulse" : "bg-green-500"}`}
+                                className={`h-3 w-3 rounded-full shrink-0 ${engineDtcInfo.hasActiveDtc ? "bg-red-500 animate-pulse" : "bg-green-500"}`}
                               />
-                              <span className="text-sm font-bold">
-                                {cardTelemetry?.mil ? "Active Error" : "No Errors"}
+                              <span
+                                className={`text-sm font-bold ${engineDtcInfo.hasActiveDtc ? "text-red-800" : "text-green-800"}`}
+                              >
+                                {engineDtcInfo.hasActiveDtc
+                                  ? `${engineDtcInfo.count} active code${engineDtcInfo.count === 1 ? "" : "s"}`
+                                  : "No Errors"}
                               </span>
                             </div>
+                            {cardTelemetry?.mil != null &&
+                              Number(cardTelemetry.mil) > 0 && (
+                                <p className="text-[10px] text-gray-500 mt-2 pl-5">
+                                  MIL distance (OBD):{" "}
+                                  {Number(cardTelemetry.mil).toLocaleString()} km
+                                </p>
+                              )}
                           </div>
                         </div>
 
