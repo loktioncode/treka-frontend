@@ -56,6 +56,7 @@ import {
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { formatDate, formatDateForInput } from "@/lib/utils";
+import { computePeriodTelemetryStats } from "@/lib/telemetry-period-stats";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -240,6 +241,12 @@ export default function AssetViewPage() {
   }, []);
 
   // Compute trip polylines for the selected range for map overlay
+  const periodFilterActive = Boolean(globalStartDate);
+  const periodTelemetryStats = useMemo(() => {
+    if (!periodFilterActive) return null;
+    return computePeriodTelemetryStats(telemetry);
+  }, [telemetry, periodFilterActive]);
+
   const rangeTripPolylines = useMemo(() => {
     if (!globalStartDate) return {};
     const start = new Date(globalStartDate);
@@ -1386,6 +1393,70 @@ Provide a concise, actionable insight for a fleet manager.`;
                             )}
                             <span><strong>Device:</strong> {asset.vehicle_details?.device_id || "—"}</span>
                           </div>
+                          {periodFilterActive && (
+                            <div className="rounded-lg bg-teal-50/90 border border-teal-100/80 px-3 py-2.5 space-y-2">
+                              <div className="flex items-start gap-2 text-teal-900">
+                                <Calendar className="w-4 h-4 shrink-0 mt-0.5 text-teal-700" />
+                                <div>
+                                  <p className="text-[10px] uppercase tracking-wide text-teal-700/90 font-semibold">
+                                    Filtered period
+                                  </p>
+                                  <p className="text-xs font-medium text-teal-950">
+                                    {formatDate(new Date(`${globalStartDate}T12:00:00`))}
+                                    {" – "}
+                                    {formatDate(
+                                      new Date(
+                                        `${globalEndDate || globalStartDate}T12:00:00`,
+                                      ),
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+                              {loadingTelemetry && telemetry.length === 0 ? (
+                                <p className="text-xs text-teal-800/90 pl-6">Loading telemetry…</p>
+                              ) : telemetry.length === 0 ? (
+                                <p className="text-xs text-amber-800 pl-6">
+                                  No telemetry in this range.
+                                </p>
+                              ) : periodTelemetryStats ? (
+                                <div className="grid grid-cols-2 gap-2 pl-6">
+                                  <div className="bg-white/70 rounded-md p-2 border border-teal-100/60">
+                                    <p className="text-[10px] uppercase text-gray-500 font-medium">
+                                      Distance
+                                    </p>
+                                    <p className="text-sm font-bold text-teal-800">
+                                      {periodTelemetryStats.distanceKm >= 0.1
+                                        ? `${periodTelemetryStats.distanceKm.toFixed(1)} km`
+                                        : periodTelemetryStats.distanceKm > 0
+                                          ? `${(periodTelemetryStats.distanceKm * 1000).toFixed(0)} m`
+                                          : "—"}
+                                    </p>
+                                  </div>
+                                  <div className="bg-white/70 rounded-md p-2 border border-teal-100/60">
+                                    <p className="text-[10px] uppercase text-gray-500 font-medium">
+                                      Avg speed
+                                    </p>
+                                    <p className="text-sm font-bold text-teal-800">
+                                      {periodTelemetryStats.avgSpeedKmh != null
+                                        ? `${periodTelemetryStats.avgSpeedKmh.toFixed(0)} km/h`
+                                        : "—"}
+                                    </p>
+                                  </div>
+                                  <div className="bg-white/70 rounded-md p-2 border border-teal-100/60 col-span-2">
+                                    <p className="text-[10px] uppercase text-gray-500 font-medium flex items-center gap-1">
+                                      <Fuel className="w-3 h-3" />
+                                      Fuel used (est.)
+                                    </p>
+                                    <p className="text-sm font-bold text-teal-800">
+                                      {periodTelemetryStats.fuelUnknown
+                                        ? "—"
+                                        : `${periodTelemetryStats.fuelUsedL.toFixed(1)} L`}
+                                    </p>
+                                  </div>
+                                </div>
+                              ) : null}
+                            </div>
+                          )}
                           <div className="pt-2 border-t border-gray-100 grid grid-cols-2 gap-3">
                             <div className="bg-gray-50 rounded-lg p-2 text-center">
                               <p className="text-[10px] uppercase text-gray-500 font-medium">Speed</p>
