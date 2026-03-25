@@ -38,11 +38,19 @@ export function useRouteReplayTelemetry(
     return () => clearInterval(interval);
   }, [isPlaying, currentIndex, sortedRecords, playbackSpeed]);
 
-  // Start at the beginning of the time-ordered route so Play advances forward (oldest → newest).
+  // Reset when the incoming batch changes (new fetch / date filter). Depend on `records`
+  // (prop identity + content) so we never keep stale indices or counts when the parent replaces data.
+  const recordsFingerprint = useMemo(() => {
+    if (!records?.length) return `0:${records?.length ?? "undef"}`;
+    const first = getTelemetryRecordTimeMs(records[0]);
+    const last = getTelemetryRecordTimeMs(records[records.length - 1]);
+    return `${records.length}:${first}:${last}`;
+  }, [records]);
+
   useEffect(() => {
     setCurrentIndex(0);
     setIsPlaying(false);
-  }, [sortedRecords]);
+  }, [recordsFingerprint]);
 
   const resetToStart = useCallback(() => {
     setCurrentIndex(0);

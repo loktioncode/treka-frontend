@@ -250,6 +250,13 @@ export default function LiveMap({
       }]
     };
   }, [replay.sortedRecords]);
+
+  /** Remount GeoJSON source when trail data changes — Mapbox can fail to refresh in-place. */
+  const historicalTrailSourceKey = useMemo(() => {
+    const s = replay.sortedRecords;
+    if (s.length === 0) return "hist-empty";
+    return `hist-${s.length}-${getTelemetryRecordTimeMs(s[0])}-${getTelemetryRecordTimeMs(s[s.length - 1])}`;
+  }, [replay.sortedRecords]);
   
   // Determine marker position: either current replay point or last known
   const displayedHistoricalPos = useMemo(() => {
@@ -365,7 +372,12 @@ export default function LiveMap({
         )}
 
         {historicalTrailGeoJson.features.length > 0 && (
-          <Source id="historical-path" type="geojson" data={historicalTrailGeoJson}>
+          <Source
+            key={historicalTrailSourceKey}
+            id="historical-path"
+            type="geojson"
+            data={historicalTrailGeoJson}
+          >
             <Layer
               id="historical-path-line"
               type="line"

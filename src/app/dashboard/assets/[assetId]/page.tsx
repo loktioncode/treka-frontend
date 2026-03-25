@@ -75,7 +75,7 @@ import { type ChatMessage } from "@/components/ui/chat";
 import { analyticsAPI } from "@/services/api";
 import { useClientLabels } from "@/hooks/useClientLabels";
 
-const GPS_LOGS_PAGE_SIZE = 50;
+const GPS_LOGS_PAGE_SIZE = 20;
 
 /** `type="date"` values are YYYY-MM-DD; use local calendar day bounds for API date filters. */
 function localDayRangeToIsoBounds(startYmd: string, endYmd: string): {
@@ -93,6 +93,40 @@ function localDayRangeToIsoBounds(startYmd: string, endYmd: string): {
   const end = parseLocalDay(endYmd);
   end.setHours(23, 59, 59, 999);
   return { start: start.toISOString(), end: end.toISOString() };
+}
+
+/** Same sources as overview “Fuel (L)” / Fuel Volume: liters only. */
+function formatGpsLogFuelLiters(r: TelemetryRecord): string {
+  const extras = (r.extras || {}) as Record<string, unknown>;
+  const num = (v: unknown): number | undefined => {
+    if (v == null || v === "") return undefined;
+    const x = Number(v);
+    return Number.isFinite(x) ? x : undefined;
+  };
+  const liters =
+    num(r.fuel_vol) ??
+    num(extras["can.fuel.volume"]) ??
+    num(extras["fuel.volume"]) ??
+    num(extras["io.244"]) ??
+    (r.fuel_unit === "l" ? num(r.fl) : undefined);
+  if (liters != null) return `${liters.toFixed(1)} L`;
+  return "—";
+}
+
+function formatGpsLogOdometerKm(r: TelemetryRecord): string {
+  const extras = (r.extras || {}) as Record<string, unknown>;
+  if (r.odo != null && Number.isFinite(Number(r.odo))) {
+    return `${Number(r.odo).toLocaleString()} km`;
+  }
+  const td = extras["total.distance"];
+  if (typeof td === "number" && Number.isFinite(td)) {
+    return `${(td / 1000).toLocaleString()} km`;
+  }
+  const cm = extras["can.vehicle.mileage"];
+  if (typeof cm === "number" && Number.isFinite(cm)) {
+    return `${Number(cm).toLocaleString()} km`;
+  }
+  return "—";
 }
 
 export default function AssetViewPage() {
@@ -2299,7 +2333,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                               <th className="px-4 py-3 whitespace-nowrap">Latitude</th>
                               <th className="px-4 py-3 whitespace-nowrap">Longitude</th>
                               <th className="px-4 py-3 border-l whitespace-nowrap">Speed (km/h)</th>
-                              <th className="px-4 py-3 whitespace-nowrap">Fuel Level</th>
+                              <th className="px-4 py-3 whitespace-nowrap">Fuel (L)</th>
                               <th className="px-4 py-3 whitespace-nowrap">Coolant °C</th>
                               <th className="px-4 py-3 whitespace-nowrap">Odometer</th>
                               <th className="px-4 py-3 whitespace-nowrap">Voltage</th>
@@ -2310,7 +2344,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                           <tbody>
                             {/* Pinned live row from MQTT */}
                             {liveVehicleRecord && (() => {
-                              const r = liveVehicleRecord;
+                              const r = liveVehicleRecord as TelemetryRecord;
                               const lat = r.lat ?? null;
                               const lng = r.lng ?? r.lon ?? null;
                               const hasCoords = lat != null && lng != null;
@@ -2319,6 +2353,16 @@ Provide a concise, actionable insight for a fleet manager.`;
                                 r.ignition != null
                                   ? r.ignition
                                   : (r.extras as Record<string, unknown>)?.["engine.ignition.status"] === true;
+                              const liveExtras = (r.extras || {}) as Record<string, any>;
+                              const liveSpdRaw =
+                                r.spd ?? r.gspd ?? liveExtras["can.vehicle.speed"];
+                              const liveExternalV = liveExtras["external.powersource.voltage"];
+                              const liveDisplayVlt =
+                                liveExternalV && liveExternalV > 9 ? liveExternalV : r.vlt;
+                              const liveTmp =
+                                r.tmp ??
+                                liveExtras["can.engine.coolant.temperature"] ??
+                                liveExtras["engine.coolant.temperature"];
                               return (
                                 <tr key="live" className="bg-teal-50 border-b border-teal-200 hover:bg-teal-100 transition-colors">
                                   <td className="px-4 py-3 whitespace-nowrap">
@@ -2330,28 +2374,39 @@ Provide a concise, actionable insight for a fleet manager.`;
                                       {r.ts_server
                                         ? new Date(r.ts_server).toLocaleString()
                                         : r.ts
-                                          ? new Date(r.ts * 1000).toLocaleString()
+                                          ? new Date(
+                                              r.ts < 1e12 ? r.ts * 1000 : r.ts,
+                                            ).toLocaleString()
                                           : "Now"}
                                     </span>
                                   </td>
                                   <td className="px-4 py-3 font-mono text-gray-600">{lat != null ? lat.toFixed(6) : "—"}</td>
                                   <td className="px-4 py-3 font-mono text-gray-600">{lng != null ? lng.toFixed(6) : "—"}</td>
                                   <td className="px-4 py-3 border-l font-medium">
-                                    {r.spd != null ? (
-                                      <span className={r.spd > 0 ? "text-teal-700" : "text-gray-400"}>
-                                        {Number(r.spd).toFixed(1)}
+                                    {liveSpdRaw != null && Number.isFinite(Number(liveSpdRaw)) ? (
+                                      <span
+                                        className={
+                                          Number(liveSpdRaw) > 0 ? "text-teal-700" : "text-gray-400"
+                                        }
+                                      >
+                                        {Number(liveSpdRaw).toFixed(1)}
                                       </span>
-                                    ) : <span className="text-gray-400">—</span>}
+                                    ) : (
+                                      <span className="text-gray-400">—</span>
+                                    )}
                                   </td>
-                                  <td className="px-4 py-3">{r.fl != null ? `${Number(r.fl).toFixed(1)}%` : "—"}</td>
+                                  <td className="px-4 py-3">{formatGpsLogFuelLiters(r)}</td>
                                   <td className="px-4 py-3">
-                                    {r.tmp != null ? (
-                                      <span className={r.tmp > 105 ? "text-red-600 font-semibold" : "text-gray-700"}>
-                                        {Number(r.tmp).toFixed(0)}°C
+                                    {liveTmp != null ? (
+                                      <span className={Number(liveTmp) > 105 ? "text-red-600 font-semibold" : "text-gray-700"}>
+                                        {Number(liveTmp).toFixed(0)}°C
                                       </span>
                                     ) : "—"}
                                   </td>
-                                  <td className="px-4 py-3 text-blue-600">{r.vlt != null ? `${Number(r.vlt).toFixed(2)}V` : "—"}</td>
+                                  <td className="px-4 py-3 text-gray-600">{formatGpsLogOdometerKm(r)}</td>
+                                  <td className="px-4 py-3 text-blue-600">
+                                    {liveDisplayVlt != null ? `${Number(liveDisplayVlt).toFixed(2)}V` : "—"}
+                                  </td>
                                   <td className="px-4 py-3">
                                     <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${isIgnitionOn ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                                       <span className={`w-1.5 h-1.5 rounded-full ${isIgnitionOn ? "bg-green-500" : "bg-gray-400"}`} />
@@ -2392,6 +2447,11 @@ Provide a concise, actionable insight for a fleet manager.`;
                                   displaySpeed = r.gspd || extras["can.vehicle.speed"] || 0;
                                 }
 
+                                const displayTmp =
+                                  r.tmp ??
+                                  extras["can.engine.coolant.temperature"] ??
+                                  extras["engine.coolant.temperature"];
+
                                 const rowKey = `${r.ts_server ?? ""}-${r.ts ?? ""}-${(gpsLogsPageSafe - 1) * GPS_LOGS_PAGE_SIZE + i}`;
                                 return (
                                   <tr key={rowKey} className="bg-white border-b hover:bg-gray-50 transition-colors">
@@ -2419,18 +2479,24 @@ Provide a concise, actionable insight for a fleet manager.`;
                                         <span className="text-gray-400">—</span>
                                       )}
                                     </td>
+                                    <td className="px-4 py-3">{formatGpsLogFuelLiters(r)}</td>
                                     <td className="px-4 py-3">
-                                      {r.fl != null ? `${Number(r.fl).toFixed(1)}%` : "—"}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                      {r.tmp != null ? (
-                                        <span className={r.tmp > 105 ? "text-red-600 font-semibold" : "text-gray-700"}>
-                                          {Number(r.tmp).toFixed(0)}°C
+                                      {displayTmp != null && Number.isFinite(Number(displayTmp)) ? (
+                                        <span
+                                          className={
+                                            Number(displayTmp) > 105
+                                              ? "text-red-600 font-semibold"
+                                              : "text-gray-700"
+                                          }
+                                        >
+                                          {Number(displayTmp).toFixed(0)}°C
                                         </span>
-                                      ) : "—"}
+                                      ) : (
+                                        "—"
+                                      )}
                                     </td>
                                     <td className="px-4 py-3 text-gray-600">
-                                      {r.odo != null ? `${Number(r.odo).toLocaleString()} km` : "—"}
+                                      {formatGpsLogOdometerKm(r)}
                                     </td>
                                     <td className="px-4 py-3 text-blue-600">
                                       {displayVlt != null ? `${Number(displayVlt).toFixed(2)}V` : "—"}
