@@ -37,6 +37,7 @@ import { type ChatMessage } from "@/components/ui/chat";
 import { analyticsAPI, telemetryAPI } from "@/services/api";
 import type { Asset, TelemetryRecord } from "@/types/api";
 import { getTelemetryEventTimeMs } from "@/hooks/useRouteReplayTelemetry";
+import { formatVehicleFuelLevel } from "@/lib/telemetry-fuel";
 
 /** Local calendar day: [00:00:00.000, 23:59:59.999] — i.e. up to but not including next midnight. */
 function getLocalCalendarDayBounds(now = new Date()): { start: Date; end: Date } {
@@ -370,12 +371,13 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
                           <span className="text-[9px] font-normal">km/h</span>
                         </span>
                       </div>
-                      <div className="bg-gray-50 p-1.5 rounded-md flex flex-col items-center justify-center">
-                        <span className="text-[9px] uppercase text-gray-400 font-bold">
-                          Voltage
+                      <div className="bg-emerald-50 p-1.5 rounded-md flex flex-col items-center justify-center">
+                        <span className="text-[9px] uppercase text-emerald-700 font-bold flex items-center gap-0.5">
+                          <Fuel className="h-2.5 w-2.5" />
+                          Fuel
                         </span>
-                        <span className="text-xs font-bold text-blue-600">
-                          {vehicle.last_record.vlt?.toFixed(1) || 0}V
+                        <span className="text-xs font-bold text-emerald-800">
+                          {formatVehicleFuelLevel(vehicle.last_record)}
                         </span>
                       </div>
                     </div>

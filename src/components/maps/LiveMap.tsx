@@ -31,6 +31,11 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { googleMapsPlaceUrl } from "@/lib/utils";
+import {
+  formatVehicleFuelLevel,
+  getTelemetryFuelLiters,
+  getTelemetryFuelPercent,
+} from "@/lib/telemetry-fuel";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 
@@ -55,10 +60,6 @@ function getVehicleStatus(record: TelemetryRecord): "serious" | "warning" | "ok"
   if (driving === "moving") return "ok";
   if (driving === "idle") return "idle";
   return "off";
-}
-
-function recordExtra(r: TelemetryRecord, key: string): unknown {
-  return r.extras && typeof r.extras === "object" ? r.extras[key] : undefined;
 }
 
 interface LiveMapProps {
@@ -153,6 +154,26 @@ export default function LiveMap({
 
   const vehicleListRef = useRef(vehicleList);
   vehicleListRef.current = vehicleList;
+
+  const fleetFuelOverview = useMemo(() => {
+    let pctSum = 0;
+    let pctCount = 0;
+    let litersCount = 0;
+    for (const v of vehicleList) {
+      const r = v.last_record;
+      if (getTelemetryFuelLiters(r) != null) litersCount += 1;
+      const p = getTelemetryFuelPercent(r);
+      if (p != null) {
+        pctSum += p;
+        pctCount += 1;
+      }
+    }
+    return {
+      pctAvg: pctCount > 0 ? Math.round(pctSum / pctCount) : null,
+      pctCount,
+      litersCount,
+    };
+  }, [vehicleList]);
 
   // Always sync marker positions from MQTT / last_record; persist last known so markers always show
   useEffect(() => {
@@ -611,18 +632,8 @@ export default function LiveMap({
                 </div>
 
                 <div className="flex justify-between items-center text-xs text-gray-600">
-                  <span>Fuel (L)</span>
-                  <span className="font-semibold">
-                    {(() => {
-                      const vol =
-                        popupRec.fuel_vol ??
-                        recordExtra(popupRec, "can.fuel.volume");
-                      if (vol == null || vol === "") return "—";
-                      const n =
-                        typeof vol === "number" ? vol : Number(vol);
-                      return Number.isFinite(n) ? `${n.toFixed(3)} L` : "—";
-                    })()}
-                  </span>
+                  <span>Fuel level</span>
+                  <span className="font-semibold">{formatVehicleFuelLevel(popupRec)}</span>
                 </div>
 
                 {popupRec.odo !== undefined && popupRec.odo !== null && (
@@ -781,9 +792,31 @@ export default function LiveMap({
               <span className="text-gray-600">Active Vehicles</span>
               <span className="font-bold">{vehicleList.filter((v) => getDrivingStatus(v.last_record) === "moving").length}</span>
             </div>
-            <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-green-500 h-full" style={{ width: "100%" }} />
-            </div>
+            {fleetFuelOverview.pctAvg != null ? (
+              <>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-600">Avg fuel level</span>
+                  <span className="font-bold text-amber-800">{fleetFuelOverview.pctAvg}%</span>
+                </div>
+                <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className="bg-amber-500 h-full transition-all"
+                    style={{
+                      width: `${Math.min(100, Math.max(0, fleetFuelOverview.pctAvg))}%`,
+                    }}
+                  />
+                </div>
+                <p className="text-[10px] text-gray-400">
+                  {fleetFuelOverview.pctCount} of {vehicleList.length} with level %
+                </p>
+              </>
+            ) : fleetFuelOverview.litersCount > 0 ? (
+              <p className="text-[10px] text-gray-600 leading-snug">
+                {fleetFuelOverview.litersCount} vehicle(s) report fuel in liters — open a marker for volume.
+              </p>
+            ) : (
+              <p className="text-[10px] text-gray-500">No fuel level telemetry</p>
+            )}
           </div>
         </div>
       )}

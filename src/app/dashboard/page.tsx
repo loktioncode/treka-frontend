@@ -40,6 +40,7 @@ import { getDrivingStatus } from "@/lib/driving-status";
 import { useAssets } from "@/hooks/useAssets";
 
 import { DriverScoreCard } from "@/components/dashboard/DriverScoreCard";
+import { formatVehicleFuelLevel } from "@/lib/telemetry-fuel";
 
 interface DashboardStats {
   assets: {
@@ -607,9 +608,14 @@ export default function Dashboard() {
                           )}
                         </div>
                       </div>
-                      <span className="text-xs text-gray-500 font-bold">
-                        {vehicle.last_record.spd?.toFixed(0) || 0} km/h
-                      </span>
+                      <div className="text-right text-xs leading-tight">
+                        <p className="text-gray-500 font-bold">
+                          {vehicle.last_record.spd?.toFixed(0) || 0} km/h
+                        </p>
+                        <p className="text-amber-800 font-bold mt-0.5" title="Fuel level">
+                          {formatVehicleFuelLevel(vehicle.last_record)}
+                        </p>
+                      </div>
                     </div>
                   );
                 })}
@@ -674,9 +680,12 @@ export default function Dashboard() {
                           </span>
                         </div>
                       </div>
-                      <span className="text-xs text-gray-600 font-bold shrink-0">
-                        {vehicle.last_record.spd?.toFixed(0) || 0} km/h
-                      </span>
+                      <div className="text-right text-xs text-gray-600 font-bold shrink-0 leading-tight">
+                        <p>{vehicle.last_record.spd?.toFixed(0) || 0} km/h</p>
+                        <p className="text-amber-800 mt-0.5" title="Fuel level">
+                          {formatVehicleFuelLevel(vehicle.last_record)}
+                        </p>
+                      </div>
                     </div>
                   );
                 })}
