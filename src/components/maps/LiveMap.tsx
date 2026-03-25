@@ -12,6 +12,11 @@ import Map, {
 import type { MapRef } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useMqttTracking, LiveVehicle } from "@/hooks/useMqttTracking";
+import {
+  useRouteReplayTelemetry,
+  getTelemetryRecordTimeMs,
+  type RouteReplayTelemetry,
+} from "@/hooks/useRouteReplayTelemetry";
 import { TelemetryRecord } from "@/types/api";
 import { decodeToGeoJSON } from "@/lib/polyline";
 import { getDrivingStatus, getDrivingStatusLabel } from "@/lib/driving-status";
@@ -68,6 +73,10 @@ interface LiveMapProps {
   historicalRecords?: TelemetryRecord[];
   /** Whether to enable live MQTT updates for markers. Defaults to true. */
   live?: boolean;
+  /**
+   * Optional shared replay state so header (or other) controls stay in sync with the map trail.
+   */
+  routeReplay?: RouteReplayTelemetry;
 }
 
 
@@ -86,8 +95,14 @@ export default function LiveMap({
   deviceToVehicle,
   historicalRecords,
   live = true,
+  routeReplay,
 }: LiveMapProps) {
   const { vehicles, isConnected, vehicleList } = useMqttTracking(live ? deviceId : undefined, undefined, live);
+
+  const internalReplay = useRouteReplayTelemetry(
+    routeReplay ? undefined : historicalRecords,
+  );
+  const replay = routeReplay ?? internalReplay;
 
   const [selectedVehicle, setSelectedVehicle] = useState<LiveVehicle | null>(
     null,
@@ -96,17 +111,6 @@ export default function LiveMap({
   const markerUpdateRef = useRef<ReturnType<typeof setInterval> | null>(null);
   /** Persist last known position per device so markers always show on fleet map (MQTT may send position even when engine off) */
   const lastKnownPositionRef = useRef<Record<string, { lat: number; lon: number }>>({});
-
-  // Animation / Replay state
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
-
-  // Filter and sort historical records
-  const sortedRecords = useMemo(() => {
-    if (!historicalRecords) return [];
-    return [...historicalRecords].sort((a, b) => a.ts - b.ts);
-  }, [historicalRecords]);
 
   const handleSelectVehicle = (vehicle: LiveVehicle | null) => {
 
@@ -228,29 +232,10 @@ export default function LiveMap({
     });
   }, [deviceId, vehicles]);
   
-  // Animation logic for replay
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isPlaying && sortedRecords.length > 0 && currentIndex < sortedRecords.length - 1) {
-      interval = setInterval(() => {
-        setCurrentIndex((prev) => prev + 1);
-      }, 1000 / playbackSpeed);
-    } else {
-      setIsPlaying(false);
-    }
-    return () => clearInterval(interval);
-  }, [isPlaying, currentIndex, sortedRecords, playbackSpeed]);
-
-  // Sync currentIndex when records change
-  useEffect(() => {
-    setCurrentIndex(sortedRecords.length > 0 ? sortedRecords.length - 1 : 0);
-    setIsPlaying(false);
-  }, [sortedRecords]);
-
   // Historical trail from records
   const historicalTrailGeoJson = useMemo(() => {
-    if (sortedRecords.length < 2) return { type: "FeatureCollection" as const, features: [] };
-    const coords = sortedRecords
+    if (replay.sortedRecords.length < 2) return { type: "FeatureCollection" as const, features: [] };
+    const coords = replay.sortedRecords
       .filter(r => r.lat != null && (r.lng != null || r.lon != null))
       .map(r => [r.lng ?? r.lon!, r.lat!] as [number, number]);
       
@@ -264,15 +249,15 @@ export default function LiveMap({
         geometry: { type: "LineString" as const, coordinates: coords },
       }]
     };
-  }, [sortedRecords]);
+  }, [replay.sortedRecords]);
   
   // Determine marker position: either current replay point or last known
   const displayedHistoricalPos = useMemo(() => {
-    if (live || sortedRecords.length === 0) return null;
-    const record = sortedRecords[currentIndex] || sortedRecords[sortedRecords.length - 1];
+    if (live || replay.sortedRecords.length === 0) return null;
+    const record = replay.sortedRecords[replay.currentIndex] || replay.sortedRecords[replay.sortedRecords.length - 1];
     if (record.lat == null || (record.lng ?? record.lon) == null) return null;
     return { lat: record.lat!, lon: (record.lng ?? record.lon)!, record };
-  }, [live, sortedRecords, currentIndex]);
+  }, [live, replay.sortedRecords, replay.currentIndex]);
 
 
   const getLon = (p: TelemetryRecord) =>
@@ -543,38 +528,46 @@ export default function LiveMap({
         )}
       </Map>
 
-      {/* Historical Playback Controls */}
-      {!live && sortedRecords.length > 0 && (
+      {/* Historical playback controls (on-map); may share state with parent via routeReplay */}
+      {!live && replay.sortedRecords.length > 0 && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center w-[90%] max-w-sm bg-white/95 backdrop-blur-sm p-4 rounded-2xl shadow-2xl border border-gray-100 z-10">
           <div className="w-full flex items-center gap-3 mb-2">
             <button
-              onClick={() => setIsPlaying(!isPlaying)}
+              type="button"
+              onClick={() => replay.setIsPlaying(!replay.isPlaying)}
               className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors shadow-lg"
             >
-              {isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
+              {replay.isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
             </button>
 
             <div className="flex-1 px-1">
               <input
                 type="range"
                 min={0}
-                max={sortedRecords.length - 1}
+                max={replay.sortedRecords.length - 1}
                 step={1}
-                value={currentIndex}
-                onChange={(e) => setCurrentIndex(parseInt(e.target.value))}
+                value={replay.currentIndex}
+                onChange={(e) => replay.setCurrentIndex(parseInt(e.target.value, 10))}
                 className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
               />
               <div className="flex justify-between text-[10px] text-gray-500 mt-1 font-medium">
-                <span>{format(new Date(sortedRecords[currentIndex]?.ts_server || sortedRecords[currentIndex]?.ts || Date.now()), "HH:mm:ss")}</span>
-                <span>{sortedRecords.length} pts</span>
+                <span>
+                  {format(
+                    new Date(
+                      replay.sortedRecords[replay.currentIndex]
+                        ? getTelemetryRecordTimeMs(replay.sortedRecords[replay.currentIndex])
+                        : Date.now(),
+                    ),
+                    "HH:mm:ss",
+                  )}
+                </span>
+                <span>{replay.sortedRecords.length} pts</span>
               </div>
             </div>
 
             <button
-              onClick={() => {
-                setCurrentIndex(0);
-                setIsPlaying(false);
-              }}
+              type="button"
+              onClick={() => replay.resetToStart()}
               className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
               title="Reset"
             >
@@ -585,10 +578,11 @@ export default function LiveMap({
           <div className="flex items-center gap-3 mt-1">
             {[1, 2, 5, 10].map((speed) => (
               <button
+                type="button"
                 key={speed}
-                onClick={() => setPlaybackSpeed(speed)}
+                onClick={() => replay.setPlaybackSpeed(speed)}
                 className={`text-[9px] font-bold px-2 py-0.5 rounded transition-colors ${
-                  playbackSpeed === speed ? "bg-blue-100 text-blue-700" : "text-gray-400 hover:bg-gray-50"
+                  replay.playbackSpeed === speed ? "bg-blue-100 text-blue-700" : "text-gray-400 hover:bg-gray-50"
                 }`}
               >
                 {speed}x

@@ -992,7 +992,7 @@ Provide a concise, actionable insight for a fleet manager.`;
             </div>
           )}
 
-          {/* Global Date Filter (Range) */}
+          {/* Global date filter (same telemetry drives overview map + route replay on map) */}
           {asset.asset_type === "vehicle" && (
             <div className="flex items-center bg-white border rounded-lg px-3 py-1.5 shadow-sm gap-2">
               <div className="flex items-center gap-1">
@@ -1043,13 +1043,16 @@ Provide a concise, actionable insight for a fleet manager.`;
                 />
               </div>
               {(globalStartDate || globalEndDate) && (
-                <button 
+                <button
+                  type="button"
                   onClick={() => {
                     setGlobalStartDate("");
                     setGlobalEndDate("");
-                    if (asset.vehicle_details?.device_id) fetchTelemetry(asset.vehicle_details.device_id, 10000);
+                    if (asset.vehicle_details?.device_id)
+                      fetchTelemetry(asset.vehicle_details.device_id, 10000);
                   }}
                   className="ml-1 text-gray-400 hover:text-gray-600"
+                  aria-label="Clear date range"
                 >
                   <XCircle className="w-4 h-4" />
                 </button>
