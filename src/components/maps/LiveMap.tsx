@@ -105,6 +105,17 @@ interface LiveMapProps {
     isConnected: boolean;
     refreshLiveData: () => Promise<void>;
   };
+  /** Today’s(or selected) speed violations from completed / in-progress trips (fleet map). */
+  speedViolationMarkers?: Array<{
+    lat: number;
+    lon: number;
+    speed_kmh: number;
+    limit_kmh: number;
+    ts: string;
+    device_id?: string;
+  }>;
+  /** When set, used instead of hook/shared `refreshLiveData` for the map refresh control (e.g. fleet: also reload violations). */
+  refreshLiveDataOverride?: () => Promise<void>;
 }
 
 
@@ -127,6 +138,8 @@ export default function LiveMap({
   followDeviceId,
   pinFollowedVehiclePopup = false,
   sharedTracking,
+  speedViolationMarkers,
+  refreshLiveDataOverride,
 }: LiveMapProps) {
   const useInternalMqtt = live && !sharedTracking;
   const internal = useMqttTracking(
@@ -137,7 +150,10 @@ export default function LiveMap({
   const vehicles = sharedTracking?.vehicles ?? internal.vehicles;
   const isConnected = sharedTracking?.isConnected ?? internal.isConnected;
   const vehicleList = sharedTracking?.vehicleList ?? internal.vehicleList;
-  const refreshLiveData = sharedTracking?.refreshLiveData ?? internal.refreshLiveData;
+  const refreshLiveData =
+    refreshLiveDataOverride ??
+    sharedTracking?.refreshLiveData ??
+    internal.refreshLiveData;
 
   const cameraTargetId = followDeviceId ?? deviceId ?? null;
 
@@ -595,6 +611,23 @@ export default function LiveMap({
               </React.Fragment>
             );
           })}
+
+        {live &&
+          (speedViolationMarkers ?? []).map((p, i) => (
+            <Marker
+              key={`speed-violation-${p.device_id ?? "x"}-${p.ts}-${i}`}
+              latitude={p.lat}
+              longitude={p.lon}
+              anchor="center"
+            >
+              <div
+                className="flex items-center justify-center w-6 h-6 rounded-full bg-red-600 border-2 border-white shadow-md cursor-default"
+                title={`Speed ${p.speed_kmh} km/h (limit ${p.limit_kmh})${p.device_id ? ` · ${p.device_id}` : ""}`}
+              >
+                <AlertTriangle className="h-3 w-3 text-white" aria-hidden />
+              </div>
+            </Marker>
+          ))}
 
         {/* Info Popup for Selected Vehicle */}
         {selectedVehicle && (() => {

@@ -663,6 +663,16 @@ export interface LatestTelemetryResponse {
   record: TelemetryRecord;
 }
 
+/** Speed limit violation (clustered episode from trip processing). */
+export interface SpeedViolationEvent {
+  ts: string;
+  lat: number;
+  lon: number;
+  speed_kmh: number;
+  limit_kmh: number;
+  excess_kmh?: number;
+}
+
 // Trip types
 export interface Trip {
   id: string;
@@ -687,6 +697,7 @@ export interface Trip {
   created_at: string;
   updated_at: string;
   route_polyline?: string;
+  speed_violations?: SpeedViolationEvent[];
 }
 
 export interface TripReplayRecord {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import LiveMap from "@/components/maps/LiveMap";
 import { useMapCenter } from "@/hooks/useMapCenter";
 import { useMqttTracking, LIVE_STALE_MINUTES } from "@/hooks/useMqttTracking";
@@ -35,7 +35,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FloatingChatButton } from "@/components/ui/floating-chat-button";
 import { type ChatMessage } from "@/components/ui/chat";
 import { analyticsAPI, telemetryAPI } from "@/services/api";
-import type { Asset, TelemetryRecord } from "@/types/api";
+import type { Asset, TelemetryRecord, Trip } from "@/types/api";
 import { getTelemetryEventTimeMs } from "@/hooks/useRouteReplayTelemetry";
 import { formatVehicleFuelLevel } from "@/lib/telemetry-fuel";
 
@@ -80,6 +80,53 @@ export default function FleetMapPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [speedViolationMarkers, setSpeedViolationMarkers] = useState<
+    Array<{
+      lat: number;
+      lon: number;
+      speed_kmh: number;
+      limit_kmh: number;
+      ts: string;
+      device_id?: string;
+    }>
+  >([]);
+
+  const loadFleetViolationsToday = useCallback(async () => {
+    try {
+      const list = await telemetryAPI.getTrips(undefined, 300);
+      const trips = Array.isArray(list) ? (list as Trip[]) : [];
+      const { start, end } = getLocalCalendarDayBounds();
+      const markers: typeof speedViolationMarkers = [];
+      for (const t of trips) {
+        if (!t.start_ts) continue;
+        const st = new Date(t.start_ts);
+        if (st < start || st > end) continue;
+        const violations = t.speed_violations ?? [];
+        for (const v of violations) {
+          markers.push({
+            lat: v.lat,
+            lon: v.lon,
+            speed_kmh: v.speed_kmh,
+            limit_kmh: v.limit_kmh,
+            ts: typeof v.ts === "string" ? v.ts : String(v.ts),
+            device_id: t.device_id,
+          });
+        }
+      }
+      setSpeedViolationMarkers(markers);
+    } catch {
+      setSpeedViolationMarkers([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadFleetViolationsToday();
+  }, [loadFleetViolationsToday]);
+
+  const handleFleetRefresh = useCallback(async () => {
+    await refreshLiveData();
+    await loadFleetViolationsToday();
+  }, [refreshLiveData, loadFleetViolationsToday]);
 
   const { encodedRoutes, routePrecision } = useMemo(() => {
     const routes: Record<string, string> = {};
@@ -292,9 +339,9 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
               </Badge>
               <button
                 type="button"
-                onClick={() => void refreshLiveData()}
+                onClick={() => void handleFleetRefresh()}
                 className="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
-                title="Refresh live data — reconnect feeds and load last known positions from the server"
+                title="Refresh live data — reconnect feeds, reload positions, and refresh today’s speed violations"
               >
                 <RotateCw className="h-4 w-4" aria-hidden />
                 <span className="sr-only">Refresh live data</span>
@@ -448,6 +495,8 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
         <LiveMap
           height="100%"
           sharedTracking={fleetTracking}
+          refreshLiveDataOverride={handleFleetRefresh}
+          speedViolationMarkers={speedViolationMarkers}
           onVehicleSelect={setSelectedVehicleId}
           encodedRoutes={encodedRoutes}
           encodedRoutePrecision={routePrecision}

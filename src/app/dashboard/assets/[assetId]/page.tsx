@@ -70,7 +70,7 @@ import { useMqttTracking } from "@/hooks/useMqttTracking";
 import { useMapCenter } from "@/hooks/useMapCenter";
 import { useConnectedDevices } from "@/hooks/useConnectedDevices";
 import { isEngineOn, getDrivingStatusLabel } from "@/lib/driving-status";
-import { type Trip } from "@/types/api";
+import { type Trip, type SpeedViolationEvent } from "@/types/api";
 import { FloatingChatButton } from "@/components/ui/floating-chat-button";
 import { type ChatMessage } from "@/components/ui/chat";
 import { analyticsAPI } from "@/services/api";
@@ -291,6 +291,21 @@ export default function AssetViewPage() {
     return polylines;
   }, [trips, globalStartDate, globalEndDate]);
 
+  type ViolationRow = SpeedViolationEvent & { trip_id: string; trip_start: string };
+  const violationRows = useMemo(() => {
+    const rows: ViolationRow[] = [];
+    for (const t of trips) {
+      for (const v of t.speed_violations ?? []) {
+        rows.push({
+          ...v,
+          trip_id: t.id,
+          trip_start: t.start_ts,
+        });
+      }
+    }
+    rows.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+    return rows;
+  }, [trips]);
 
 
   // AI Chat state
@@ -771,7 +786,10 @@ Provide a concise, actionable insight for a fleet manager.`;
   }, [asset?.id]);
 
   useEffect(() => {
-    if (activeTab === "trips" && asset?.vehicle_details?.device_id) {
+    if (
+      (activeTab === "trips" || activeTab === "violations") &&
+      asset?.vehicle_details?.device_id
+    ) {
       fetchTrips(asset.vehicle_details.device_id);
     }
   }, [activeTab, asset, fetchTrips]);
@@ -781,8 +799,8 @@ Provide a concise, actionable insight for a fleet manager.`;
   useEffect(() => {
     const tab = searchParams.get("tab");
     const tripId = searchParams.get("tripId");
-    if (tab === "trips") {
-      setActiveTab("trips");
+    if (tab === "trips" || tab === "violations") {
+      setActiveTab(tab);
     }
     if (tripId && tripId.length === 24 && /^[a-f0-9]+$/i.test(tripId)) {
       setSelectedTripId(tripId);
@@ -1305,6 +1323,14 @@ Provide a concise, actionable insight for a fleet manager.`;
                     className="flex-1 data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200"
                   >
                     GPS Logs
+                  </TabsTrigger>
+                )}
+                {asset.asset_type === "vehicle" && (
+                  <TabsTrigger
+                    value="violations"
+                    className="flex-1 data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200"
+                  >
+                    Violations
                   </TabsTrigger>
                 )}
                 {asset.asset_type !== "vehicle" && (
@@ -2718,7 +2744,79 @@ Provide a concise, actionable insight for a fleet manager.`;
                 </Card>
               </TabsContent>
 
-
+              {asset.asset_type === "vehicle" && (
+                <TabsContent value="violations" className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <AlertTriangle className="h-5 w-5 text-red-600 shrink-0" />
+                        Speed limit violations
+                      </CardTitle>
+                      <p className="text-sm text-gray-500">
+                        Recorded when GPS speed is above the matched road limit (Mapbox, when configured) or the
+                        default highway limit used for scoring. Episodes are clustered; peak speed and location are
+                        stored. Assigned drivers see impact on per-trip scores.
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      {loadingTrips ? (
+                        <p className="text-sm text-gray-500">Loading trips…</p>
+                      ) : violationRows.length === 0 ? (
+                        <p className="text-sm text-gray-500">
+                          No speed violations recorded for recent trips. Violations appear after trips are processed
+                          with telemetry and (when available) road-speed data.
+                        </p>
+                      ) : (
+                        <div className="border rounded-lg overflow-x-auto">
+                          <table className="w-full text-sm text-left min-w-[720px]">
+                            <thead className="bg-gray-50 border-b text-xs uppercase text-gray-500">
+                              <tr>
+                                <th className="px-3 py-2 font-medium">Time</th>
+                                <th className="px-3 py-2 font-medium">Trip start</th>
+                                <th className="px-3 py-2 font-medium">Speed (km/h)</th>
+                                <th className="px-3 py-2 font-medium">Limit (km/h)</th>
+                                <th className="px-3 py-2 font-medium">Over (km/h)</th>
+                                <th className="px-3 py-2 font-medium">Latitude</th>
+                                <th className="px-3 py-2 font-medium">Longitude</th>
+                                <th className="px-3 py-2 font-medium">Map</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                              {violationRows.map((row, idx) => (
+                                <tr key={`${row.trip_id}-${row.ts}-${idx}`} className="hover:bg-gray-50/80">
+                                  <td className="px-3 py-2 whitespace-nowrap tabular-nums">
+                                    {formatDate(new Date(row.ts))}
+                                  </td>
+                                  <td className="px-3 py-2 whitespace-nowrap text-gray-600">
+                                    {formatDate(new Date(row.trip_start))}
+                                  </td>
+                                  <td className="px-3 py-2 font-medium tabular-nums">{row.speed_kmh}</td>
+                                  <td className="px-3 py-2 tabular-nums">{row.limit_kmh}</td>
+                                  <td className="px-3 py-2 text-red-700 tabular-nums">
+                                    {row.excess_kmh ?? Math.max(0, row.speed_kmh - row.limit_kmh)}
+                                  </td>
+                                  <td className="px-3 py-2 tabular-nums text-gray-700">{row.lat.toFixed(5)}</td>
+                                  <td className="px-3 py-2 tabular-nums text-gray-700">{row.lon.toFixed(5)}</td>
+                                  <td className="px-3 py-2">
+                                    <a
+                                      href={`https://www.google.com/maps?q=${row.lat},${row.lon}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-teal-600 hover:underline"
+                                    >
+                                      Open
+                                    </a>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              )}
 
               {/* Components Tab */}
               <TabsContent value="components" className="space-y-6">
