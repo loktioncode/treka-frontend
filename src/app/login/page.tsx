@@ -49,11 +49,18 @@ function LoginForm() {
     try {
       const response = await login(email, password);
 
-      // Handle first login case - redirect to verification page
-      if (response && response.require_password_change) {
+      // First-time login: backend emailed OTP — same screen as forgot-password but must use verify-login-otp
+      if (response?.require_otp === true) {
+        const message =
+          response.message || 'Check your email for a verification code to continue.';
+        toast.success(message);
+        router.replace(`/verify-otp/${encodeURIComponent(email)}?flow=login`);
+        return;
+      }
+
+      if (response?.require_password_change) {
         const message = response.message || 'Please check your email for verification code';
         toast.success(message);
-        // Use replace instead of push to prevent back button issues
         router.replace(`/verify-otp/${encodeURIComponent(email)}`);
         return;
       }

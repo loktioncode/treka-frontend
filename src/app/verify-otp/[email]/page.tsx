@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { authAPI } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +12,7 @@ import { Eye, EyeOff, AlertCircle, ArrowLeft, Mail, Key } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
-export default function VerifyOTP() {
+function VerifyOTPForm() {
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -21,9 +22,13 @@ export default function VerifyOTP() {
   const [isLoading, setIsLoading] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [resetToken, setResetToken] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const params = useParams();
   const email = decodeURIComponent(params.email as string);
+  const isLoginOtpFlow = searchParams.get('flow') === 'login';
+  const { completeSessionWithToken } = useAuth();
 
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +36,34 @@ export default function VerifyOTP() {
     setIsLoading(true);
 
     try {
-      await authAPI.verifyResetCode(email, code);
+      if (isLoginOtpFlow) {
+        const data = await authAPI.verifyLoginOtp(email, code);
+        const accessToken =
+          data.access_token ?? (data as { accessToken?: string }).accessToken;
+        if (accessToken) {
+          await completeSessionWithToken(accessToken);
+          toast.success('Login successful!');
+          router.push('/dashboard');
+          return;
+        }
+        if (data.require_password_change && data.reset_token) {
+          setResetToken(data.reset_token);
+          setIsVerified(true);
+          toast.success(data.message || 'Code verified. Set your new password.');
+          return;
+        }
+        setError('Unexpected response from server. Please try again.');
+        toast.error('Unexpected response from server.');
+        return;
+      }
+
+      const data = await authAPI.verifyResetCode(email, code);
+      if (!data.reset_token) {
+        setError('Invalid response from server.');
+        toast.error('Invalid response from server.');
+        return;
+      }
+      setResetToken(data.reset_token);
       setIsVerified(true);
       toast.success('Code verified successfully!');
     } catch (err: unknown) {
@@ -63,14 +95,18 @@ export default function VerifyOTP() {
       return;
     }
 
+    if (!resetToken) {
+      setError('Session expired. Please verify your code again.');
+      toast.error('Session expired. Please verify your code again.');
+      return;
+    }
+
     setIsLoading(true);
-    
+
     try {
-      // First verify the code again, then reset password
-      const verifyResponse = await authAPI.verifyResetCode(email, code);
-      await authAPI.resetPassword(verifyResponse.reset_token, password);
-      
-      toast.success('Password reset successfully!');
+      await authAPI.resetPassword(resetToken, password);
+
+      toast.success('Password set successfully!');
       router.push('/login?reset=success');
     } catch (err: unknown) {
       let errorMessage = 'Failed to reset password. Please try again.';
@@ -86,6 +122,10 @@ export default function VerifyOTP() {
   };
 
   const handleResendCode = async () => {
+    if (isLoginOtpFlow) {
+      toast.error('Return to the login page and sign in again to receive a new code.');
+      return;
+    }
     setIsResending(true);
     try {
       await authAPI.forgotPassword(email);
@@ -126,10 +166,9 @@ export default function VerifyOTP() {
                 {isVerified ? 'Set New Password' : 'Enter Verification Code'}
               </CardTitle>
               <CardDescription className="text-base text-gray-600">
-                {isVerified 
+                {isVerified
                   ? 'Create a new secure password for your account'
-                  : `We've sent a 6-digit verification code to ${email}`
-                }
+                  : `We've sent a 6-digit verification code to ${email}`}
               </CardDescription>
             </div>
           </CardHeader>
@@ -176,9 +215,7 @@ export default function VerifyOTP() {
                 </Button>
 
                 <div className="text-center space-y-3">
-                  <p className="text-sm text-gray-600">
-                    Didn&apos;t receive the code?
-                  </p>
+                  <p className="text-sm text-gray-600">Didn&apos;t receive the code?</p>
                   <Button
                     type="button"
                     variant="ghost"
@@ -187,7 +224,7 @@ export default function VerifyOTP() {
                     disabled={isResending}
                     className="text-teal-600 hover:text-teal-700 hover:bg-teal-50"
                   >
-                    {isResending ? 'Sending...' : 'Resend Code'}
+                    {isResending ? 'Sending...' : isLoginOtpFlow ? 'How to get a new code' : 'Resend Code'}
                   </Button>
                 </div>
               </form>
@@ -278,7 +315,7 @@ export default function VerifyOTP() {
             )}
 
             <div className="text-center pt-4">
-              <Link 
+              <Link
                 href="/login"
                 className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors cursor-pointer"
               >
@@ -290,5 +327,19 @@ export default function VerifyOTP() {
         </Card>
       </motion.div>
     </div>
+  );
+}
+
+export default function VerifyOTP() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600" />
+        </div>
+      }
+    >
+      <VerifyOTPForm />
+    </Suspense>
   );
 }

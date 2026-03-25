@@ -385,12 +385,15 @@ export interface Notification {
 
 // API Response types
 export interface LoginResponse {
-  access_token: string;
-  token_type: string;
+  access_token?: string;
+  token_type?: string;
   user_id: string;
-  role: "super_admin" | "admin" | "user";
-  expires_in: number;
+  role?: "super_admin" | "admin" | "user";
+  expires_in?: number;
+  require_otp?: boolean;
+  is_first_login?: boolean;
   require_password_change?: boolean;
+  reset_token?: string;
   message?: string;
 }
 

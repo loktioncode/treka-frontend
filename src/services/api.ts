@@ -181,7 +181,10 @@ interface LoginResponse {
   user_id: string;
   role?: "super_admin" | "admin" | "user";
   expires_in?: number;
+  require_otp?: boolean;
+  is_first_login?: boolean;
   require_password_change?: boolean;
+  reset_token?: string;
   message?: string;
 }
 
@@ -198,6 +201,15 @@ export const authAPI = {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
+    });
+    return response.data;
+  },
+
+  /** After POST /auth/login returned require_otp — exchange email + code for token or reset_token. */
+  verifyLoginOtp: async (email: string, verification_code: string): Promise<LoginResponse> => {
+    const response = await api.post("/auth/verify-login-otp", {
+      email,
+      verification_code,
     });
     return response.data;
   },

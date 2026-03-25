@@ -27,7 +27,11 @@ interface LoginResponse {
   user_id: string;
   role?: 'super_admin' | 'admin' | 'user' | 'technician' | 'driver';
   expires_in?: number;
+  /** Backend: first-time login — user must enter email OTP (no token yet). */
+  require_otp?: boolean;
+  is_first_login?: boolean;
   require_password_change?: boolean;
+  reset_token?: string;
   message?: string;
 }
 
@@ -35,6 +39,8 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (email: string, password: string) => Promise<LoginResponse>;
+  /** Persist JWT from verify-login-otp when backend returns access_token (e.g. non–first-login OTP path). */
+  completeSessionWithToken: (accessToken: string) => Promise<void>;
   logout: () => void;
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (token: string, password: string) => Promise<void>;
@@ -161,6 +167,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth();
   }, [loadUser, isClient]);
 
+  const completeSessionWithToken = useCallback(async (accessToken: string) => {
+    if (!accessToken) {
+      throw new Error('No access token received');
+    }
+    setToken(accessToken);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('auth_token', accessToken);
+      const isSecure = window.location.protocol === 'https:';
+      document.cookie = `auth_token=${accessToken}; path=/; ${isSecure ? 'secure;' : ''} samesite=strict`;
+    }
+    await loadUser();
+    resetAuthRedirectFlag();
+  }, [loadUser]);
+
   // Set up token refresh interval
   useEffect(() => {
     if (token) {
@@ -183,33 +203,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true);
       const response = await authAPI.login(email, password);
 
-      // Check if we got a first login response - return early without setting token
+      // First-time login: backend sends OTP to email — no token until verify-login-otp
+      if (response.require_otp === true) {
+        setIsLoading(false);
+        return response;
+      }
+
+      // Unlikely on /login, but handle if API ever returns this without OTP step
       if (response.require_password_change) {
         setIsLoading(false);
         return response;
       }
 
-      // Store the access token
-      const accessToken = response.access_token;
+      const accessToken =
+        response.access_token ??
+        (response as { accessToken?: string }).accessToken;
       if (!accessToken) {
         setIsLoading(false);
         throw new Error('No access token received');
       }
 
-      setToken(accessToken);
-
-      // Only manipulate client-side APIs if we're on the client
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('auth_token', accessToken);
-        // Also set cookie for middleware detection
-        // Only use secure flag in production (HTTPS)
-        const isSecure = window.location.protocol === 'https:';
-        document.cookie = `auth_token=${accessToken}; path=/; ${isSecure ? 'secure;' : ''} samesite=strict`;
-      }
-
-      // Load the full user data from /users/me endpoint
-      await loadUser();
-      resetAuthRedirectFlag();
+      await completeSessionWithToken(accessToken);
 
       return response;
     } catch (error: unknown) {
@@ -272,6 +286,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         token,
         login,
+        completeSessionWithToken,
         logout,
         forgotPassword,
         resetPassword,
