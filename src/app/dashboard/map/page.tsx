@@ -32,8 +32,20 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FloatingChatButton } from "@/components/ui/floating-chat-button";
 import { type ChatMessage } from "@/components/ui/chat";
-import { analyticsAPI } from "@/services/api";
-import type { Asset } from "@/types/api";
+import { analyticsAPI, telemetryAPI } from "@/services/api";
+import type { Asset, TelemetryRecord } from "@/types/api";
+import { getTelemetryEventTimeMs } from "@/hooks/useRouteReplayTelemetry";
+
+/** Local calendar day: [00:00:00.000, 23:59:59.999] — i.e. up to but not including next midnight. */
+function getLocalCalendarDayBounds(now = new Date()): { start: Date; end: Date } {
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const d = now.getDate();
+  const start = new Date(y, m, d, 0, 0, 0, 0);
+  const nextMidnight = new Date(y, m, d + 1, 0, 0, 0, 0);
+  const end = new Date(nextMidnight.getTime() - 1);
+  return { start, end };
+}
 
 export default function FleetMapPage() {
   const mapCenter = useMapCenter();
@@ -57,6 +69,10 @@ export default function FleetMapPage() {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(
     null,
   );
+  const [todayPathTelemetry, setTodayPathTelemetry] = useState<
+    TelemetryRecord[]
+  >([]);
+  const [todayPathLoading, setTodayPathLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -92,6 +108,42 @@ export default function FleetMapPage() {
   // New vehicle selected → clear chat so conversation is about this vehicle
   useEffect(() => {
     setChatMessages([]);
+  }, [selectedVehicleId]);
+
+  // Today’s path: only the current local calendar day (midnight → last ms before next midnight).
+  useEffect(() => {
+    if (!selectedVehicleId) {
+      setTodayPathTelemetry([]);
+      return;
+    }
+    let cancelled = false;
+    setTodayPathLoading(true);
+    const { start, end } = getLocalCalendarDayBounds();
+    const startMs = start.getTime();
+    const endMs = end.getTime();
+    telemetryAPI
+      .getTelemetry(selectedVehicleId, 10000, start.toISOString(), end.toISOString())
+      .then((res) => {
+        if (cancelled) return;
+        const raw = Array.isArray(res) ? res : res.records || [];
+        const inToday = raw.filter((r) => {
+          const ms = getTelemetryEventTimeMs(r);
+          return ms >= startMs && ms <= endMs;
+        });
+        const sorted = [...inToday].sort(
+          (a, b) => getTelemetryEventTimeMs(a) - getTelemetryEventTimeMs(b),
+        );
+        setTodayPathTelemetry(sorted);
+      })
+      .catch(() => {
+        if (!cancelled) setTodayPathTelemetry([]);
+      })
+      .finally(() => {
+        if (!cancelled) setTodayPathLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [selectedVehicleId]);
 
   const fmt = (v: number | null | undefined) =>
@@ -375,13 +427,17 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
       {/* Main Map Area */}
       <div className="flex-1 relative bg-gray-200 min-w-0 h-full">
         <LiveMap
-          deviceId={selectedVehicleId || undefined}
           height="100%"
           onVehicleSelect={setSelectedVehicleId}
           encodedRoutes={encodedRoutes}
           encodedRoutePrecision={routePrecision}
           initialCenter={mapCenter}
           deviceToVehicle={deviceToVehicle}
+          historicalRecords={
+            selectedVehicleId ? todayPathTelemetry : undefined
+          }
+          followDeviceId={selectedVehicleId}
+          pinFollowedVehiclePopup={!!selectedVehicleId}
         />
 
         {/* Floating Reset Button */}
@@ -418,6 +474,15 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
             <p className="text-[10px] text-gray-600 mt-1 font-medium" title={`Received at: ${selectedVehicle.last_update}`}>
               Last seen: {lastDataFmt(selectedVehicle.last_update)}
             </p>
+            {todayPathLoading ? (
+              <p className="text-[10px] text-blue-600 mt-1">Loading today&apos;s route for map…</p>
+            ) : todayPathTelemetry.length > 0 ? (
+              <p className="text-[10px] text-gray-500 mt-1">
+                {todayPathTelemetry.length} GPS points today — use playback on the map
+              </p>
+            ) : (
+              <p className="text-[10px] text-amber-600 mt-1">No GPS history for today yet</p>
+            )}
             <p className="text-[10px] text-blue-600 mt-0.5 font-bold flex items-center gap-1">
               <Navigation className="h-2.5 w-2.5" />
               {getExtra(selectedVehicle.last_record, "position.address") || getExtra(selectedVehicle.last_record, "address") || "Syncing street address..."}

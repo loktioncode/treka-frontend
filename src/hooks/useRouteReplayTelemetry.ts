@@ -1,11 +1,17 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { TelemetryRecord } from "@/types/api";
 
+/** Device-reported event time in ms (matches API history filter on `records.ts`). */
+export function getTelemetryEventTimeMs(r: TelemetryRecord): number {
+  const t = r.ts ?? 0;
+  if (!t) return 0;
+  return t < 1e12 ? t * 1000 : t;
+}
+
 /** Monotonic time for ordering / playback (ts_server wins, then device ts in ms). */
 export function getTelemetryRecordTimeMs(r: TelemetryRecord): number {
   if (r.ts_server) return new Date(r.ts_server).getTime();
-  const t = r.ts ?? 0;
-  return t < 1e12 ? t * 1000 : t;
+  return getTelemetryEventTimeMs(r);
 }
 
 export function useRouteReplayTelemetry(

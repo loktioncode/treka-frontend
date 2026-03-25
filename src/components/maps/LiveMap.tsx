@@ -56,6 +56,10 @@ function getVehicleStatus(record: TelemetryRecord): "serious" | "warning" | "ok"
 }
 
 interface LiveMapProps {
+  /**
+   * When set with live MQTT, restrict subscriptions to this device only (e.g. future single-vehicle live view).
+   * Fleet map should leave this unset and use followDeviceId instead so all vehicles stay subscribed.
+   */
   deviceId?: string;
   height?: string;
   interactive?: boolean;
@@ -77,6 +81,13 @@ interface LiveMapProps {
    * Optional shared replay state so header (or other) controls stay in sync with the map trail.
    */
   routeReplay?: RouteReplayTelemetry;
+  /**
+   * Live fleet: follow / center on this device without narrowing MQTT to one vehicle.
+   * Combine with historicalRecords for “today’s path” + playback.
+   */
+  followDeviceId?: string | null;
+  /** When true with followDeviceId, show fleet follow / playback styling on the popup; user can still close the card. */
+  pinFollowedVehiclePopup?: boolean;
 }
 
 
@@ -96,8 +107,16 @@ export default function LiveMap({
   historicalRecords,
   live = true,
   routeReplay,
+  followDeviceId,
+  pinFollowedVehiclePopup = false,
 }: LiveMapProps) {
-  const { vehicles, isConnected, vehicleList } = useMqttTracking(live ? deviceId : undefined, undefined, live);
+  const { vehicles, isConnected, vehicleList } = useMqttTracking(
+    live ? deviceId : undefined,
+    undefined,
+    live,
+  );
+
+  const cameraTargetId = followDeviceId ?? deviceId ?? null;
 
   const internalReplay = useRouteReplayTelemetry(
     routeReplay ? undefined : historicalRecords,
@@ -179,7 +198,7 @@ export default function LiveMap({
 
   // Fleet view: fit bounds to show all vehicle pins (once we have positions)
   useEffect(() => {
-    if (deviceId || vehicleList.length === 0) return;
+    if (deviceId || followDeviceId || vehicleList.length === 0) return;
     const positions = vehicleList
       .map((v) => {
         const lat = v.last_record.lat;
@@ -208,30 +227,8 @@ export default function LiveMap({
       hasFittedFleetRef.current = true;
       map.fitBounds(bbox, { padding, maxZoom: 12, duration: 600 });
     }
-  }, [deviceId, vehicleList]);
+  }, [deviceId, followDeviceId, vehicleList]);
 
-  useEffect(() => {
-    if (!deviceId) return;
-    hasFittedFleetRef.current = false;
-    if (!vehicles[deviceId]) return;
-    const record = vehicles[deviceId].last_record;
-    const lon = record.lon ?? record.lng;
-    if (record.lat == null || lon == null) return;
-
-    // Continuously update the center if it changes significantly to avoid jitter
-    setViewState((prev) => {
-      // Only update if the distance is noticeable to avoid map jittering on tiny GPS fluctuations
-      if (Math.abs(prev.latitude - record.lat!) > 0.0001 || Math.abs(prev.longitude - lon) > 0.0001) {
-         return {
-          ...prev,
-          latitude: record.lat!,
-          longitude: lon,
-        };
-      }
-      return prev;
-    });
-  }, [deviceId, vehicles]);
-  
   // Historical trail from records
   const historicalTrailGeoJson = useMemo(() => {
     if (replay.sortedRecords.length < 2) return { type: "FeatureCollection" as const, features: [] };
@@ -257,6 +254,113 @@ export default function LiveMap({
     if (s.length === 0) return "hist-empty";
     return `hist-${s.length}-${getTelemetryRecordTimeMs(s[0])}-${getTelemetryRecordTimeMs(s[s.length - 1])}`;
   }, [replay.sortedRecords]);
+
+  const lastReplayIndex = Math.max(0, replay.sortedRecords.length - 1);
+  const replayShowsPast =
+    !!followDeviceId &&
+    live &&
+    replay.sortedRecords.length > 0 &&
+    (replay.isPlaying || replay.currentIndex < lastReplayIndex);
+
+  const getEffectiveRecord = (vehicle: LiveVehicle): TelemetryRecord => {
+    if (
+      !live ||
+      !followDeviceId ||
+      vehicle.device_id !== followDeviceId ||
+      replay.sortedRecords.length === 0
+    ) {
+      return vehicle.last_record;
+    }
+    if (!replayShowsPast) {
+      return vehicle.last_record;
+    }
+    const r = replay.sortedRecords[replay.currentIndex];
+    return r ?? vehicle.last_record;
+  };
+
+  // Fleet: fit map to today’s path when history arrives
+  const didFitTrailRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!live || !followDeviceId || replay.sortedRecords.length < 2) return;
+    if (didFitTrailRef.current === historicalTrailSourceKey) return;
+    const coords = replay.sortedRecords
+      .filter((r) => r.lat != null && (r.lng != null || r.lon != null))
+      .map((r) => [r.lng ?? r.lon!, r.lat!] as [number, number]);
+    if (coords.length < 2) return;
+    const map = mapRef.current?.getMap?.();
+    if (!map) return;
+    const lons = coords.map((c) => c[0]);
+    const lats = coords.map((c) => c[1]);
+    const pad = 0.002;
+    const bbox: [[number, number], [number, number]] = [
+      [Math.min(...lons) - pad, Math.min(...lats) - pad],
+      [Math.max(...lons) + pad, Math.max(...lats) + pad],
+    ];
+    didFitTrailRef.current = historicalTrailSourceKey;
+    map.fitBounds(bbox, { padding: 72, maxZoom: 15, duration: 900 });
+  }, [live, followDeviceId, historicalTrailSourceKey, replay.sortedRecords]);
+
+  useEffect(() => {
+    if (!followDeviceId || !pinFollowedVehiclePopup) return;
+    const v = vehicleList.find((x) => x.device_id === followDeviceId);
+    if (v) setSelectedVehicle(v);
+  }, [followDeviceId, pinFollowedVehiclePopup, vehicleList]);
+
+  useEffect(() => {
+    if (followDeviceId && pinFollowedVehiclePopup) return;
+    if (!followDeviceId) setSelectedVehicle(null);
+  }, [followDeviceId, pinFollowedVehiclePopup]);
+
+  useEffect(() => {
+    didFitTrailRef.current = null;
+  }, [followDeviceId]);
+
+  const fleetTrailEndInitRef = useRef<string | null>(null);
+  useEffect(() => {
+    fleetTrailEndInitRef.current = null;
+  }, [followDeviceId]);
+
+  useEffect(() => {
+    if (!followDeviceId || !live || replay.sortedRecords.length === 0) return;
+    if (fleetTrailEndInitRef.current === historicalTrailSourceKey) return;
+    fleetTrailEndInitRef.current = historicalTrailSourceKey;
+    replay.setCurrentIndex(Math.max(0, replay.sortedRecords.length - 1));
+    replay.setIsPlaying(false);
+    // replay setters are stable; omit replay object to avoid re-running every render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followDeviceId, live, historicalTrailSourceKey, replay.sortedRecords.length]);
+
+  useEffect(() => {
+    if (!cameraTargetId || !live) return;
+    if (replayShowsPast) return;
+    if (!vehicles[cameraTargetId]) return;
+    const record = vehicles[cameraTargetId].last_record;
+    const lon = record.lon ?? record.lng;
+    if (record.lat == null || lon == null) return;
+
+    setViewState((prev) => {
+      if (Math.abs(prev.latitude - record.lat!) > 0.0001 || Math.abs(prev.longitude - lon) > 0.0001) {
+        return {
+          ...prev,
+          latitude: record.lat!,
+          longitude: lon,
+        };
+      }
+      return prev;
+    });
+  }, [cameraTargetId, live, vehicles, replayShowsPast]);
+
+  useEffect(() => {
+    if (!replayShowsPast || replay.sortedRecords.length === 0) return;
+    const rec = replay.sortedRecords[replay.currentIndex];
+    const lon = rec?.lon ?? rec?.lng;
+    if (rec?.lat == null || lon == null) return;
+    setViewState((prev) => ({
+      ...prev,
+      latitude: rec.lat!,
+      longitude: lon,
+    }));
+  }, [replayShowsPast, replay.currentIndex, replay.sortedRecords]);
   
   // Determine marker position: either current replay point or last known
   const displayedHistoricalPos = useMemo(() => {
@@ -396,14 +500,14 @@ export default function LiveMap({
         {live && vehicleList
           .filter((v) => !deviceToVehicle || deviceToVehicle?.[v.device_id])
           .map((vehicle) => {
-            const rec = vehicle.last_record;
+            const eff = getEffectiveRecord(vehicle);
             const pos = markerPositions[vehicle.device_id];
             const lastKnown = lastKnownPositionRef.current[vehicle.device_id];
-            const lat = pos?.lat ?? rec.lat ?? lastKnown?.lat;
-            const lon = pos?.lon ?? getLon(rec) ?? lastKnown?.lon;
-            const hdg = rec.hdg ?? 0;
+            const lat = eff.lat ?? pos?.lat ?? lastKnown?.lat;
+            const lon = getLon(eff) ?? pos?.lon ?? lastKnown?.lon;
+            const hdg = eff.hdg ?? 0;
             if (lat == null || lon == null) return null;
-            const status = getVehicleStatus(rec);
+            const status = getVehicleStatus(eff);
             const iconBg =
               status === "serious"
                 ? "bg-red-500 border-white"
@@ -441,29 +545,44 @@ export default function LiveMap({
           })}
 
         {/* Info Popup for Selected Vehicle */}
-        {selectedVehicle && (
+        {selectedVehicle && (() => {
+          const popupRec = getEffectiveRecord(selectedVehicle);
+          const pLat = popupRec.lat;
+          const pLon = getLon(popupRec);
+          if (pLat == null || pLon == null) return null;
+          const pinPopup =
+            pinFollowedVehiclePopup &&
+            followDeviceId &&
+            selectedVehicle.device_id === followDeviceId;
+          const popupTimeMs = getTelemetryRecordTimeMs(popupRec);
+          return (
           <Popup
-            latitude={selectedVehicle.last_record.lat!}
-            longitude={getLon(selectedVehicle.last_record)!}
-            closeButton={true}
+            latitude={pLat}
+            longitude={pLon}
+            closeButton
             closeOnClick={false}
             onClose={() => handleSelectVehicle(null)}
             anchor="bottom"
             offset={20}
-            maxWidth="240px"
+            maxWidth="260px"
             className="z-50"
           >
             <div className="p-1">
+              {replayShowsPast && pinPopup && (
+                <p className="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded px-1.5 py-0.5 mb-2">
+                  Trip playback
+                </p>
+              )}
               <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
-                <div className={`p-1.5 rounded-lg ${getVehicleStatus(selectedVehicle.last_record) === 'serious' ? 'bg-red-50' : 'bg-blue-50'}`}>
-                  <Car className={`h-4 w-4 ${getVehicleStatus(selectedVehicle.last_record) === 'serious' ? 'text-red-500' : 'text-blue-500'}`} />
+                <div className={`p-1.5 rounded-lg ${getVehicleStatus(popupRec) === 'serious' ? 'bg-red-50' : 'bg-blue-50'}`}>
+                  <Car className={`h-4 w-4 ${getVehicleStatus(popupRec) === 'serious' ? 'text-red-500' : 'text-blue-500'}`} />
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-gray-900 leading-tight">
                     {deviceToVehicle?.[selectedVehicle.device_id]?.name || `Device ${selectedVehicle.device_id}`}
                   </h4>
                   <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">
-                    {deviceToVehicle?.[selectedVehicle.device_id]?.plate || selectedVehicle.last_record.vin || "No Plate"}
+                    {deviceToVehicle?.[selectedVehicle.device_id]?.plate || popupRec.vin || "No Plate"}
                   </p>
                 </div>
               </div>
@@ -472,35 +591,37 @@ export default function LiveMap({
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-gray-500">Status</span>
                   <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                    getDrivingStatus(selectedVehicle.last_record) === 'moving' ? 'bg-green-100 text-green-700' :
-                    getDrivingStatus(selectedVehicle.last_record) === 'idle' ? 'bg-blue-100 text-blue-700' :
+                    getDrivingStatus(popupRec) === 'moving' ? 'bg-green-100 text-green-700' :
+                    getDrivingStatus(popupRec) === 'idle' ? 'bg-blue-100 text-blue-700' :
                     'bg-gray-100 text-gray-600'
                   }`}>
-                    {getDrivingStatusLabel(selectedVehicle.last_record)}
+                    {getDrivingStatusLabel(popupRec)}
                   </span>
                 </div>
                 
                 <div className="flex justify-between items-center text-xs text-gray-600">
                   <span>Speed</span>
-                  <span className="font-semibold">{(selectedVehicle.last_record.spd || 0).toFixed(0)} km/h</span>
+                  <span className="font-semibold">{(popupRec.spd || 0).toFixed(0)} km/h</span>
                 </div>
 
-                {selectedVehicle.last_record.odo !== undefined && (
+                {popupRec.odo !== undefined && popupRec.odo !== null && (
                   <div className="flex justify-between items-center text-xs text-gray-600">
                     <span>Odometer</span>
-                    <span className="font-semibold">{(selectedVehicle.last_record.odo || 0).toLocaleString()} km</span>
+                    <span className="font-semibold">{(popupRec.odo || 0).toLocaleString()} km</span>
                   </div>
                 )}
                 
                 <div className="flex justify-between items-center text-xs text-gray-600">
                   <span>Location</span>
                   <span className="font-semibold text-[10px] text-blue-600">
-                    {selectedVehicle.last_record.lat?.toFixed(5)}, {(selectedVehicle.last_record.lon ?? selectedVehicle.last_record.lng)?.toFixed(5)}
+                    {popupRec.lat?.toFixed(5)}, {(popupRec.lon ?? popupRec.lng)?.toFixed(5)}
                   </span>
                 </div>
                 
                 <div className="pt-1 mt-1 text-[9px] text-gray-400 font-medium">
-                  Last seen {format(new Date(selectedVehicle.last_record.ts_server || selectedVehicle.last_record.ts || Date.now()), "HH:mm:ss")}
+                  {replayShowsPast && pinPopup
+                    ? `Point time ${format(new Date(popupTimeMs), "HH:mm:ss")}`
+                    : `Last seen ${format(new Date(popupRec.ts_server || popupRec.ts || Date.now()), "HH:mm:ss")}`}
                 </div>
               </div>
 
@@ -518,7 +639,8 @@ export default function LiveMap({
               )}
             </div>
           </Popup>
-        )}
+          );
+        })()}
 
         {/* Static/Replay Historical Marker (if not live) */}
         {!live && displayedHistoricalPos && (
@@ -540,8 +662,8 @@ export default function LiveMap({
         )}
       </Map>
 
-      {/* Historical playback controls (on-map); may share state with parent via routeReplay */}
-      {!live && replay.sortedRecords.length > 0 && (
+      {/* Historical playback: asset view (!live) or fleet with today’s path */}
+      {replay.sortedRecords.length > 0 && (!live || !!followDeviceId) && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center w-[90%] max-w-sm bg-white/95 backdrop-blur-sm p-4 rounded-2xl shadow-2xl border border-gray-100 z-10">
           <div className="w-full flex items-center gap-3 mb-2">
             <button
