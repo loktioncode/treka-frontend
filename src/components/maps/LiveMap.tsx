@@ -745,7 +745,7 @@ export default function LiveMap({
                   <Button
                     variant="default"
                     size="sm"
-                    className="w-full h-8 text-xs font-bold bg-blue-600 hover:bg-blue-700"
+                    className="w-full h-8 text-xs font-bold !bg-teal-600 !text-white hover:!bg-teal-700 !border-teal-700 hover:!border-teal-700 shadow-sm"
                     onClick={() => router.push(`/dashboard/assets/${assetId}`)}
                   >
                     View Full Details
