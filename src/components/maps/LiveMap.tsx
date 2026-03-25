@@ -11,7 +11,7 @@ import Map, {
 } from "react-map-gl/mapbox";
 import type { MapRef } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { useMqttTracking, LiveVehicle } from "@/hooks/useMqttTracking";
+import { useMqttTracking, type LiveVehicle } from "@/hooks/useMqttTracking";
 import {
   useRouteReplayTelemetry,
   getTelemetryRecordTimeMs,
@@ -28,6 +28,7 @@ import {
   Play,
   Pause,
   RotateCcw,
+  RefreshCw,
   ExternalLink,
 } from "lucide-react";
 import { googleMapsPlaceUrl } from "@/lib/utils";
@@ -95,6 +96,15 @@ interface LiveMapProps {
   followDeviceId?: string | null;
   /** When true with followDeviceId, show fleet follow / playback styling on the popup; user can still close the card. */
   pinFollowedVehiclePopup?: boolean;
+  /**
+   * Use one MQTT/telemetry source from the parent (e.g. fleet map page) instead of a second hook instance.
+   */
+  sharedTracking?: {
+    vehicles: Record<string, LiveVehicle>;
+    vehicleList: LiveVehicle[];
+    isConnected: boolean;
+    refreshLiveData: () => Promise<void>;
+  };
 }
 
 
@@ -116,12 +126,18 @@ export default function LiveMap({
   routeReplay,
   followDeviceId,
   pinFollowedVehiclePopup = false,
+  sharedTracking,
 }: LiveMapProps) {
-  const { vehicles, isConnected, vehicleList } = useMqttTracking(
-    live ? deviceId : undefined,
+  const useInternalMqtt = live && !sharedTracking;
+  const internal = useMqttTracking(
+    useInternalMqtt ? deviceId : undefined,
     undefined,
-    live,
+    useInternalMqtt,
   );
+  const vehicles = sharedTracking?.vehicles ?? internal.vehicles;
+  const isConnected = sharedTracking?.isConnected ?? internal.isConnected;
+  const vehicleList = sharedTracking?.vehicleList ?? internal.vehicleList;
+  const refreshLiveData = sharedTracking?.refreshLiveData ?? internal.refreshLiveData;
 
   const cameraTargetId = followDeviceId ?? deviceId ?? null;
 
@@ -471,6 +487,15 @@ export default function LiveMap({
           <span className="text-xs font-medium text-gray-700">
             {isConnected ? "Live" : "Disconnected"}
           </span>
+          <button
+            type="button"
+            onClick={() => void refreshLiveData()}
+            className="ml-0.5 p-1 rounded-full hover:bg-gray-100 text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+            title="Refresh live data (reconnect and load last known positions)"
+          >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+            <span className="sr-only">Refresh live data</span>
+          </button>
         </div>
       )}
 

@@ -348,6 +348,8 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
         completedTrails: Record<string, TelemetryRecord[]>;
     }>({ trails: {}, completedTrails: {} });
     const [isConnected, setIsConnected] = useState(false);
+    /** Bumping this reconnects MQTT clients (fresh subscriptions / retained messages). */
+    const [refreshEpoch, setRefreshEpoch] = useState(0);
 
     const trails = trailState.trails;
     const completedTrails = trailState.completedTrails;
@@ -890,7 +892,68 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                 console.error('Failed to create Flespi MQTT connection:', err);
             }
         }
-    }, [user, deviceId, mqttProvider, applyFlespiPosition]);
+    }, [user, deviceId, mqttProvider, applyFlespiPosition, refreshEpoch]);
+
+    /**
+     * Reconnect live brokers and merge latest API telemetry so the map/sidebar recover when MQTT stalls.
+     */
+    const refreshLiveData = useCallback(async () => {
+        setRefreshEpoch((e) => e + 1);
+        if (!user || assetsLoading || !enabled) {
+            toast.success('Reconnecting…');
+            return;
+        }
+        const devicesToFetch: string[] = deviceId
+            ? [deviceId]
+            : assets
+                  .filter((a: Asset) => a.vehicle_details?.device_id)
+                  .map((a: Asset) => a.vehicle_details!.device_id!);
+        if (devicesToFetch.length === 0) {
+            toast.success('Reconnecting live feed…');
+            return;
+        }
+        const results = await Promise.allSettled(
+            devicesToFetch.map((did) => telemetryAPI.getLatestTelemetry(did).catch(() => null)),
+        );
+        setVehicles((prev) => {
+            const updated = { ...prev };
+            let changed = false;
+            results.forEach((res, i) => {
+                const did = devicesToFetch[i];
+                if (res.status === 'fulfilled' && res.value?.record) {
+                    const record = normalizeTelemetryRecord(res.value.record);
+                    updated[did] = {
+                        device_id: did,
+                        last_record: {
+                            ...record,
+                            lon: record.lon,
+                        },
+                        last_update:
+                            record.ts_server ||
+                            new Date((record.ts || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
+                        status: 'offline',
+                    };
+                    changed = true;
+                } else if (!updated[did]) {
+                    const persisted = persistedPositionsRef.current[did];
+                    updated[did] = {
+                        device_id: did,
+                        last_record: {
+                            ts: Math.floor(Date.now() / 1000),
+                            spd: 0,
+                            lat: persisted?.lat,
+                            lon: persisted?.lon,
+                        },
+                        last_update: new Date().toISOString(),
+                        status: 'offline',
+                    };
+                    changed = true;
+                }
+            });
+            return changed ? updated : prev;
+        });
+        toast.success('Live data refreshed');
+    }, [user, assetsLoading, enabled, deviceId, assets]);
 
     useEffect(() => {
         activeRef.current = true;
@@ -951,5 +1014,6 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
         isConnected,
         sendMessage,
         vehicleList,
+        refreshLiveData,
     };
 }

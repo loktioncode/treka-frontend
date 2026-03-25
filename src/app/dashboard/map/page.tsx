@@ -52,7 +52,8 @@ function getLocalCalendarDayBounds(now = new Date()): { start: Date; end: Date }
 
 export default function FleetMapPage() {
   const mapCenter = useMapCenter();
-  const { vehicleList, isConnected, vehicles } = useMqttTracking();
+  const fleetTracking = useMqttTracking();
+  const { vehicleList, isConnected, vehicles, refreshLiveData } = fleetTracking;
   const { assets = [], tripPlans = [] } = useDataCache();
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -273,21 +274,32 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
         }`}
       >
         <div className="p-4 border-b space-y-4 min-w-[320px]">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
               <MapIcon className="h-5 w-5 text-blue-600" />
               Fleet Map
             </h1>
-            <Badge
-              variant={isConnected ? "success" : "outline"}
-              className={
-                isConnected
-                  ? "bg-green-100 text-green-700 border-green-200"
-                  : ""
-              }
-            >
-              {isConnected ? "Live" : "Connecting..."}
-            </Badge>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Badge
+                variant={isConnected ? "success" : "outline"}
+                className={
+                  isConnected
+                    ? "bg-green-100 text-green-700 border-green-200"
+                    : ""
+                }
+              >
+                {isConnected ? "Live" : "Connecting..."}
+              </Badge>
+              <button
+                type="button"
+                onClick={() => void refreshLiveData()}
+                className="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                title="Refresh live data — reconnect feeds and load last known positions from the server"
+              >
+                <RotateCw className="h-4 w-4" aria-hidden />
+                <span className="sr-only">Refresh live data</span>
+              </button>
+            </div>
           </div>
 
           <div className="relative">
@@ -435,6 +447,7 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
       <div className="flex-1 relative bg-gray-200 min-w-0 h-full">
         <LiveMap
           height="100%"
+          sharedTracking={fleetTracking}
           onVehicleSelect={setSelectedVehicleId}
           encodedRoutes={encodedRoutes}
           encodedRoutePrecision={routePrecision}
