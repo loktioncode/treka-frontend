@@ -24,8 +24,10 @@ import {
   RotateCw,
   ArrowUp,
   Sparkles,
+  ExternalLink,
 } from "lucide-react";
 import { format } from "date-fns";
+import { formatGsmSignalPercent, googleMapsPlaceUrl } from "@/lib/utils";
 
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -483,10 +485,30 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
             ) : (
               <p className="text-[10px] text-amber-600 mt-1">No GPS history for today yet</p>
             )}
-            <p className="text-[10px] text-blue-600 mt-0.5 font-bold flex items-center gap-1">
-              <Navigation className="h-2.5 w-2.5" />
-              {getExtra(selectedVehicle.last_record, "position.address") || getExtra(selectedVehicle.last_record, "address") || "Syncing street address..."}
-            </p>
+            {(() => {
+              const r = selectedVehicle.last_record;
+              const lat = r.lat;
+              const lng = r.lon ?? r.lng;
+              if (lat == null || lng == null) {
+                return (
+                  <p className="text-[10px] text-gray-500 mt-0.5">
+                    No GPS coordinates for map link
+                  </p>
+                );
+              }
+              const href = googleMapsPlaceUrl(lat, lng);
+              return (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] text-blue-600 mt-0.5 font-bold inline-flex items-center gap-1 hover:underline"
+                >
+                  <ExternalLink className="h-3 w-3 shrink-0" />
+                  Open in Google Maps
+                </a>
+              );
+            })()}
 
           </div>
           <div className="p-4 space-y-3 flex-1">
@@ -528,11 +550,10 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
                     <span className="text-[9px] uppercase text-slate-700 font-bold">GSM</span>
                   </div>
                   <p className="text-lg font-bold text-slate-900">
-                    {(() => {
-                      const s = getExtra(selectedVehicle.last_record as any, "gsm.signal.level");
-                      const n = typeof s === "number" ? s : (typeof s === "string" ? Number(s) : NaN);
-                      return Number.isFinite(n) ? `${n}` : "—";
-                    })()}
+                    {formatGsmSignalPercent(
+                      getExtra(selectedVehicle.last_record as any, "gsm.signal.level") ??
+                        getExtra(selectedVehicle.last_record as any, "gsm.signal.percentage"),
+                    )}
                   </p>
                 </CardContent>
               </Card>

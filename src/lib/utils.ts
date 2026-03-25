@@ -134,3 +134,33 @@ export function getCurrencySymbol(currency: string = 'ZAR'): string {
   
   return currencySymbols[currency] || 'R';
 }
+
+/** Google Maps search / pin at WGS84 coordinates. */
+export function googleMapsPlaceUrl(lat: number, lng: number): string {
+  return `https://www.google.com/maps?q=${lat},${lng}`;
+}
+
+/**
+ * Format cellular signal for UI as 0–100%.
+ * Supports common encodings: plain 0–100, CSQ 0–31, or dBm (rough linear map).
+ */
+export function formatGsmSignalPercent(raw: unknown): string {
+  const n =
+    typeof raw === "number"
+      ? raw
+      : typeof raw === "string"
+        ? Number(String(raw).trim().replace(",", "."))
+        : NaN;
+  if (!Number.isFinite(n)) return "—";
+  if (n >= 0 && n <= 100) return `${Math.round(n)}%`;
+  if (n >= 0 && n <= 31) return `${Math.round((n / 31) * 100)}%`;
+  if (n <= -40 && n >= -130) {
+    const pct = Math.max(
+      0,
+      Math.min(100, Math.round(((n + 130) / 90) * 100)),
+    );
+    return `${pct}%`;
+  }
+  if (n > 100 && n <= 127) return `${Math.min(100, Math.round(n))}%`;
+  return "—";
+}

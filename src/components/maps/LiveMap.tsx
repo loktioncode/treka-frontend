@@ -28,7 +28,9 @@ import {
   Play,
   Pause,
   RotateCcw,
+  ExternalLink,
 } from "lucide-react";
+import { googleMapsPlaceUrl } from "@/lib/utils";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 
@@ -53,6 +55,10 @@ function getVehicleStatus(record: TelemetryRecord): "serious" | "warning" | "ok"
   if (driving === "moving") return "ok";
   if (driving === "idle") return "idle";
   return "off";
+}
+
+function recordExtra(r: TelemetryRecord, key: string): unknown {
+  return r.extras && typeof r.extras === "object" ? r.extras[key] : undefined;
 }
 
 interface LiveMapProps {
@@ -604,6 +610,21 @@ export default function LiveMap({
                   <span className="font-semibold">{(popupRec.spd || 0).toFixed(0)} km/h</span>
                 </div>
 
+                <div className="flex justify-between items-center text-xs text-gray-600">
+                  <span>Fuel (L)</span>
+                  <span className="font-semibold">
+                    {(() => {
+                      const vol =
+                        popupRec.fuel_vol ??
+                        recordExtra(popupRec, "can.fuel.volume");
+                      if (vol == null || vol === "") return "—";
+                      const n =
+                        typeof vol === "number" ? vol : Number(vol);
+                      return Number.isFinite(n) ? `${n.toFixed(3)} L` : "—";
+                    })()}
+                  </span>
+                </div>
+
                 {popupRec.odo !== undefined && popupRec.odo !== null && (
                   <div className="flex justify-between items-center text-xs text-gray-600">
                     <span>Odometer</span>
@@ -613,9 +634,25 @@ export default function LiveMap({
                 
                 <div className="flex justify-between items-center text-xs text-gray-600">
                   <span>Location</span>
-                  <span className="font-semibold text-[10px] text-blue-600">
-                    {popupRec.lat?.toFixed(5)}, {(popupRec.lon ?? popupRec.lng)?.toFixed(5)}
-                  </span>
+                  {popupRec.lat != null &&
+                  (popupRec.lon ?? popupRec.lng) != null ? (
+                    <a
+                      href={googleMapsPlaceUrl(
+                        popupRec.lat,
+                        popupRec.lon ?? popupRec.lng!,
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-[10px] text-blue-600 hover:underline inline-flex items-center gap-1"
+                    >
+                      <ExternalLink className="h-3 w-3 shrink-0" />
+                      Google Maps
+                    </a>
+                  ) : (
+                    <span className="font-semibold text-[10px] text-gray-400">
+                      —
+                    </span>
+                  )}
                 </div>
                 
                 <div className="pt-1 mt-1 text-[9px] text-gray-400 font-medium">
