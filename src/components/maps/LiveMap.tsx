@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Map, {
   Marker,
   Popup,
@@ -79,8 +80,11 @@ interface LiveMapProps {
   encodedRoutePrecision?: number;
   /** Initial map center (from user profile). Defaults to Johannesburg. */
   initialCenter?: { lat: number; lon: number };
-  /** Optional map device_id -> { name, plate } to show number plate in popup instead of device ID. */
-  deviceToVehicle?: Record<string, { name: string; plate: string }>;
+  /** Optional map device_id -> display info; `assetId` enables “View full details” → /dashboard/assets/[id]. */
+  deviceToVehicle?: Record<
+    string,
+    { name: string; plate: string; assetId?: string }
+  >;
   /** Historical telemetry records to draw as a trail. */
   historicalRecords?: TelemetryRecord[];
   /** Whether to enable live MQTT updates for markers. Defaults to true. */
@@ -141,6 +145,7 @@ export default function LiveMap({
   speedViolationMarkers,
   refreshLiveDataOverride,
 }: LiveMapProps) {
+  const router = useRouter();
   const useInternalMqtt = live && !sharedTracking;
   const internal = useMqttTracking(
     useInternalMqtt ? deviceId : undefined,
@@ -731,18 +736,23 @@ export default function LiveMap({
                 </div>
               </div>
 
-              {!deviceId && (
+              {!deviceId && (() => {
+                const assetId =
+                  deviceToVehicle?.[selectedVehicle.device_id]?.assetId;
+                if (!assetId) return null;
+                return (
                 <div className="mt-3 pt-3 border-t border-gray-100">
-                  <Button 
-                    variant="default" 
-                    size="sm" 
+                  <Button
+                    variant="default"
+                    size="sm"
                     className="w-full h-8 text-xs font-bold bg-blue-600 hover:bg-blue-700"
-                    onClick={() => window.location.href = `/dashboard/assets/${selectedVehicle.device_id}`}
+                    onClick={() => router.push(`/dashboard/assets/${assetId}`)}
                   >
                     View Full Details
                   </Button>
                 </div>
-              )}
+                );
+              })()}
             </div>
           </Popup>
           );

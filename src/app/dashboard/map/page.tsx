@@ -58,13 +58,17 @@ export default function FleetMapPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const deviceToVehicle = useMemo(() => {
-    const map: Record<string, { name: string; plate: string }> = {};
+    const map: Record<
+      string,
+      { name: string; plate: string; assetId: string }
+    > = {};
     for (const asset of assets as Asset[]) {
       const did = asset.vehicle_details?.device_id;
       if (did) {
         map[did] = {
           name: asset.name,
           plate: asset.vehicle_details?.license_plate || "",
+          assetId: asset.id,
         };
       }
     }
