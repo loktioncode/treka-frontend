@@ -29,6 +29,8 @@ import {
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
   Edit,
   Plus,
   Wrench,
@@ -72,6 +74,26 @@ import { FloatingChatButton } from "@/components/ui/floating-chat-button";
 import { type ChatMessage } from "@/components/ui/chat";
 import { analyticsAPI } from "@/services/api";
 import { useClientLabels } from "@/hooks/useClientLabels";
+
+const GPS_LOGS_PAGE_SIZE = 50;
+
+/** `type="date"` values are YYYY-MM-DD; use local calendar day bounds for API date filters. */
+function localDayRangeToIsoBounds(startYmd: string, endYmd: string): {
+  start: string;
+  end: string;
+} {
+  const parseLocalDay = (ymd: string) => {
+    const [y, m, d] = ymd.split("-").map((n) => Number(n));
+    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) {
+      return new Date();
+    }
+    return new Date(y, m - 1, d, 0, 0, 0, 0);
+  };
+  const start = parseLocalDay(startYmd);
+  const end = parseLocalDay(endYmd);
+  end.setHours(23, 59, 59, 999);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
 
 export default function AssetViewPage() {
   const { assetId } = useParams();
@@ -149,10 +171,8 @@ export default function AssetViewPage() {
 
   const [loadingTelemetry, setLoadingTelemetry] = useState(false);
 
-  // GPS Logs tab dedicated state
-  // Redundant GPS Logs state removed. Using global 'telemetry' state.
-  const [sensorFilterStart, setSensorFilterStart] = useState("");
-  const [sensorFilterEnd, setSensorFilterEnd] = useState("");
+  // GPS Logs tab uses shared `telemetry`; pagination state below.
+  const [gpsLogsPage, setGpsLogsPage] = useState(1);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loadingTrips, setLoadingTrips] = useState(false);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
@@ -322,6 +342,34 @@ Provide a concise, actionable insight for a fleet manager.`;
 
     return telemetry.filter((r) => getMs(r) >= cutoff);
   }, [telemetry, sensorTimeRange, sensorTimeRangeMs]);
+
+  const gpsLogsSortedDesc = useMemo(() => {
+    const getT = (r: TelemetryRecord) => {
+      if (r.ts_server) return new Date(r.ts_server).getTime();
+      const t = r.ts ?? 0;
+      return t < 1e12 ? t * 1000 : t;
+    };
+    return [...telemetry].sort((a, b) => getT(b) - getT(a));
+  }, [telemetry]);
+
+  useEffect(() => {
+    setGpsLogsPage(1);
+  }, [telemetry]);
+
+  const gpsLogsPageCount = Math.max(
+    1,
+    Math.ceil(gpsLogsSortedDesc.length / GPS_LOGS_PAGE_SIZE),
+  );
+
+  useEffect(() => {
+    setGpsLogsPage((p) => Math.min(p, gpsLogsPageCount));
+  }, [gpsLogsPageCount]);
+
+  const gpsLogsPageSafe = Math.min(gpsLogsPage, gpsLogsPageCount);
+  const gpsLogsPageSlice = useMemo(() => {
+    const start = (gpsLogsPageSafe - 1) * GPS_LOGS_PAGE_SIZE;
+    return gpsLogsSortedDesc.slice(start, start + GPS_LOGS_PAGE_SIZE);
+  }, [gpsLogsSortedDesc, gpsLogsPageSafe]);
 
   // Simulated sensor data for machinery (will come from various sensors)
   const [machinerySensorData] = useState({
@@ -953,13 +1001,18 @@ Provide a concise, actionable insight for a fleet manager.`;
                   value={globalStartDate}
                   onChange={(e) => {
                     const val = e.target.value;
+                    if (!val) return;
                     setGlobalStartDate(val);
+                    const endYmd = globalEndDate || val;
+                    if (!globalEndDate) setGlobalEndDate(val);
                     if (asset.vehicle_details?.device_id) {
-                      const start = new Date(val);
-                      start.setHours(0, 0, 0, 0);
-                      const end = globalEndDate ? new Date(globalEndDate) : new Date(val);
-                      end.setHours(23, 59, 59, 999);
-                      fetchTelemetry(asset.vehicle_details.device_id, 10000, start.toISOString(), end.toISOString());
+                      const { start, end } = localDayRangeToIsoBounds(val, endYmd);
+                      fetchTelemetry(
+                        asset.vehicle_details.device_id,
+                        10000,
+                        start,
+                        end,
+                      );
                     }
                   }}
                   className="text-xs border-none focus:ring-0 bg-transparent outline-none w-28"
@@ -971,13 +1024,18 @@ Provide a concise, actionable insight for a fleet manager.`;
                   value={globalEndDate}
                   onChange={(e) => {
                     const val = e.target.value;
+                    if (!val) return;
+                    const startYmd = globalStartDate || val;
                     setGlobalEndDate(val);
-                    if (asset.vehicle_details?.device_id && globalStartDate) {
-                      const start = new Date(globalStartDate);
-                      start.setHours(0, 0, 0, 0);
-                      const end = new Date(val);
-                      end.setHours(23, 59, 59, 999);
-                      fetchTelemetry(asset.vehicle_details.device_id, 10000, start.toISOString(), end.toISOString());
+                    if (!globalStartDate) setGlobalStartDate(val);
+                    if (asset.vehicle_details?.device_id) {
+                      const { start, end } = localDayRangeToIsoBounds(startYmd, val);
+                      fetchTelemetry(
+                        asset.vehicle_details.device_id,
+                        10000,
+                        start,
+                        end,
+                      );
                     }
                   }}
                   className="text-xs border-none focus:ring-0 bg-transparent outline-none w-28"
@@ -2307,16 +2365,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                                 </tr>
                               );
                             })()}
-                            {[...telemetry]
-                              .sort((a, b) => {
-                                const getT = (r: TelemetryRecord) => {
-                                  if (r.ts_server) return new Date(r.ts_server).getTime();
-                                  const t = r.ts ?? 0;
-                                  return t < 1e12 ? t * 1000 : t;
-                                };
-                                return getT(b) - getT(a);
-                              })
-                              .map((r, i) => {
+                            {gpsLogsPageSlice.map((r, i) => {
                                 // API returns `lng`; type uses `lon` — support both
                                 const lat = r.lat ?? null;
                                 const lng = r.lng ?? r.lon ?? null;
@@ -2340,13 +2389,16 @@ Provide a concise, actionable insight for a fleet manager.`;
                                   displaySpeed = r.gspd || extras["can.vehicle.speed"] || 0;
                                 }
 
+                                const rowKey = `${r.ts_server ?? ""}-${r.ts ?? ""}-${(gpsLogsPageSafe - 1) * GPS_LOGS_PAGE_SIZE + i}`;
                                 return (
-                                  <tr key={i} className="bg-white border-b hover:bg-gray-50 transition-colors">
+                                  <tr key={rowKey} className="bg-white border-b hover:bg-gray-50 transition-colors">
                                     <td className="px-4 py-3 whitespace-nowrap text-gray-700">
                                       {r.ts_server
                                         ? new Date(r.ts_server).toLocaleString()
                                         : r.ts
-                                          ? new Date(r.ts * 1000).toLocaleString()
+                                          ? new Date(
+                                              r.ts < 1e12 ? r.ts * 1000 : r.ts,
+                                            ).toLocaleString()
                                           : "Unknown"}
                                     </td>
                                     <td className="px-4 py-3 font-mono text-gray-600">
@@ -2413,6 +2465,54 @@ Provide a concise, actionable insight for a fleet manager.`;
                               })}
                           </tbody>
                         </table>
+                        {gpsLogsSortedDesc.length > GPS_LOGS_PAGE_SIZE ? (
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-t bg-gray-50/90">
+                            <p className="text-xs text-gray-600 tabular-nums">
+                              Showing{" "}
+                              {(gpsLogsPageSafe - 1) * GPS_LOGS_PAGE_SIZE + 1}–
+                              {Math.min(
+                                gpsLogsPageSafe * GPS_LOGS_PAGE_SIZE,
+                                gpsLogsSortedDesc.length,
+                              )}{" "}
+                              of {gpsLogsSortedDesc.length}
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={gpsLogsPageSafe <= 1}
+                                onClick={() =>
+                                  setGpsLogsPage((p) =>
+                                    Math.max(1, Math.min(gpsLogsPageCount, p - 1)),
+                                  )
+                                }
+                                className="gap-1 h-8"
+                              >
+                                <ChevronLeft className="h-4 w-4" />
+                                Previous
+                              </Button>
+                              <span className="text-xs text-gray-600 tabular-nums min-w-[5.5rem] text-center">
+                                Page {gpsLogsPageSafe} / {gpsLogsPageCount}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={gpsLogsPageSafe >= gpsLogsPageCount}
+                                onClick={() =>
+                                  setGpsLogsPage((p) =>
+                                    Math.min(gpsLogsPageCount, p + 1),
+                                  )
+                                }
+                                className="gap-1 h-8"
+                              >
+                                Next
+                                <ChevronRight className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     )}
                   </CardContent>
