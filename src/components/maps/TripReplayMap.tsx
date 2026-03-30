@@ -289,7 +289,7 @@ export default function TripReplayMap({
                   const ts =
                     selectedEvent.ts_server ?? selectedEvent.ts ?? Date.now();
                   try {
-                    return format(new Date(ts), "HH:mm:ss");
+                    return format(new Date(ts), "yyyy-MM-dd HH:mm:ss");
                   } catch {
                     return "--:--:--";
                   }

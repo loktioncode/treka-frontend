@@ -1333,12 +1333,20 @@ Provide a concise, actionable insight for a fleet manager.`;
                     Violations
                   </TabsTrigger>
                 )}
-                {asset.asset_type !== "vehicle" && (
+                {asset.asset_type === "vehicle" && (
                   <TabsTrigger
-                    value="components"
+                    value="more"
                     className="flex-1 data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200"
                   >
-                    {componentLabel}
+                    More
+                  </TabsTrigger>
+                )}
+                {asset.asset_type === "vehicle" && (
+                  <TabsTrigger
+                    value="compliance"
+                    className="flex-1 data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200"
+                  >
+                    Compliance
                   </TabsTrigger>
                 )}
               </TabsList>
@@ -2931,6 +2939,101 @@ Provide a concise, actionable insight for a fleet manager.`;
                   </div>
                 )}
               </TabsContent>
+
+              {/* More Tab — operational context */}
+              {asset.asset_type === "vehicle" && (
+                <TabsContent value="more" className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Fuel level */}
+                    <div className="rounded-xl border p-5 space-y-2">
+                      <p className="text-xs uppercase font-bold tracking-wider text-gray-500">Fuel Level</p>
+                      <p className="text-2xl font-bold">
+                        {(() => {
+                          const r = cardTelemetry as TelemetryRecord | undefined;
+                          if (!r) return "—";
+                          const ex = (r.extras || {}) as Record<string, unknown>;
+                          const vol = r.fuel_vol ?? ex["can.fuel.volume"] ?? ex["fuel.volume"];
+                          if (vol != null) return `${Number(vol).toFixed(1)} L`;
+                          if (r.fl != null) return `${Number(r.fl).toFixed(0)}%`;
+                          return "—";
+                        })()}
+                      </p>
+                    </div>
+
+                    {/* Service mileage */}
+                    <div className="rounded-xl border p-5 space-y-2">
+                      <p className="text-xs uppercase font-bold tracking-wider text-gray-500">Service Mileage</p>
+                      {fleetMetrics ? (
+                        <>
+                          <p className="text-lg font-bold">
+                            Next in: {fleetMetrics.km_until_next_service != null ? `${fleetMetrics.km_until_next_service.toLocaleString()} km` : "N/A"}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            Odometer: {fleetMetrics.total_distance_km.toLocaleString()} km &middot; Interval: {fleetMetrics.service_interval_km.toLocaleString()} km
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-gray-400">No service data</p>
+                      )}
+                    </div>
+
+                    {/* Linked driver */}
+                    <div className="rounded-xl border p-5 space-y-2">
+                      <p className="text-xs uppercase font-bold tracking-wider text-gray-500">Assigned Driver</p>
+                      {(() => {
+                        const dId = asset.vehicle_details?.driver_id;
+                        if (!dId) return <p className="text-gray-400">No driver assigned</p>;
+                        const d = drivers.find((dr) => dr.id === dId);
+                        return d ? (
+                          <p className="text-lg font-medium">{d.first_name} {d.last_name}</p>
+                        ) : (
+                          <p className="text-gray-500">Driver ID: {dId}</p>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Status + engine type */}
+                    <div className="rounded-xl border p-5 space-y-2">
+                      <p className="text-xs uppercase font-bold tracking-wider text-gray-500">Vehicle Info</p>
+                      <div className="space-y-1 text-sm">
+                        <p><span className="text-gray-500">Status:</span> <span className="font-medium capitalize">{asset.status}</span></p>
+                        <p><span className="text-gray-500">Engine:</span> <span className="font-medium">{asset.vehicle_details?.engine_type || "—"}</span></p>
+                        <p><span className="text-gray-500">Fuel type:</span> <span className="font-medium">{asset.vehicle_details?.fuel_type || "—"}</span></p>
+                        {asset.vehicle_details?.group_ids && asset.vehicle_details.group_ids.length > 0 && (
+                          <p><span className="text-gray-500">Groups:</span> <span className="font-medium">{asset.vehicle_details.group_ids.length} group(s)</span></p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Current location */}
+                    <div className="rounded-xl border p-5 space-y-2 md:col-span-2">
+                      <p className="text-xs uppercase font-bold tracking-wider text-gray-500">Current Location</p>
+                      {(() => {
+                        const r = cardTelemetry as TelemetryRecord | undefined;
+                        if (r?.lat != null && r?.lon != null) {
+                          return (
+                            <p className="text-sm font-medium">
+                              <MapPin className="inline h-4 w-4 mr-1 text-teal-600" />
+                              {r.lat.toFixed(5)}, {r.lon.toFixed(5)}
+                            </p>
+                          );
+                        }
+                        return <p className="text-gray-400">No location data</p>;
+                      })()}
+                    </div>
+                  </div>
+                </TabsContent>
+              )}
+
+              {/* Compliance Tab — up to 5 disks */}
+              {asset.asset_type === "vehicle" && (
+                <TabsContent value="compliance" className="space-y-6">
+                  <ComplianceDisksPanel asset={asset} onUpdate={async () => {
+                    const updated = await assetAPI.getAsset(asset.id);
+                    setAsset(updated);
+                  }} />
+                </TabsContent>
+              )}
             </Tabs>
           </motion.div>
 
@@ -3239,6 +3342,162 @@ Provide a concise, actionable insight for a fleet manager.`;
           messages={chatMessages}
           isLoading={isChatLoading}
         />
+      )}
+    </div>
+  );
+}
+
+
+function ComplianceDisksPanel({ asset, onUpdate }: { asset: Asset; onUpdate: () => Promise<void> }) {
+  const disks: import("@/types/api").ComplianceDisk[] = asset.vehicle_details?.compliance_disks || [];
+  const [showAdd, setShowAdd] = useState(false);
+  const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ label: "", expiry_date: "", reference_number: "", notes: "" });
+
+  const MAX_DISKS = 5;
+
+  const resetForm = () => {
+    setForm({ label: "", expiry_date: "", reference_number: "", notes: "" });
+    setShowAdd(false);
+    setEditIdx(null);
+  };
+
+  const saveDisk = async () => {
+    if (!form.label.trim()) { toast.error("Label is required"); return; }
+    setSaving(true);
+    try {
+      const updated = [...disks];
+      const entry: import("@/types/api").ComplianceDisk = {
+        label: form.label.trim(),
+        expiry_date: form.expiry_date || undefined,
+        reference_number: form.reference_number || undefined,
+        notes: form.notes || undefined,
+      };
+      if (editIdx != null) {
+        updated[editIdx] = entry;
+      } else {
+        if (updated.length >= MAX_DISKS) { toast.error(`Maximum ${MAX_DISKS} compliance disks`); setSaving(false); return; }
+        updated.push(entry);
+      }
+      await assetAPI.updateAsset(asset.id, {
+        vehicle_details: { ...asset.vehicle_details!, compliance_disks: updated },
+      } as any);
+      toast.success(editIdx != null ? "Disk updated" : "Disk added");
+      resetForm();
+      await onUpdate();
+    } catch {
+      toast.error("Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeDisk = async (idx: number) => {
+    setSaving(true);
+    try {
+      const updated = disks.filter((_, i) => i !== idx);
+      await assetAPI.updateAsset(asset.id, {
+        vehicle_details: { ...asset.vehicle_details!, compliance_disks: updated },
+      } as any);
+      toast.success("Disk removed");
+      await onUpdate();
+    } catch {
+      toast.error("Failed to remove");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startEdit = (idx: number) => {
+    const d = disks[idx];
+    setForm({
+      label: d.label,
+      expiry_date: d.expiry_date ? d.expiry_date.slice(0, 10) : "",
+      reference_number: d.reference_number || "",
+      notes: d.notes || "",
+    });
+    setEditIdx(idx);
+    setShowAdd(true);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-bold">Compliance Documents</h3>
+        {disks.length < MAX_DISKS && (
+          <Button size="sm" onClick={() => { resetForm(); setShowAdd(true); }}>
+            <Plus className="h-4 w-4 mr-1" /> Add Disk
+          </Button>
+        )}
+      </div>
+
+      {disks.length === 0 && !showAdd && (
+        <div className="text-center py-12 border rounded-xl">
+          <Settings className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500 mb-2">No compliance documents yet</p>
+          <p className="text-sm text-gray-400 mb-4">Add up to {MAX_DISKS} documents (license disc, insurance, radio, etc.)</p>
+          <Button onClick={() => setShowAdd(true)}>Add First Document</Button>
+        </div>
+      )}
+
+      {disks.length > 0 && (
+        <div className="space-y-3">
+          {disks.map((d, i) => {
+            const exp = d.expiry_date ? new Date(d.expiry_date) : null;
+            const daysUntil = exp ? Math.ceil((exp.getTime() - Date.now()) / 86400000) : null;
+            const expired = daysUntil != null && daysUntil <= 0;
+            const expiringSoon = daysUntil != null && daysUntil > 0 && daysUntil <= 30;
+            return (
+              <div key={i} className={`rounded-xl border p-4 flex items-center justify-between ${expired ? "border-red-200 bg-red-50" : expiringSoon ? "border-amber-200 bg-amber-50" : ""}`}>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">{d.label}</p>
+                  <div className="flex gap-4 text-sm text-gray-500 mt-1">
+                    {exp && (
+                      <span className={expired ? "text-red-600 font-medium" : expiringSoon ? "text-amber-600 font-medium" : ""}>
+                        {expired ? `Expired ${Math.abs(daysUntil!)}d ago` : expiringSoon ? `Expires in ${daysUntil}d` : `Expires ${exp.toLocaleDateString()}`}
+                      </span>
+                    )}
+                    {d.reference_number && <span>Ref: {d.reference_number}</span>}
+                  </div>
+                  {d.notes && <p className="text-xs text-gray-400 mt-1">{d.notes}</p>}
+                </div>
+                <div className="flex gap-2 ml-4">
+                  <button onClick={() => startEdit(i)} className="text-xs text-teal-600 hover:text-teal-800 font-medium">Edit</button>
+                  <button onClick={() => removeDisk(i)} className="text-xs text-red-600 hover:text-red-800 font-medium">Remove</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showAdd && (
+        <div className="border rounded-xl p-4 space-y-3 bg-gray-50">
+          <p className="font-medium text-sm">{editIdx != null ? "Edit Document" : "Add Compliance Document"}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-gray-600 mb-1 block">Label *</label>
+              <Input value={form.label} onChange={(e) => setForm((p) => ({ ...p, label: e.target.value }))} placeholder="e.g. License Disc" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 mb-1 block">Expiry Date</label>
+              <Input type="date" value={form.expiry_date} onChange={(e) => setForm((p) => ({ ...p, expiry_date: e.target.value }))} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 mb-1 block">Reference / Policy Number</label>
+              <Input value={form.reference_number} onChange={(e) => setForm((p) => ({ ...p, reference_number: e.target.value }))} placeholder="Optional" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 mb-1 block">Notes</label>
+              <Input value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Optional" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={saveDisk} disabled={saving}>{saving ? "Saving..." : editIdx != null ? "Update" : "Add"}</Button>
+            <Button size="sm" variant="outline" onClick={resetForm}>Cancel</Button>
+          </div>
+        </div>
       )}
     </div>
   );

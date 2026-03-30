@@ -4,15 +4,13 @@ import React, { createContext, useContext, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAssets } from '@/hooks/useAssets';
 import { useUsers } from '@/hooks/useUsers';
-import { useComponents } from '@/hooks/useComponents';
 import { useTripPlans } from '@/hooks/useTripPlans';
 import { useClients } from '@/hooks/useClients';
 import { assetKeys } from '@/hooks/useAssets';
 import { userKeys } from '@/hooks/useUsers';
-import { componentKeys } from '@/hooks/useComponents';
 import { tripPlanKeys } from '@/hooks/useTripPlans';
 import { clientKeys } from '@/hooks/useClients';
-import type { Asset, User, Component, TripPlan, Client } from '@/types/api';
+import type { Asset, User, TripPlan, Client } from '@/types/api';
 
 export interface DataCacheState {
   /** Cached assets - avoid repeated API calls */
@@ -23,10 +21,6 @@ export interface DataCacheState {
   users: User[] | undefined;
   usersLoading: boolean;
   usersError: Error | null;
-  /** Cached components */
-  components: Component[] | undefined;
-  componentsLoading: boolean;
-  componentsError: Error | null;
   /** Cached trip plans */
   tripPlans: TripPlan[] | undefined;
   tripPlansLoading: boolean;
@@ -40,7 +34,6 @@ export interface DataCacheState {
   /** Refetch specific cache */
   refetchAssets: () => void;
   refetchUsers: () => void;
-  refetchComponents: () => void;
   refetchTripPlans: () => void;
   refetchClients: () => void;
 }
@@ -59,13 +52,11 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
 
   const assetsQuery = useAssets({ limit: 500 });
   const usersQuery = useUsers({});
-  const componentsQuery = useComponents({}, { limit: 500 });
   const tripPlansQuery = useTripPlans();
   const clientsQuery = useClients({});
 
   const assets = toArray(assetsQuery.data) as Asset[] | undefined;
   const users = Array.isArray(usersQuery.data) ? usersQuery.data : toArray(usersQuery.data) as User[] | undefined;
-  const components = toArray(componentsQuery.data) as Component[] | undefined;
   const tripPlans = Array.isArray(tripPlansQuery.data) ? tripPlansQuery.data : (tripPlansQuery.data as TripPlan[] | undefined);
   const clients = toArray(clientsQuery.data) as Client[] | undefined;
 
@@ -75,10 +66,6 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
 
   const refetchUsers = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: userKeys.lists() });
-  }, [queryClient]);
-
-  const refetchComponents = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: componentKeys.lists() });
   }, [queryClient]);
 
   const refetchTripPlans = useCallback(() => {
@@ -92,10 +79,9 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
   const refetchAll = useCallback(() => {
     refetchAssets();
     refetchUsers();
-    refetchComponents();
     refetchTripPlans();
     refetchClients();
-  }, [refetchAssets, refetchUsers, refetchComponents, refetchTripPlans, refetchClients]);
+  }, [refetchAssets, refetchUsers, refetchTripPlans, refetchClients]);
 
   const value: DataCacheState = {
     assets,
@@ -104,9 +90,6 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
     users,
     usersLoading: usersQuery.isLoading,
     usersError: usersQuery.error as Error | null,
-    components,
-    componentsLoading: componentsQuery.isLoading,
-    componentsError: componentsQuery.error as Error | null,
     tripPlans: tripPlans ?? [],
     tripPlansLoading: tripPlansQuery.isLoading,
     tripPlansError: tripPlansQuery.error as Error | null,
@@ -116,7 +99,6 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
     refetchAll,
     refetchAssets,
     refetchUsers,
-    refetchComponents,
     refetchTripPlans,
     refetchClients,
   };

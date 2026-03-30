@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { geofenceAPI, assetAPI } from "@/services/api";
+import { geofenceAPI, assetAPI, assetGroupAPI, type AssetGroup } from "@/services/api";
 import { useMapCenter } from "@/hooks/useMapCenter";
 import {
   type Geofence,
@@ -51,6 +51,8 @@ export default function GeofencesPage() {
   const [geofences, setGeofences] = useState<Geofence[]>([]);
   const [alerts, setAlerts] = useState<GeofenceAlert[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [groups, setGroups] = useState<AssetGroup[]>([]);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("list");
 
@@ -72,14 +74,16 @@ export default function GeofencesPage() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [gfList, alertList, assetList] = await Promise.all([
+      const [gfList, alertList, assetList, groupList] = await Promise.all([
         geofenceAPI.getGeofences(),
         geofenceAPI.getGeofenceAlerts(),
         assetAPI.getAssets({ limit: 100 }),
+        assetGroupAPI.list().catch(() => []),
       ]);
       setGeofences(gfList);
       setAlerts(alertList);
       setAssets(Array.isArray(assetList) ? assetList : (assetList?.items || []));
+      setGroups(groupList);
     } catch (error) {
       console.error("Error loading geofence data:", error);
       toast.error("Failed to load geofence information");
@@ -107,7 +111,7 @@ export default function GeofencesPage() {
     e.preventDefault();
     try {
       setIsSubmitting(true);
-      await geofenceAPI.createGeofence(formData);
+      await geofenceAPI.createGeofence({ ...formData, group_ids: selectedGroupIds } as any);
       toast.success("Geofence created successfully");
       setShowCreateModal(false);
       setFormData({
@@ -121,6 +125,7 @@ export default function GeofencesPage() {
         notify_on_exit: true,
         asset_ids: [],
       });
+      setSelectedGroupIds([]);
       loadData();
     } catch {
       toast.error("Failed to create geofence");
@@ -593,10 +598,29 @@ export default function GeofencesPage() {
                 searchPlaceholder="Search by name or plate..."
               />
               <p className="text-[10px] text-gray-400 mt-1">
-                If no assets are selected, the geofence will apply to your
+                If no assets or groups are selected, the geofence will apply to your
                 entire fleet.
               </p>
             </div>
+
+            {groups.length > 0 && (
+              <div className="md:col-span-2">
+                <FormLabel>Assign to Groups (Optional)</FormLabel>
+                <MultiSearchableSelect
+                  options={groups.map((g) => ({
+                    value: g.id,
+                    label: g.name,
+                  }))}
+                  value={selectedGroupIds}
+                  onChange={(values) => setSelectedGroupIds(values)}
+                  placeholder="Select groups..."
+                  searchPlaceholder="Search groups..."
+                />
+                <p className="text-[10px] text-gray-400 mt-1">
+                  All vehicles in the selected groups will be monitored by this geofence.
+                </p>
+              </div>
+            )}
           </FormGrid>
 
           <FormActions>

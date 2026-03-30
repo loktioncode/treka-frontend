@@ -15,12 +15,14 @@ import {
   LogOut,
   User,
   BarChart3,
-  Wrench,
   Home,
   ChevronDown,
   FileText,
-  Cpu,
-  Route
+  Route,
+  MapPin,
+  FolderTree,
+  Wrench,
+  AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SkeletonProfile } from '@/components/ui/skeleton';
@@ -67,16 +69,28 @@ const navigation: NavigationItem[] = [
     roles: ['admin', 'user']
   },
   {
-    name: 'Devices',
-    href: '/dashboard/devices',
-    icon: Cpu,
+    name: 'Maintenance',
+    href: '/dashboard/maintenance',
+    icon: Wrench,
     roles: ['admin', 'user']
   },
   {
-    name: 'Components',
-    href: '/dashboard/components',
-    icon: Wrench,
+    name: 'Critical Issues',
+    href: '/dashboard/critical-issues',
+    icon: AlertTriangle,
     roles: ['admin', 'user']
+  },
+  {
+    name: 'Geofences',
+    href: '/dashboard/geofences',
+    icon: MapPin,
+    roles: ['admin', 'user']
+  },
+  {
+    name: 'Groups',
+    href: '/dashboard/groups',
+    icon: FolderTree,
+    roles: ['admin']
   },
   {
     name: 'Analytics',
@@ -136,7 +150,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     .filter(item => user?.role && item.roles.includes(user.role))
     .map(item => ({
       ...item,
-      name: item.name === 'Assets' ? assetLabel : item.name === 'Components' ? componentLabel : item.name,
+      name: item.name === 'Assets' ? assetLabel : item.name,
     }));
 
   // Redirect if not authenticated

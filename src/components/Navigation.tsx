@@ -22,7 +22,6 @@ const navigationItems = [
   { name: "Dashboard", href: "/dashboard", icon: HomeIcon, labelKey: null as string | null },
   { name: "Driver Leaderboard", href: "/dashboard/drivers/leaderboard", icon: TrophyIcon, labelKey: null },
   { name: "Assets", href: "/dashboard/assets", icon: CubeIcon, labelKey: "asset" as const },
-  { name: "Components", href: "/dashboard/components", icon: WrenchIcon, labelKey: "component" as const },
   { name: "Analytics", href: "/dashboard/analytics", icon: ChartBarIcon, labelKey: null },
   { name: "Live Map", href: "/dashboard/map", icon: MapIcon, labelKey: null },
   { name: "Trip Planning", href: "/dashboard/trip-plans", icon: MapIcon, labelKey: null },

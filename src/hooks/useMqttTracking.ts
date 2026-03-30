@@ -134,6 +134,21 @@ function extractLatLon(input: unknown): { lat?: number; lon?: number } {
         (gps ? (asFiniteNumber(gps.lon) ?? asFiniteNumber(gps.lng) ?? asFiniteNumber(gps.longitude) ?? asFiniteNumber(gps.long)) : undefined);
     return { lat, lon };
 }
+
+function normalizeDeviceIdLoose(id: unknown): string {
+    return String(id ?? '').trim();
+}
+
+function deviceIdVariants(id: string): string[] {
+    const s = id.trim();
+    if (!s) return [];
+    const out = new Set<string>([s]);
+    // Common case: assets may store numeric IDs without leading zeros,
+    // while firmware publishes 6-digit, zero-padded IDs (e.g. "4444" vs "004444").
+    if (/^\d+$/.test(s) && s.length < 6) out.add(s.padStart(6, '0'));
+    if (/^\d+$/.test(s) && s.length > 1) out.add(s.replace(/^0+/, '') || '0');
+    return Array.from(out);
+}
 function getExtra(r: TelemetryRecord | null | undefined, key: string): any {
     if (!r?.extras) return undefined;
     if (typeof r.extras !== 'object') return undefined;
@@ -377,11 +392,14 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
     // All devices assigned to user's vehicles (both custom/HiveMQ and Teltonika/Flespi) — fleet map shows these only
     const allowedDeviceIds = useMemo((): Set<string> => {
         if (deviceId) return new Set<string>();
-        return new Set(
-            assets
-                .filter((a: Asset) => a.vehicle_details?.device_id)
-                .map((a: Asset) => String(a.vehicle_details!.device_id!))
-        );
+        const s = new Set<string>();
+        for (const a of assets) {
+            const raw = a.vehicle_details?.device_id;
+            if (!raw) continue;
+            const did = normalizeDeviceIdLoose(raw);
+            for (const v of deviceIdVariants(did)) s.add(v);
+        }
+        return s;
     }, [assets, deviceId]);
 
     useEffect(() => {
@@ -391,6 +409,16 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
             allowedDeviceIdsRef.current = new Set<string>(allowedDeviceIds);
         }
     }, [deviceId, allowedDeviceIds]);
+
+    const isAllowedDevice = useCallback((id: string) => {
+        if (deviceId) return true;
+        const set = allowedDeviceIdsRef.current;
+        if (set.has(id)) return true;
+        for (const v of deviceIdVariants(id)) {
+            if (set.has(v)) return true;
+        }
+        return false;
+    }, [deviceId]);
 
     // Fetch initial last-known positions so idle vehicles appear immediately
     useEffect(() => {
@@ -625,12 +653,13 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                         const payload = message.toString();
                         const data: TrackingMessage = JSON.parse(payload);
                         const topicParts = topic.split('/');
-                        const topicDeviceId = topicParts[topicParts.length - 1];
-                        const actualDeviceId = data.device_id || topicDeviceId;
+                        // Topic is trekaman/telematrics/{device_id}/...; device_id is usually index 2.
+                        const topicDeviceId = topicParts.length >= 3 ? topicParts[2] : topicParts[topicParts.length - 1];
+                        const actualDeviceId = normalizeDeviceIdLoose(data.device_id || topicDeviceId);
 
                         if (topic.startsWith('trekaman/telematrics/')) {
                             // Only process devices assigned to user's vehicles (fleet map) or current device (single view)
-                            if (!deviceId && !allowedDeviceIdsRef.current.has(actualDeviceId)) return;
+                            if (!isAllowedDevice(actualDeviceId)) return;
                             let latestRecord: TelemetryRecord | undefined;
                             if (data.records && data.records.length > 0) {
                                 latestRecord = data.records[data.records.length - 1];
@@ -855,7 +884,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                         const record = flespiTelemetryToRecord(deviceIdStr, cache);
                         // Fleet mode: ONLY apply to devices linked to assets. We still keep cache so when assets load
                         // we can re-apply the latest cached telemetry for allowed devices.
-                        if (!deviceId && !allowedDeviceIdsRef.current.has(deviceIdStr)) return;
+                        if (!isAllowedDevice(deviceIdStr)) return;
                         if (record) {
                             applyFlespiPosition(deviceIdStr, record);
 
@@ -892,7 +921,7 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
                 console.error('Failed to create Flespi MQTT connection:', err);
             }
         }
-    }, [user, deviceId, mqttProvider, applyFlespiPosition, refreshEpoch]);
+    }, [user, deviceId, mqttProvider, applyFlespiPosition, refreshEpoch, isAllowedDevice]);
 
     /**
      * Reconnect live brokers and merge latest API telemetry so the map/sidebar recover when MQTT stalls.
@@ -1002,7 +1031,11 @@ export function useMqttTracking(deviceId?: string, mqttProvider?: 'custom' | 'te
         () =>
             Object.values(vehicles).filter((v) => {
                 if (deviceId) return true;
-                return allowedDeviceIds.has(v.device_id);
+                if (allowedDeviceIds.has(v.device_id)) return true;
+                for (const vv of deviceIdVariants(v.device_id)) {
+                    if (allowedDeviceIds.has(vv)) return true;
+                }
+                return false;
             }),
         [vehicles, deviceId, allowedDeviceIds]
     );

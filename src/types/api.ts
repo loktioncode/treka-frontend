@@ -173,6 +173,13 @@ export const ConditionLabels: Record<Condition, string> = {
   [Condition.CRITICAL]: "Critical",
 };
 
+export interface ComplianceDisk {
+  label: string;
+  expiry_date?: string;
+  reference_number?: string;
+  notes?: string;
+}
+
 export interface VehicleDetails {
   make: string;
   model: string;
@@ -182,15 +189,18 @@ export interface VehicleDetails {
   engine_type?: string;
   fuel_type?: string;
   mileage?: number;
-  service_interval_km?: number; // km between services (e.g. 10000)
-  last_service_at_km?: number; // odometer at last service (reset service alerts)
-  /** Odometer (km) from the oldest stored telemetry batch — baseline when no service logged */
+  service_interval_km?: number;
+  last_service_at_km?: number;
   first_telemetry_odometer_km?: number;
   first_telemetry_at?: string;
-  driver_id?: string; // ID of assigned driver
-  device_id?: string; // Hardware ID of the telematics device
-  /** When "teltonika", device uses Flespi MQTT; otherwise HiveMQ (custom/firmware). */
+  driver_id?: string;
+  device_id?: string;
   mqtt_provider?: 'custom' | 'teltonika';
+  compliance_disks?: ComplianceDisk[];
+  group_ids?: string[];
+  geotag_lat?: number;
+  geotag_lon?: number;
+  geotag_updated_at?: string;
 }
 
 export interface MachineryDetails {

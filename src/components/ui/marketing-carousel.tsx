@@ -48,8 +48,8 @@ const slides: CarouselSlide[] = [
       "Automated alert notifications",
       "Maintenance history tracking"
     ],
-    ctaText: "View Components",
-    ctaLink: "/dashboard/components"
+    ctaText: "View Assets",
+    ctaLink: "/dashboard/assets"
   },
   {
     id: 3,

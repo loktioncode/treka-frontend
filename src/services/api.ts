@@ -600,6 +600,36 @@ export const analyticsAPI = {
       service_reference_odometer_km?: number | null;
     };
   },
+
+  /** Service-due vehicles sorted by urgency */
+  getServiceDueVehicles: async () => {
+    const response = await api.get("/analytics/logistics/service-due");
+    return response.data as Array<{
+      id: string;
+      name: string;
+      plate: string;
+      odometer_km: number;
+      last_service_km: number;
+      interval_km: number;
+      remaining_km: number | null;
+      service_status: "ok" | "due_soon" | "overdue";
+    }>;
+  },
+
+  /** Unified critical issues (telemetry + compliance) */
+  getCriticalIssues: async () => {
+    const response = await api.get("/analytics/logistics/critical-issues");
+    return response.data as {
+      issues: Array<{
+        vehicle: string;
+        vehicle_id: string;
+        issue: string;
+        severity: "high" | "medium";
+        category: "compliance" | "maintenance";
+        detail: string;
+      }>;
+    };
+  },
 };
 
 // Telemetry API endpoints
@@ -717,6 +747,37 @@ export const geofenceAPI = {
       params: { device_id: deviceId, limit },
     });
     return response.data;
+  },
+};
+
+export interface AssetGroup {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  client_id: string;
+  order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export const assetGroupAPI = {
+  list: async () => {
+    const response = await api.get("/asset-groups/");
+    return response.data as AssetGroup[];
+  },
+
+  create: async (data: { name: string; parent_id?: string; order?: number }) => {
+    const response = await api.post("/asset-groups/", data);
+    return response.data as AssetGroup;
+  },
+
+  update: async (id: string, data: { name?: string; parent_id?: string; order?: number }) => {
+    const response = await api.put(`/asset-groups/${id}`, data);
+    return response.data as AssetGroup;
+  },
+
+  delete: async (id: string) => {
+    await api.delete(`/asset-groups/${id}`);
   },
 };
 

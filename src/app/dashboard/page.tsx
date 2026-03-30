@@ -246,7 +246,7 @@ export default function Dashboard() {
     );
   }
 
-  // Logistics clients: 4 main KPI cards (Good Condition, Maintenance Due, Critical Issues, Fleet Health)
+  // Logistics clients: 4 main KPI cards (Good Condition, Maintenance Due, Critical Issues, Compliance)
   const logisticsStats =
     currentClient?.client_type === "logistics"
       ? (() => {
@@ -255,15 +255,12 @@ export default function Dashboard() {
           vehicles.length > 0
             ? vehicles.filter((v: { health?: number }) => (v.health ?? 0) >= 80).length
             : dashboardStats.assets.active;
-        const maintenanceDue =
-          dashboardStats.assets.maintenance +
-          dashboardStats.components.maintenance_due;
+        const maintenanceDue = dashboardStats.assets.maintenance;
         const criticalCount =
-          dashboardStats.components.critical +
-          (vehicles.length > 0
+          vehicles.length > 0
             ? vehicles.filter((v: { health?: number }) => (v.health ?? 0) < 50).length
-            : 0);
-        const fleetHealth =
+            : 0;
+        const complianceScore =
           fleetTelemetry?.summary?.fleet_health ??
           (vehicles.length > 0
             ? Math.round(
@@ -288,7 +285,7 @@ export default function Dashboard() {
           {
             title: "Maintenance Due",
             value: maintenanceDue.toString(),
-            description: "Assets + components within 7 days",
+            description: "Vehicles approaching service threshold",
             icon: Clock,
             color: "yellow" as const,
             trend: {
@@ -296,7 +293,7 @@ export default function Dashboard() {
               isPositive: maintenanceDue === 0,
               label: "in maintenance",
             },
-            onClick: () => router.push("/dashboard/components"),
+            onClick: () => router.push("/dashboard/maintenance"),
           },
           {
             title: "Critical Issues",
@@ -305,21 +302,21 @@ export default function Dashboard() {
             icon: AlertTriangle,
             color: "red" as const,
             trend: {
-              value: `${dashboardStats.components.critical} components`,
+              value: `${criticalCount} critical`,
               isPositive: false,
-              label: "critical components",
+              label: "needs attention",
             },
-            onClick: () => router.push("/dashboard/components"),
+            onClick: () => router.push("/dashboard/critical-issues"),
           },
           {
-            title: "Overall Fleet Health",
-            value: `${fleetHealth}%`,
-            description: "Fleet health status",
+            title: "Overall Compliance",
+            value: `${complianceScore}%`,
+            description: "Fleet compliance score",
             icon: Shield,
             color: "teal" as const,
             trend: {
-              value: fleetHealth >= 90 ? "Excellent" : fleetHealth >= 70 ? "Good" : "Needs attention",
-              isPositive: fleetHealth >= 90,
+              value: complianceScore >= 90 ? "Excellent" : complianceScore >= 70 ? "Good" : "Needs attention",
+              isPositive: complianceScore >= 90,
               label: "from telemetry",
             },
             onClick: () => router.push("/dashboard/analytics"),
@@ -378,7 +375,7 @@ export default function Dashboard() {
         isPositive: false,
         label: "critical components",
       },
-      onClick: () => router.push("/dashboard/components"),
+      onClick: () => router.push("/dashboard/critical-issues"),
     },
   ];
 
@@ -520,20 +517,7 @@ export default function Dashboard() {
               </SmartLink>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">
-                    Fleet Health
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 bg-blue-100 rounded-lg text-blue-700">
-                      <Activity className="h-4 w-4" />
-                    </div>
-                    <p className="text-2xl font-bold">
-                      {fleetTelemetry?.summary?.fleet_health || 0}%
-                    </p>
-                  </div>
-                </div>
+              <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-1">
                   <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">
                     Active Today
@@ -549,7 +533,7 @@ export default function Dashboard() {
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">
-                    Fuel Used
+                    Fuel Used (Period)
                   </p>
                   <div className="flex items-center gap-2">
                     <div className="p-2 bg-amber-100 rounded-lg text-amber-700">
@@ -564,75 +548,59 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-blue-100 shadow-sm overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-blue-50 to-white border-b border-blue-50 flex flex-row items-center justify-between space-y-0">
+          <Card className="border-red-100 shadow-sm overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-red-50 to-white border-b border-red-50 flex flex-row items-center justify-between space-y-0">
               <div>
-                <CardTitle className="text-lg font-bold text-blue-900">
-                  Live Vehicles
+                <CardTitle className="text-lg font-bold text-red-900">
+                  Traffic Violations & Risk
                 </CardTitle>
                 <CardDescription>
-                  {connectedVehicles.length} vehicles connected right now
+                  Speed events & harsh driving summary
                 </CardDescription>
               </div>
               <SmartLink
-                href="/dashboard/devices"
-                className="text-xs font-medium text-blue-600 hover:text-blue-800"
+                href="/dashboard/analytics"
+                className="text-xs font-medium text-red-600 hover:text-red-800"
               >
-                View all
+                Details
               </SmartLink>
             </CardHeader>
-            <CardContent className="p-0 max-h-[160px] overflow-y-auto">
-              <div className="divide-y">
-                {connectedVehicles.slice(0, 5).map((vehicle) => {
-                  const linked = deviceToVehicle[vehicle.device_id];
-                  const displayLabel = linked?.plate || linked?.name || "Unidentified Asset";
-                  return (
-                    <div
-                      key={vehicle.device_id}
-                      className="p-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-2 h-2 rounded-full ${getDrivingStatus(vehicle.last_record) === "moving" ? "bg-green-500 animate-pulse" :
-                              getDrivingStatus(vehicle.last_record) === "idle" ? "bg-blue-500" : "bg-gray-400"
-                            }`}
-                        />
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium">
-                            {displayLabel}
-                          </span>
-                          {linked?.plate && linked?.name && (
-                            <span className="text-xs text-gray-400">
-                              {linked.name}
-                            </span>
-                          )}
-                        </div>
+            <CardContent className="p-4 space-y-3">
+              {(() => {
+                const safetyData = fleetTelemetry?.safety_incidents || [];
+                const totalSpeeding = safetyData.reduce((a: number, d: { braking?: number }) => a + (d.braking ?? 0), 0);
+                const totalHarshAccel = safetyData.reduce((a: number, d: { accel?: number }) => a + (d.accel ?? 0), 0);
+                const totalCornering = safetyData.reduce((a: number, d: { cornering?: number }) => a + (d.cornering ?? 0), 0);
+                const totalEvents = totalSpeeding + totalHarshAccel + totalCornering;
+                const riskLevel = totalEvents > 50 ? "High" : totalEvents > 20 ? "Medium" : "Low";
+                const riskColor = totalEvents > 50 ? "text-red-600" : totalEvents > 20 ? "text-amber-600" : "text-green-600";
+                return (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500 uppercase font-bold tracking-wider">Risk Level</span>
+                      <span className={`text-sm font-bold ${riskColor}`}>{riskLevel}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="p-2 bg-red-50 rounded-lg">
+                        <p className="text-lg font-bold text-red-700">{totalSpeeding}</p>
+                        <p className="text-[10px] text-red-600 font-medium">Hard Brakes</p>
                       </div>
-                      <div className="text-right text-xs leading-tight">
-                        <p className="text-gray-500 font-bold">
-                          {vehicle.last_record.spd?.toFixed(0) || 0} km/h
-                        </p>
-                        <p className="text-amber-800 font-bold mt-0.5" title="Fuel level">
-                          {formatVehicleFuelLevel(vehicle.last_record)}
-                        </p>
+                      <div className="p-2 bg-amber-50 rounded-lg">
+                        <p className="text-lg font-bold text-amber-700">{totalHarshAccel}</p>
+                        <p className="text-[10px] text-amber-600 font-medium">Harsh Accel</p>
+                      </div>
+                      <div className="p-2 bg-orange-50 rounded-lg">
+                        <p className="text-lg font-bold text-orange-700">{totalCornering}</p>
+                        <p className="text-[10px] text-orange-600 font-medium">Hard Corners</p>
                       </div>
                     </div>
-                  );
-                })}
-                {connectedVehicles.length > 5 && (
-                  <SmartLink
-                    href="/dashboard/map"
-                    className="p-3 block text-center text-xs text-blue-600 font-bold hover:bg-blue-50"
-                  >
-                    View all {connectedVehicles.length} vehicles
-                  </SmartLink>
-                )}
-                {connectedVehicles.length === 0 && (
-                  <div className="p-8 text-center text-gray-400 text-sm">
-                    No connected vehicles right now
-                  </div>
-                )}
-              </div>
+                    <div className="flex items-center justify-between pt-1 border-t">
+                      <span className="text-xs text-gray-500">Total events</span>
+                      <span className="text-sm font-bold text-gray-900">{totalEvents}</span>
+                    </div>
+                  </>
+                );
+              })()}
             </CardContent>
           </Card>
 
@@ -735,27 +703,6 @@ export default function Dashboard() {
                     </p>
                   </div>
                   <Zap className="h-4 w-4 text-teal-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-              </SmartLink>
-
-              {/* Component Management - Available for all users */}
-              <SmartLink
-                href="/dashboard/components"
-                className="w-full p-4 text-left rounded-xl border border-green-200 bg-gradient-to-r from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 transition-all duration-200 group block"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="p-2 bg-green-500 rounded-lg group-hover:bg-green-600 transition-colors">
-                    <Wrench className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-green-900">
-                      Manage Components
-                    </p>
-                    <p className="text-sm text-green-700">
-                      View and manage system components
-                    </p>
-                  </div>
-                  <Zap className="h-4 w-4 text-green-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               </SmartLink>
 

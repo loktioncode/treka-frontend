@@ -135,12 +135,40 @@ function formatTimestamp(ts: number): string {
   return `${day}:${month}:${year} ${h}:${min}:${sec}`;
 }
 
+const ANALYTICS_SECTIONS = [
+  { id: "kpi", label: "Fleet KPIs" },
+  { id: "trends", label: "Fleet Trends" },
+  { id: "vehicle_perf", label: "Vehicle Performance" },
+] as const;
+
+const DEFAULT_VISIBLE = ANALYTICS_SECTIONS.map((s) => s.id) as string[];
+
+function loadVisibleSections(): string[] {
+  if (typeof window === "undefined") return DEFAULT_VISIBLE;
+  try {
+    const raw = localStorage.getItem("analytics_visible_sections");
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return DEFAULT_VISIBLE;
+}
+
 export default function AnalyticsPage() {
   const { user } = useAuth();
   const [stats] = useState<DashboardStats | null>(null);
   const [assets] = useState<Asset[]>([]);
   const [components] = useState<Component[]>([]);
   const [clients] = useState<Array<{ id: string; name: string }>>([]);
+
+  const [layoutEditing, setLayoutEditing] = useState(false);
+  const [visibleSections, setVisibleSections] = useState<string[]>(loadVisibleSections);
+
+  const toggleSection = (id: string) => {
+    setVisibleSections((prev) => {
+      const next = prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id];
+      if (typeof window !== "undefined") localStorage.setItem("analytics_visible_sections", JSON.stringify(next));
+      return next;
+    });
+  };
   const [loading, setLoading] = useState(true);
   const [currentClient, setCurrentClient] = useState<Client | null>(null);
   const isLogisticsClient = currentClient?.client_type === "logistics";
@@ -854,22 +882,54 @@ export default function AnalyticsPage() {
       />
       {currentClient?.client_type === "logistics" ? (
         <div className="space-y-8">
-          <FleetKPICards
-            summary={{
-              avg_score: telemetryData?.summary?.avg_driver_score || 0,
-              utilization: telemetryData?.summary?.total_vehicles
-                ? Math.round((telemetryData.summary.active_count / telemetryData.summary.total_vehicles) * 100)
-                : 0,
-              health_score: telemetryData?.summary?.fleet_health || 0,
-              total_fuel: telemetryData?.summary?.total_fuel_l || 0,
-              total_distance: 4200, // Expected from useFleetAnalytics
-              total_trips: 156 // Expected from useFleetAnalytics
-            }}
-          />
+          <div className="flex items-center justify-end">
+            <button
+              onClick={() => setLayoutEditing((p) => !p)}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border hover:bg-gray-50 transition-colors"
+            >
+              <Settings className="h-3.5 w-3.5" />
+              {layoutEditing ? "Done" : "Edit Layout"}
+            </button>
+          </div>
+
+          {layoutEditing && (
+            <div className="flex flex-wrap gap-3 p-4 rounded-xl border bg-gray-50">
+              {ANALYTICS_SECTIONS.map((s) => (
+                <label key={s.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={visibleSections.includes(s.id)}
+                    onChange={() => toggleSection(s.id)}
+                    className="rounded border-gray-300"
+                  />
+                  {s.label}
+                </label>
+              ))}
+            </div>
+          )}
+
+          {visibleSections.includes("kpi") && (
+            <FleetKPICards
+              summary={{
+                avg_score: telemetryData?.summary?.avg_driver_score || 0,
+                utilization: telemetryData?.summary?.total_vehicles
+                  ? Math.round((telemetryData.summary.active_count / telemetryData.summary.total_vehicles) * 100)
+                  : 0,
+                health_score: telemetryData?.summary?.fleet_health || 0,
+                total_fuel: telemetryData?.summary?.total_fuel_l || 0,
+                total_distance: 4200,
+                total_trips: 156
+              }}
+            />
+          )}
 
           <div className="space-y-8">
-            <FleetTrendsCharts timeSeriesData={telemetryData?.time_series || []} />
-            <VehiclePerformanceCharts vehicles={telemetryData?.vehicles || []} />
+            {visibleSections.includes("trends") && (
+              <FleetTrendsCharts timeSeriesData={telemetryData?.time_series || []} />
+            )}
+            {visibleSections.includes("vehicle_perf") && (
+              <VehiclePerformanceCharts vehicles={telemetryData?.vehicles || []} />
+            )}
           </div>
         </div>
       ) : (

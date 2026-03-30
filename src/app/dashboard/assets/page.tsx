@@ -346,6 +346,30 @@ export default function AssetsPage() {
           </span>
         );
       }
+    },
+    {
+      key: 'compliance_expiry',
+      title: 'Next Expiry',
+      render: (asset) => {
+        const disks = asset.vehicle_details?.compliance_disks;
+        if (!disks || disks.length === 0) return <span className="text-gray-400">—</span>;
+        const dates = disks
+          .map((d) => d.expiry_date ? new Date(d.expiry_date) : null)
+          .filter((d): d is Date => d !== null)
+          .sort((a, b) => a.getTime() - b.getTime());
+        if (dates.length === 0) return <span className="text-gray-400">—</span>;
+        const earliest = dates[0];
+        const daysUntil = Math.ceil((earliest.getTime() - Date.now()) / 86400000);
+        const expired = daysUntil <= 0;
+        const soon = daysUntil > 0 && daysUntil <= 30;
+        return (
+          <span className={`text-xs font-medium ${expired ? "text-red-600" : soon ? "text-amber-600" : "text-gray-600"}`}>
+            {earliest.toLocaleDateString()}
+            {expired && " (expired)"}
+            {soon && ` (${daysUntil}d)`}
+          </span>
+        );
+      }
     }
   ];
 

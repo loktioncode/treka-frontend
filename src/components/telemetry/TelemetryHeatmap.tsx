@@ -83,6 +83,23 @@ export const TelemetryHeatmap: React.FC<TelemetryHeatmapProps> = ({
         zoom: 12,
     });
     const [popupFeature, setPopupFeature] = useState<HeatmapPointRecord | null>(null);
+    const [popupPinned, setPopupPinned] = useState(false);
+
+    const formatTimestamp = useCallback((t: number) => {
+        const ts_ms = t < 1e12 ? t * 1000 : t;
+        const d = new Date(ts_ms);
+        if (Number.isFinite(d.getTime()) && d.getFullYear() > 2000) {
+            return d.toLocaleString([], {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+            });
+        }
+        return `t+${Math.floor(ts_ms / 1000)}s`;
+    }, []);
 
     const filteredData = useMemo(
         () => data.filter((d) => d.lat != null && d.lon != null && d[metric] != null && Number(d[metric]) > 0),
@@ -139,7 +156,10 @@ export const TelemetryHeatmap: React.FC<TelemetryHeatmapProps> = ({
 
     useEffect(() => {
         if (!selectedEvent || selectedEvent.lat == null || selectedEvent.lon == null) {
-            if (selectedEvent === null) setPopupFeature(null);
+            if (selectedEvent === null) {
+                setPopupFeature(null);
+                setPopupPinned(false);
+            }
             return;
         }
         const rec: HeatmapPointRecord = {
@@ -162,6 +182,7 @@ export const TelemetryHeatmap: React.FC<TelemetryHeatmapProps> = ({
             pot: selectedEvent.pot,
         };
         setPopupFeature(rec);
+        setPopupPinned(true);
         const map = mapRef.current?.getMap?.();
         if (map) {
             map.flyTo({
@@ -202,12 +223,43 @@ export const TelemetryHeatmap: React.FC<TelemetryHeatmapProps> = ({
                     hco: p.hco,
                     pot: p.pot,
                 });
+                setPopupPinned(true);
+            }
+        });
+        map.on("mousemove", "telemetry-points", (e) => {
+            const feat = e.features?.[0];
+            if (feat?.properties) {
+                const p = feat.properties as unknown as HeatmapPointRecord & { mag: number };
+                setPopupFeature({
+                    lat: p.lat,
+                    lon: p.lon,
+                    ts: p.ts,
+                    ptg: p.ptg,
+                    plg: p.plg,
+                    plag: p.plag,
+                    rpm: p.rpm,
+                    spd: p.spd,
+                    oa_g: p.oa_g,
+                    lod: p.lod,
+                    vlt: p.vlt,
+                    tmp: p.tmp,
+                    vib: p.vib,
+                    hbk: p.hbk,
+                    hac: p.hac,
+                    hco: p.hco,
+                    pot: p.pot,
+                });
+                setPopupPinned(false);
             }
         });
         map.getCanvas().style.cursor = "default";
         map.on("mouseenter", "telemetry-points", () => { map.getCanvas().style.cursor = "pointer"; });
-        map.on("mouseleave", "telemetry-points", () => { map.getCanvas().style.cursor = "default"; });
-    }, [geoJsonData.features]);
+        map.on("mouseleave", "telemetry-points", () => {
+            map.getCanvas().style.cursor = "default";
+            // On hover-only popups, clear when leaving a point (but keep pinned popups).
+            if (!popupPinned) setPopupFeature(null);
+        });
+    }, [geoJsonData.features, popupPinned]);
 
     const getHeatmapLayer = (): any => {
         let maxMag = 1;
@@ -350,6 +402,7 @@ export const TelemetryHeatmap: React.FC<TelemetryHeatmapProps> = ({
                                 offset={16}
                                 onClose={() => {
                                     setPopupFeature(null);
+                                    setPopupPinned(false);
                                     onClosePopup?.();
                                 }}
                                 closeButton
@@ -359,13 +412,7 @@ export const TelemetryHeatmap: React.FC<TelemetryHeatmapProps> = ({
                                     <div className="text-xs text-gray-500 mb-2">
                                         {displayRecord.ts != null && (
                                             <span>{(() => {
-                                                const t = displayRecord.ts ?? 0;
-                                                const ts_ms = t < 1e12 ? t * 1000 : t;
-                                                const d = new Date(ts_ms);
-                                                if (d.getFullYear() > 2000) {
-                                                    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                                                }
-                                                return `t+${Math.floor(ts_ms / 1000)}s`;
+                                                return formatTimestamp(displayRecord.ts ?? 0);
                                             })()}</span>
                                         )}
                                         {displayRecord.lat != null && displayRecord.lon != null && (

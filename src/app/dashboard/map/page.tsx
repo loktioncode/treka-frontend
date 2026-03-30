@@ -156,6 +156,18 @@ export default function FleetMapPage() {
     return plate.includes(q) || name.includes(q) || v.device_id.toLowerCase().includes(q);
   });
 
+  const lastActiveVehicles = useMemo(() => {
+    // Last 5 vehicles that sent any data (engine off still counts).
+    // Only include devices we can resolve to an asset (avoid unknown devices noise).
+    const list = vehicleList.filter((v) => deviceToVehicle[v.device_id]);
+    return [...list]
+      .sort(
+        (a, b) =>
+          new Date(b.last_update).getTime() - new Date(a.last_update).getTime(),
+      )
+      .slice(0, 5);
+  }, [vehicleList, deviceToVehicle]);
+
   const selectedVehicle = selectedVehicleId
     ? vehicleList.find((v) => v.device_id === selectedVehicleId)
     : null;
@@ -373,6 +385,60 @@ Provide a short, actionable insight for the fleet manager about this vehicle's c
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar min-w-[320px]">
+          {/* Last Active Vehicles */}
+          {lastActiveVehicles.length > 0 && (
+            <div className="p-4 border-b bg-white">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wide">
+                  Last Active Vehicles
+                </h3>
+                <span className="text-[10px] text-gray-400 font-bold">
+                  last 5 updates
+                </span>
+              </div>
+              <div className="space-y-2">
+                {lastActiveVehicles.map((v) => {
+                  const info = deviceToVehicle[v.device_id];
+                  const isOnline = vehicles[v.device_id]?.status === "online";
+                  return (
+                    <button
+                      key={`last-active-${v.device_id}`}
+                      type="button"
+                      onClick={() =>
+                        setSelectedVehicleId(
+                          selectedVehicleId === v.device_id ? null : v.device_id,
+                        )
+                      }
+                      className={`w-full text-left flex items-center justify-between gap-3 rounded-lg border px-3 py-2 transition-colors ${
+                        selectedVehicleId === v.device_id
+                          ? "border-blue-300 bg-blue-50"
+                          : "border-gray-200 bg-white hover:bg-gray-50"
+                      }`}
+                      title={v.device_id}
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-gray-900 truncate">
+                            {info?.plate || info?.name || v.device_id}
+                          </span>
+                          {isOnline && (
+                            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-green-100 text-green-700 border border-green-200">
+                              Live
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-gray-500 font-medium truncate">
+                          {lastDataFmt(v.last_update)}
+                        </div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-gray-300 shrink-0" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {filteredVehicles.length > 0 ? (
             <div className="divide-y divide-gray-100">
               {filteredVehicles.map((vehicle) => {
