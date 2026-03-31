@@ -136,13 +136,13 @@ export function TripReportModal({
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs text-gray-500">Trip Cost</label>
+                <label className="text-xs text-gray-500">Trip Cost (ZAR)</label>
                 <Input
                   type="number"
                   step="0.01"
                   value={tripCost}
                   onChange={(e) => setTripCost(e.target.value)}
-                  placeholder="Enter cost"
+                  placeholder="Enter cost in ZAR"
                 />
               </div>
               <div>

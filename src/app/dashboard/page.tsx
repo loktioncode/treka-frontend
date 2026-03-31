@@ -37,6 +37,7 @@ import { useClient } from "@/hooks/useClients";
 import { useFleetTelemetry } from "@/hooks/useLogisticsAnalytics";
 import { useMqttTracking } from "@/hooks/useMqttTracking";
 import { getDrivingStatus } from "@/lib/driving-status";
+import { formatCurrency } from "@/lib/utils";
 import { useAssets } from "@/hooks/useAssets";
 
 import { DriverScoreCard } from "@/components/dashboard/DriverScoreCard";
@@ -409,7 +410,7 @@ export default function Dashboard() {
         },
         {
           title: "Total Asset Value",
-          value: `$${dashboardStats.assets.total_value.toLocaleString()}`,
+          value: formatCurrency(dashboardStats.assets.total_value),
           description: "All assets combined",
           icon: TrendingUp,
           color: "green" as const,

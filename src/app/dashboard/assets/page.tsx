@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatCurrency } from '@/lib/utils';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PrimaryMaterial, PrimaryMaterialLabels, Condition, ConditionLabels } from '@/types/api';
 
@@ -267,7 +267,7 @@ export default function AssetsPage() {
     },
     {
       title: 'Total Value',
-      value: `$${assets.reduce((sum: number, asset: Asset) => sum + (asset.current_value || 0), 0).toLocaleString()}`,
+      value: formatCurrency(assets.reduce((sum: number, asset: Asset) => sum + (asset.current_value || 0), 0)),
       description: 'Current valuation',
       icon: DollarSign,
       color: 'purple' as const,

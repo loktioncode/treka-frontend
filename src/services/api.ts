@@ -25,6 +25,8 @@ interface ExtendedAxiosRequestConfig extends AxiosRequestConfig {
   metadata?: {
     startTime: number;
   };
+  /** When true, 404 responses are silently swallowed (no toast). */
+  _silent404?: boolean;
 }
 
 // API is running on port 8000
@@ -150,8 +152,9 @@ api.interceptors.response.use(
         errorCode: error.response?.data?.error?.code,
       });
     } else if (error.response?.status === 404) {
-      // Not found
-      toast.error("The requested resource was not found.");
+      if (!(config as ExtendedAxiosRequestConfig)?._silent404) {
+        toast.error("The requested resource was not found.");
+      }
       logger.warn("Resource not found", {
         status: 404,
         url: config?.url,
@@ -603,32 +606,40 @@ export const analyticsAPI = {
 
   /** Service-due vehicles sorted by urgency */
   getServiceDueVehicles: async () => {
-    const response = await api.get("/analytics/logistics/service-due");
-    return response.data as Array<{
-      id: string;
-      name: string;
-      plate: string;
-      odometer_km: number;
-      last_service_km: number;
-      interval_km: number;
-      remaining_km: number | null;
-      service_status: "ok" | "due_soon" | "overdue";
-    }>;
+    try {
+      const response = await api.get("/analytics/logistics/service-due", { _silent404: true } as ExtendedAxiosRequestConfig);
+      return response.data as Array<{
+        id: string;
+        name: string;
+        plate: string;
+        odometer_km: number;
+        last_service_km: number;
+        interval_km: number;
+        remaining_km: number | null;
+        service_status: "ok" | "due_soon" | "overdue";
+      }>;
+    } catch {
+      return [];
+    }
   },
 
   /** Unified critical issues (telemetry + compliance) */
   getCriticalIssues: async () => {
-    const response = await api.get("/analytics/logistics/critical-issues");
-    return response.data as {
-      issues: Array<{
-        vehicle: string;
-        vehicle_id: string;
-        issue: string;
-        severity: "high" | "medium";
-        category: "compliance" | "maintenance";
-        detail: string;
-      }>;
-    };
+    try {
+      const response = await api.get("/analytics/logistics/critical-issues", { _silent404: true } as ExtendedAxiosRequestConfig);
+      return response.data as {
+        issues: Array<{
+          vehicle: string;
+          vehicle_id: string;
+          issue: string;
+          severity: "high" | "medium";
+          category: "compliance" | "maintenance";
+          detail: string;
+        }>;
+      };
+    } catch {
+      return { issues: [] };
+    }
   },
 };
 
@@ -762,8 +773,12 @@ export interface AssetGroup {
 
 export const assetGroupAPI = {
   list: async () => {
-    const response = await api.get("/asset-groups/");
-    return response.data as AssetGroup[];
+    try {
+      const response = await api.get("/asset-groups/", { _silent404: true } as ExtendedAxiosRequestConfig);
+      return response.data as AssetGroup[];
+    } catch {
+      return [];
+    }
   },
 
   create: async (data: { name: string; parent_id?: string; order?: number }) => {

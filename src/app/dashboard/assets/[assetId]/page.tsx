@@ -55,7 +55,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
-import { formatDate, formatDateForInput } from "@/lib/utils";
+import { formatDate, formatDateForInput, formatCurrency } from "@/lib/utils";
 import { computePeriodTelemetryStats } from "@/lib/telemetry-period-stats";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1752,7 +1752,7 @@ Provide a concise, actionable insight for a fleet manager.`;
                       </label>
                       <p className="text-gray-900">
                         {asset.purchase_cost
-                          ? `$${asset.purchase_cost.toLocaleString()}`
+                          ? formatCurrency(asset.purchase_cost)
                           : "Not specified"}
                       </p>
                     </div>
