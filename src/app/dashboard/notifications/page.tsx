@@ -14,7 +14,8 @@ import {
   AlertTriangle,
   Info,
   Clock,
-  Wrench
+  Wrench,
+  MapPin
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -86,7 +87,11 @@ export default function NotificationsPage() {
     
     switch (type) {
       case 'MAINTENANCE':
+      case 'maintenance':
         return Wrench;
+      case 'geofence':
+      case 'GEOFENCE':
+        return MapPin;
       case 'email':
         return Bell;
       default:

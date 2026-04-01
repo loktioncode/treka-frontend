@@ -729,12 +729,12 @@ export const telemetryAPI = {
 
 export const geofenceAPI = {
   createGeofence: async (geofenceData: GeofenceCreate) => {
-    const response = await api.post("/geofences/", geofenceData);
+    const response = await api.post("/geofences", geofenceData);
     return response.data;
   },
 
   getGeofences: async () => {
-    const response = await api.get("/geofences/");
+    const response = await api.get("/geofences");
     return response.data;
   },
 
@@ -774,7 +774,7 @@ export interface AssetGroup {
 export const assetGroupAPI = {
   list: async () => {
     try {
-      const response = await api.get("/asset-groups/", { _silent404: true } as ExtendedAxiosRequestConfig);
+      const response = await api.get("/asset-groups", { _silent404: true } as ExtendedAxiosRequestConfig);
       return response.data as AssetGroup[];
     } catch {
       return [];
@@ -782,7 +782,7 @@ export const assetGroupAPI = {
   },
 
   create: async (data: { name: string; parent_id?: string; order?: number }) => {
-    const response = await api.post("/asset-groups/", data);
+    const response = await api.post("/asset-groups", data);
     return response.data as AssetGroup;
   },
 
