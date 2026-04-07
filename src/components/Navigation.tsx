@@ -9,7 +9,7 @@ import {
   Bars3Icon,
   XMarkIcon,
   HomeIcon,
-  CubeIcon,
+  TruckIcon,
   WrenchIcon,
   ChartBarIcon,
   UserGroupIcon,
@@ -21,7 +21,7 @@ import {
 const navigationItems = [
   { name: "Dashboard", href: "/dashboard", icon: HomeIcon, labelKey: null as string | null },
   { name: "Driver Leaderboard", href: "/dashboard/drivers/leaderboard", icon: TrophyIcon, labelKey: null },
-  { name: "Assets", href: "/dashboard/assets", icon: CubeIcon, labelKey: "asset" as const },
+  { name: "Assets", href: "/dashboard/assets", icon: TruckIcon, labelKey: "asset" as const },
   { name: "Analytics", href: "/dashboard/analytics", icon: ChartBarIcon, labelKey: null },
   { name: "Live Map", href: "/dashboard/map", icon: MapIcon, labelKey: null },
   { name: "Trip Planning", href: "/dashboard/trip-plans", icon: MapIcon, labelKey: null },

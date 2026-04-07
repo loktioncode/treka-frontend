@@ -209,8 +209,11 @@ export default function Dashboard() {
     }
   }, [user, loadDashboardStats]);
 
-  const handleRefresh = () => {
-    loadDashboardStats(true);
+  const handleRefresh = async () => {
+    await loadDashboardStats(true);
+    if (currentClient?.client_type === "logistics") {
+      await refetchFleetTelemetry();
+    }
   };
 
   if (loading) {
@@ -320,7 +323,7 @@ export default function Dashboard() {
               isPositive: complianceScore >= 90,
               label: "from telemetry",
             },
-            onClick: () => router.push("/dashboard/analytics"),
+            onClick: () => router.push("/dashboard/critical-issues?category=compliance"),
           },
         ];
       })()
@@ -560,7 +563,7 @@ export default function Dashboard() {
                 </CardDescription>
               </div>
               <SmartLink
-                href="/dashboard/analytics"
+                href="/dashboard/critical-issues?category=compliance"
                 className="text-xs font-medium text-red-600 hover:text-red-800"
               >
                 Details

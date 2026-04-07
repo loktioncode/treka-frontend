@@ -126,6 +126,7 @@ interface LiveMapProps {
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
 const JOHANNESBURG = { lat: -26.2041, lon: 28.0473 };
+const LONG_STOP_MINUTES = 30;
 
 export default function LiveMap({
   deviceId,
@@ -188,6 +189,7 @@ export default function LiveMap({
   const lastCenteredDeviceRef = useRef<string | null>(null);
   const mapRef = useRef<MapRef>(null);
   const hasFittedFleetRef = useRef(false);
+  const [mapReady, setMapReady] = useState(false);
 
   const vehicleListRef = useRef(vehicleList);
   vehicleListRef.current = vehicleList;
@@ -291,7 +293,13 @@ export default function LiveMap({
       hasFittedFleetRef.current = true;
       map.fitBounds(bbox, { padding, maxZoom: 12, duration: 600 });
     }
-  }, [deviceId, followDeviceId, vehicleList]);
+  }, [deviceId, followDeviceId, vehicleList, mapReady]);
+
+  // Refit fleet bounds when vehicle set changes (e.g. newly installed devices).
+  useEffect(() => {
+    if (deviceId || followDeviceId || !mapReady) return;
+    hasFittedFleetRef.current = false;
+  }, [deviceId, followDeviceId, mapReady, vehicleList.length]);
 
   // Historical trail from records
   const historicalTrailGeoJson = useMemo(() => {
@@ -408,6 +416,7 @@ export default function LiveMap({
           ...prev,
           latitude: record.lat!,
           longitude: lon,
+          zoom: Math.max(prev.zoom, 12),
         };
       }
       return prev;
@@ -524,6 +533,7 @@ export default function LiveMap({
       <Map
         ref={mapRef}
         {...viewState}
+        onLoad={() => setMapReady(true)}
         onMove={(evt) => setViewState(evt.viewState)}
         mapStyle="mapbox://styles/mapbox/streets-v12"
         mapboxAccessToken={MAPBOX_TOKEN}
@@ -581,11 +591,20 @@ export default function LiveMap({
             const hdg = eff.hdg ?? 0;
             if (lat == null || lon == null) return null;
             const status = getVehicleStatus(eff);
+            const driving = getDrivingStatus(eff);
+            const lastSeenMs = Date.parse(vehicle.last_update);
+            const minutesSinceLastSeen = Number.isFinite(lastSeenMs)
+              ? (Date.now() - lastSeenMs) / 60000
+              : 0;
+            const isLongStopped =
+              driving !== "moving" && minutesSinceLastSeen >= LONG_STOP_MINUTES;
             const iconBg =
               status === "serious"
                 ? "bg-red-500 border-white"
                 : status === "warning"
                   ? "bg-orange-500 border-white"
+                  : isLongStopped
+                  ? "bg-slate-500 border-white"
                   : status === "idle"
                   ? "bg-blue-500 border-white" // blue for idle (engine on)
                   : status === "off"
@@ -678,16 +697,33 @@ export default function LiveMap({
               </div>
               
               <div className="space-y-1.5">
+                {(() => {
+                  const popupLastSeenMs = Date.parse(selectedVehicle.last_update);
+                  const popupMinutesSinceLastSeen = Number.isFinite(popupLastSeenMs)
+                    ? (Date.now() - popupLastSeenMs) / 60000
+                    : 0;
+                  const popupDriving = getDrivingStatus(popupRec);
+                  const popupIsLongStopped =
+                    popupDriving !== "moving" &&
+                    popupMinutesSinceLastSeen >= LONG_STOP_MINUTES;
+                  return (
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-gray-500">Status</span>
                   <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                    getDrivingStatus(popupRec) === 'moving' ? 'bg-green-100 text-green-700' :
-                    getDrivingStatus(popupRec) === 'idle' ? 'bg-blue-100 text-blue-700' :
+                    popupDriving === 'moving' ? 'bg-green-100 text-green-700' :
+                    popupIsLongStopped ? 'bg-slate-100 text-slate-700' :
+                    popupDriving === 'idle' ? 'bg-blue-100 text-blue-700' :
                     'bg-gray-100 text-gray-600'
                   }`}>
-                    {getDrivingStatusLabel(popupRec)}
+                    {popupDriving === "moving"
+                      ? "In motion"
+                      : popupIsLongStopped
+                      ? "Long stopped"
+                      : "Just stopped"}
                   </span>
                 </div>
+                  );
+                })()}
                 
                 <div className="flex justify-between items-center text-xs text-gray-600">
                   <span>Speed</span>

@@ -3370,7 +3370,8 @@ function ComplianceDisksPanel({ asset, onUpdate }: { asset: Asset; onUpdate: () 
       const updated = [...disks];
       const entry: import("@/types/api").ComplianceDisk = {
         label: form.label.trim(),
-        expiry_date: form.expiry_date || undefined,
+        // HTML date input is YYYY-MM-DD; API expects datetime (Pydantic iso8601).
+        expiry_date: form.expiry_date ? `${form.expiry_date}T00:00:00.000Z` : undefined,
         reference_number: form.reference_number || undefined,
         notes: form.notes || undefined,
       };

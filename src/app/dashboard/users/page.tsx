@@ -67,18 +67,18 @@ const validateLicenseNumber = (licenseNumber: string, licenseType: string): { is
 
   // South African License Validation
   if (licenseType.startsWith('Code') || licenseType === 'PrDP' || licenseType === 'DDP') {
-    // SA format: 1234567890123 (13 digits)
-    if (!/^\d{13}$/.test(cleanLicense)) {
-      return { isValid: false, error: 'South African license must be 13 digits' };
+    // Accept modern alphanumeric values while still allowing legacy numeric formats.
+    if (!/^[A-Z0-9-]{5,20}$/.test(cleanLicense)) {
+      return { isValid: false, error: 'South African license must be 5-20 letters/numbers (hyphen allowed)' };
     }
     return { isValid: true, error: '' };
   }
 
   // Zimbabwean License Validation
   if (licenseType.startsWith('Class') || licenseType === 'PSV') {
-    // ZW format: ZW123456789 (ZW + 9 digits) or 123456789 (9 digits)
-    if (!/^(ZW)?\d{9}$/.test(cleanLicense)) {
-      return { isValid: false, error: 'Zimbabwean license must be 9 digits or ZW + 9 digits' };
+    // Accept both legacy numeric and newer alpha-numeric formats.
+    if (!/^[A-Z0-9-]{5,20}$/.test(cleanLicense)) {
+      return { isValid: false, error: 'Zimbabwean license must be 5-20 letters/numbers (hyphen allowed)' };
     }
     return { isValid: true, error: '' };
   }

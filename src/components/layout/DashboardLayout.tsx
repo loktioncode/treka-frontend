@@ -8,7 +8,7 @@ import {
   Shield,
   Users,
   Building2,
-  Package,
+  Car,
   Bell,
   Menu,
   X,
@@ -33,7 +33,7 @@ import { useRoutePrefetch } from '@/hooks/useRoutePrefetch';
 import { useClientLabels } from '@/hooks/useClientLabels';
 import { Tooltip } from '@/components/ui/tooltip';
 import { getCurrencySymbol } from '@/lib/utils';
-import { DollarSign } from 'lucide-react';
+import { Coins } from 'lucide-react';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -65,7 +65,7 @@ const navigation: NavigationItem[] = [
   {
     name: 'Assets',
     href: '/dashboard/assets',
-    icon: Package,
+    icon: Car,
     roles: ['admin', 'user']
   },
   {
@@ -284,7 +284,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   onClick={() => router.push('/dashboard/profile')}
                   className="flex items-center gap-x-1 px-2 py-1 rounded-md bg-teal-50 border border-teal-200 text-teal-700 hover:bg-teal-100 hover:border-teal-300 transition-all duration-200 cursor-pointer group"
                 >
-                  <DollarSign className="h-3 w-3 text-teal-600 group-hover:text-teal-800" />
+                  <Coins className="h-3 w-3 text-teal-600 group-hover:text-teal-800" />
                   <span className="text-xs font-medium group-hover:text-teal-800">
                     {getCurrencySymbol('ZAR')}
                   </span>
