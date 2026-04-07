@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { MultiSearchableSelect } from "@/components/ui/multi-searchable-select";
 import Map, { Marker, Source, Layer, NavigationControl } from "react-map-gl/mapbox";
-import type { CircleLayer, FillLayer, LineLayer } from "react-map-gl/mapbox";
+import type { LayerProps } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
   ShieldCheck,
@@ -97,19 +97,19 @@ function generatePolygonGeoJSON(vertices: GeofencePoint[], color: string) {
   };
 }
 
-const fillLayer: FillLayer = {
+const fillLayer: LayerProps = {
   id: "geofence-fill",
   type: "fill",
   paint: { "fill-color": ["get", "color"], "fill-opacity": 0.15 },
 };
 
-const lineLayer: LineLayer = {
+const lineLayer: LayerProps = {
   id: "geofence-line",
   type: "line",
   paint: { "line-color": ["get", "color"], "line-width": 2, "line-dasharray": [2, 2] },
 };
 
-const vertexLayer: CircleLayer = {
+const vertexLayer: LayerProps = {
   id: "geofence-vertices",
   type: "circle",
   paint: {
